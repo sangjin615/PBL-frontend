@@ -1,0 +1,23 @@
+@import './generated-tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-background: 255 255 255; /* rgb */
+  --color-foreground: 17 24 39;    /* rgb */
+  --color-primary: 59 130 246;      /* blue-500 */
+  --color-muted: 107 114 128;       /* gray-500 */
+}
+
+@layer base {
+  html { @apply antialiased; }
+  body { @apply bg-background text-foreground; }
+}
+
+@layer utilities {
+  .bg-background { background-color: rgb(var(--color-background)); }
+  .text-foreground { color: rgb(var(--color-foreground)); }
+  .text-muted { color: rgb(var(--color-muted)); }
+  .bg-primary { background-color: rgb(var(--color-primary)); }
+}

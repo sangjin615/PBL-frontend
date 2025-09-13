@@ -1,0 +1,8 @@
+:root {
+  /* placeholder; will be overwritten by figma mapping */
+  --figma-color-1: 59 130 246;
+}
+
+@layer utilities {
+  .bg-figma-1 { background-color: rgb(var(--figma-color-1)); }
+}

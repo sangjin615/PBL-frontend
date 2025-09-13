@@ -1,0 +1,31 @@
+{
+  "name": "figma-vue",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "figma:pull": "tsx scripts/fetch-figma.ts",
+    "figma:map": "tsx scripts/map-figma.ts"
+  },
+  "dependencies": {
+    "pinia": "^2.2.4",
+    "vue": "^3.5.8",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.11.1",
+    "eslint-plugin-vue": "^9.28.0",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}
