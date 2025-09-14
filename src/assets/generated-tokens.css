@@ -1,8 +1,53 @@
 :root {
-  /* placeholder; will be overwritten by figma mapping */
-  --figma-color-1: 59 130 246;
+  --figma-color-1: 255 255 255;
+  --figma-color-2: 33 39 42;
+  --figma-color-3: 0 0 0;
+  --figma-color-4: 221 225 230;
+  --figma-color-5: 105 112 119;
+  --figma-color-6: 15 98 254;
+  --figma-color-7: 242 244 248;
+  --figma-color-8: 0 29 108;
+  --figma-color-9: 193 199 205;
+  --figma-color-10: 245 245 245;
+  --figma-color-11: 162 169 176;
+  --figma-color-12: 30 30 30;
+  --figma-color-13: 77 83 88;
+  --figma-color-14: 235 235 235;
+  --figma-color-15: 18 22 25;
+  --figma-color-16: 142 142 142;
+  --figma-color-17: 218 30 40;
+  --figma-color-18: 44 44 44;
+  --figma-color-19: 117 117 117;
+  --figma-color-20: 217 217 217;
+  --figma-color-21: 219 219 219;
+  --figma-color-22: 48 48 48;
+  --figma-color-23: 231 234 236;
+  --figma-color-24: 255 0 0;
 }
 
 @layer utilities {
   .bg-figma-1 { background-color: rgb(var(--figma-color-1)); }
+  .bg-figma-2 { background-color: rgb(var(--figma-color-2)); }
+  .bg-figma-3 { background-color: rgb(var(--figma-color-3)); }
+  .bg-figma-4 { background-color: rgb(var(--figma-color-4)); }
+  .bg-figma-5 { background-color: rgb(var(--figma-color-5)); }
+  .bg-figma-6 { background-color: rgb(var(--figma-color-6)); }
+  .bg-figma-7 { background-color: rgb(var(--figma-color-7)); }
+  .bg-figma-8 { background-color: rgb(var(--figma-color-8)); }
+  .bg-figma-9 { background-color: rgb(var(--figma-color-9)); }
+  .bg-figma-10 { background-color: rgb(var(--figma-color-10)); }
+  .bg-figma-11 { background-color: rgb(var(--figma-color-11)); }
+  .bg-figma-12 { background-color: rgb(var(--figma-color-12)); }
+  .bg-figma-13 { background-color: rgb(var(--figma-color-13)); }
+  .bg-figma-14 { background-color: rgb(var(--figma-color-14)); }
+  .bg-figma-15 { background-color: rgb(var(--figma-color-15)); }
+  .bg-figma-16 { background-color: rgb(var(--figma-color-16)); }
+  .bg-figma-17 { background-color: rgb(var(--figma-color-17)); }
+  .bg-figma-18 { background-color: rgb(var(--figma-color-18)); }
+  .bg-figma-19 { background-color: rgb(var(--figma-color-19)); }
+  .bg-figma-20 { background-color: rgb(var(--figma-color-20)); }
+  .bg-figma-21 { background-color: rgb(var(--figma-color-21)); }
+  .bg-figma-22 { background-color: rgb(var(--figma-color-22)); }
+  .bg-figma-23 { background-color: rgb(var(--figma-color-23)); }
+  .bg-figma-24 { background-color: rgb(var(--figma-color-24)); }
 }

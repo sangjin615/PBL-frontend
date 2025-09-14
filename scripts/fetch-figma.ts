@@ -49,7 +49,7 @@ async function main() {
   const outDir = path.resolve(process.cwd(), 'figma-data');
   fs.mkdirSync(outDir, { recursive: true });
 
-  const nodesUrl = `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths&version=current`;
+  const nodesUrl = `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`;
   const stylesUrl = `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/styles`;
 
   console.log('Fetching nodes...');
