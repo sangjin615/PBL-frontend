@@ -16,6 +16,7 @@ export const courses: Course[] = [
     difficulty: '초급',
     description: '알고리즘 기초 개념을 예제로 익히고 실습 문제로 다집니다.',
     createdAt: '2025-09-01',
+    type: 'curriculum',
   },
   {
     id: 'course_2',
@@ -32,6 +33,7 @@ export const courses: Course[] = [
     difficulty: '입문',
     description: 'HTML과 CSS로 반응형 레이아웃을 구현합니다.',
     createdAt: '2025-08-22',
+    type: 'curriculum',
   },
   {
     id: 'course_3',
@@ -47,6 +49,7 @@ export const courses: Course[] = [
     difficulty: '초급',
     description: '파이썬 핵심 자료구조와 알고리즘 기본.',
     createdAt: '2025-07-05',
+    type: 'curriculum',
   },
   {
     id: 'course_4',
@@ -62,6 +65,7 @@ export const courses: Course[] = [
     difficulty: '입문',
     description: 'Unity로 간단한 게임을 만들며 핵심 개념을 배웁니다.',
     createdAt: '2025-05-18',
+    type: 'curriculum',
   },
   {
     id: 'course_5',
@@ -77,6 +81,7 @@ export const courses: Course[] = [
     difficulty: '초급',
     description: '실무 예제로 익히는 SQL 쿼리 작성.',
     createdAt: '2025-04-10',
+    type: 'curriculum',
   },
   {
     id: 'course_6',
@@ -92,5 +97,6 @@ export const courses: Course[] = [
     difficulty: '입문',
     description: 'AI 기본 개념과 사례 소개.',
     createdAt: '2025-03-03',
+    type: 'curriculum',
   },
 ];

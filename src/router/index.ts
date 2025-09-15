@@ -31,6 +31,16 @@ const routes: RouteRecordRaw[] = [
     name: 'course-overview',
     component: () => import('../views/CourseOverviewView.vue'),
   },
+  {
+    path: '/curriculum/:id',
+    name: 'curriculum-overview',
+    component: () => import('../views/CurriculumOverviewView.vue'),
+  },
+  {
+    path: '/curriculum/:id/learn',
+    name: 'curriculum-detail',
+    component: () => import('../views/CurriculumDetailView.vue'),
+  },
 ];
 
 const router = createRouter({

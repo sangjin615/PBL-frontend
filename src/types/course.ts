@@ -14,4 +14,5 @@ export interface Course {
   difficulty?: '입문' | '초급' | '중급' | '고급';
   description?: string;
   createdAt: string; // ISO date
+  type?: 'course' | 'curriculum'; // 강의 또는 커리큘럼
 }

@@ -61,6 +61,11 @@ function toggleBookmark() {
 }
 
 function onClick() {
-  router.push({ name: 'course-overview', params: { id: props.course.id } });
+  // 커리큘럼인지 강의인지 구분하여 라우팅
+  if (props.course.type === 'curriculum') {
+    router.push({ name: 'curriculum-overview', params: { id: props.course.id } });
+  } else {
+    router.push({ name: 'course-overview', params: { id: props.course.id } });
+  }
 }
 </script>
