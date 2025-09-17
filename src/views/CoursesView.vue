@@ -326,11 +326,11 @@ const filteredCourses = computed(() => {
 function goToCourse(courseId: string) {
   const course = enrolledCourses.value.find(c => c.id === courseId);
   if (course?.type === 'curriculum') {
-    // 커리큘럼인 경우 바로 학습 페이지로 이동
+    // 커리큘럼인 경우 커리큘럼 상세 페이지로 이동
     router.push({ name: 'curriculum-detail', params: { id: courseId } });
   } else {
-    // 개별 강의인 경우 강의 상세 페이지로 이동
-    router.push({ name: 'course-overview', params: { id: courseId } });
+    // 개별 강의인 경우 학습 페이지로 이동
+    router.push({ name: 'learning', params: { lessonId: courseId } });
   }
 }
 </script>

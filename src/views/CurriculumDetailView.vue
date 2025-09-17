@@ -611,9 +611,9 @@ const curriculum = computed(() => {
 
 // 강의로 이동
 function goToCourse(courseId: number) {
-  // 실제로는 개별 강의 페이지로 이동
-  console.log('강의로 이동:', courseId);
-  // router.push({ name: 'course-detail', params: { id: courseId } });
+  // 학습 페이지로 이동
+  console.log('학습 페이지로 이동:', courseId);
+  router.push({ name: 'learning', params: { lessonId: courseId } });
 }
 
 onMounted(() => {

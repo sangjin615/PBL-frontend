@@ -41,6 +41,11 @@ const routes: RouteRecordRaw[] = [
     name: 'curriculum-detail',
     component: () => import('../views/CurriculumDetailView.vue'),
   },
+  {
+    path: '/learn/:lessonId',
+    name: 'learning',
+    component: () => import('../views/LearningView.vue'),
+  },
 ];
 
 const router = createRouter({
