@@ -263,6 +263,13 @@ const curriculumData = {
       },
       {
         id: 5,
+        title: 'A + B 문제 풀이',
+        format: '문제',
+        date: '2025.12.16',
+        isActive: false
+      },
+      {
+        id: 6,
         title: '삽입 정렬과 병합 정렬',
         format: '마크다운',
         date: '2025.12.16',
@@ -339,6 +346,13 @@ const curriculumData = {
       },
       {
         id: 5,
+        title: 'HTML 구조 문제',
+        format: '문제',
+        date: '2025.12.16',
+        isActive: false
+      },
+      {
+        id: 6,
         title: '박스 모델과 포지셔닝',
         format: '마크다운',
         date: '2025.12.16',
@@ -401,6 +415,13 @@ const curriculumData = {
       },
       {
         id: 5,
+        title: '리스트 정렬 문제',
+        format: '문제',
+        date: '2025.12.16',
+        isActive: false
+      },
+      {
+        id: 6,
         title: '큐 구현',
         format: '마크다운',
         date: '2025.12.16',
@@ -611,9 +632,20 @@ const curriculum = computed(() => {
 
 // 강의로 이동
 function goToCourse(courseId: number) {
-  // 학습 페이지로 이동
-  console.log('학습 페이지로 이동:', courseId);
-  router.push({ name: 'learning', params: { lessonId: courseId } });
+  // 현재 커리큘럼에서 해당 강의 찾기
+  const course = currentCurriculum.value?.courses.find(c => c.id === courseId);
+  
+  if (course) {
+    if (course.format === '문제') {
+      // 문제 형식인 경우 문제 페이지로 이동
+      console.log('문제 페이지로 이동:', courseId);
+      router.push({ name: 'problem', params: { problemId: courseId } });
+    } else {
+      // 마크다운 형식인 경우 학습 페이지로 이동
+      console.log('학습 페이지로 이동:', courseId);
+      router.push({ name: 'learning', params: { lessonId: courseId } });
+    }
+  }
 }
 
 onMounted(() => {
