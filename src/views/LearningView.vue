@@ -133,30 +133,28 @@
 
         <!-- 코드 에디터 -->
         <div class="flex-1 p-4">
-          <textarea
+          <MonacoEditor
             v-model="code"
-            class="w-full h-full p-4 border rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :language="selectedLanguage"
+            theme="vs-dark"
+            :options="editorOptions"
+            class="w-full h-full border rounded-lg"
             style="border-color: rgb(var(--figma-color-4))"
-            placeholder="여기에 코드를 작성하세요..."
-          ></textarea>
+          />
         </div>
 
-        <!-- 실행 결과 -->
+        <!-- 실행 결과 터미널 -->
         <div class="border-t bg-gray-50" style="border-color: rgb(var(--figma-color-4))">
           <div class="px-4 py-2 border-b" style="border-color: rgb(var(--figma-color-4))">
             <h4 class="font-semibold text-sm" style="color: rgb(var(--figma-color-2))">실행 결과</h4>
           </div>
-          <div class="p-4 h-32 overflow-y-auto">
-            <div v-if="!executionResult && !isRunning" class="text-gray-500 text-sm">
-              코드를 실행하면 결과가 여기에 표시됩니다.
-            </div>
-            <div v-else-if="isRunning" class="flex items-center space-x-2 text-blue-600">
-              <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-              </svg>
-              <span>코드를 실행하고 있습니다...</span>
-            </div>
-            <div v-else class="font-mono text-sm whitespace-pre-wrap">{{ executionResult }}</div>
+          <div class="h-64">
+            <Terminal
+              :output="executionResult"
+              :is-running="isRunning"
+              :language="selectedLanguage"
+              ref="terminalRef"
+            />
           </div>
         </div>
       </div>
@@ -167,6 +165,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import MonacoEditor from '../components/editor/MonacoEditor.vue';
+import Terminal from '../components/terminal/Terminal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -178,6 +178,24 @@ const executionResult = ref('');
 const code = ref('');
 const selectedLanguage = ref('python');
 const currentChapter = ref({});
+const terminalRef = ref();
+
+// Monaco Editor 옵션
+const editorOptions = ref({
+  theme: 'vs-dark',
+  fontSize: 14,
+  minimap: { enabled: false },
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  wordWrap: 'on',
+  lineNumbers: 'on',
+  folding: true,
+  selectOnLineNumbers: true,
+  roundedSelection: false,
+  readOnly: false,
+  cursorStyle: 'line',
+  automaticLayout: true,
+});
 
 // 강의 데이터
 const lessonData = ref({
@@ -266,7 +284,9 @@ function copyCode(codeText: string) {
 
 async function runCode() {
   if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.';
+    if (terminalRef.value) {
+      terminalRef.value.showError('실행할 코드가 없습니다.');
+    }
     return;
   }
 
@@ -276,17 +296,27 @@ async function runCode() {
   try {
     // 실제 환경에서는 서버로 코드를 전송하여 실행
     // 여기서는 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     // 간단한 Python 코드 실행 시뮬레이션
     if (selectedLanguage.value === 'python') {
       if (code.value.includes('print')) {
-        executionResult.value = 'Hello, World!\n[1, 2, 3, 4, 5]\n정렬 완료!';
+        if (code.value.includes('bubble_sort')) {
+          executionResult.value = '정렬 전: [64, 34, 25, 12, 22, 11, 90]\n정렬 후: [11, 12, 22, 25, 34, 64, 90]';
+        } else {
+          executionResult.value = 'Hello, World!\n[1, 2, 3, 4, 5]\n정렬 완료!';
+        }
       } else if (code.value.includes('bubble_sort')) {
         executionResult.value = '[11, 12, 22, 25, 34, 64, 90]\n정렬이 완료되었습니다.';
       } else {
         executionResult.value = '코드가 성공적으로 실행되었습니다.\n(실제 환경에서는 서버에서 실행됩니다)';
       }
+    } else if (selectedLanguage.value === 'javascript') {
+      executionResult.value = 'Hello from JavaScript!\nundefined';
+    } else if (selectedLanguage.value === 'java') {
+      executionResult.value = 'Hello from Java!\nProcess finished with exit code 0';
+    } else if (selectedLanguage.value === 'cpp') {
+      executionResult.value = 'Hello from C++!\n';
     } else {
       executionResult.value = `${selectedLanguage.value} 코드가 실행되었습니다.\n(실제 환경에서는 서버에서 실행됩니다)`;
     }

@@ -3,8 +3,10 @@
     <!-- 헤더 섹션 -->
     <div class="bg-figma-1 border-b" style="border-color: rgb(var(--figma-color-4))">
       <div class="px-6 py-6">
-        <h1 class="text-2xl font-bold" style="color: rgb(var(--figma-color-2))">수강 목록</h1>
-        <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">내가 수강 중인 강의들을 확인하세요</p>
+        <div>
+          <h1 class="text-2xl font-bold" style="color: rgb(var(--figma-color-2))">수강 목록</h1>
+          <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">내가 수강 중인 강의들을 확인하세요</p>
+        </div>
       </div>
     </div>
 

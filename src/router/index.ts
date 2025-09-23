@@ -61,6 +61,31 @@ const routes: RouteRecordRaw[] = [
     name: 'problem-result',
     component: () => import('../views/ProblemResultView.vue'),
   },
+  {
+    path: '/instructor/dashboard',
+    name: 'instructor-dashboard',
+    component: () => import('../views/InstructorDashboardView.vue'),
+  },
+  {
+    path: '/instructor/create-course',
+    name: 'instructor-create-course',
+    component: () => import('../views/InstructorCreateCourseView.vue'),
+  },
+  {
+    path: '/instructor/create-markdown',
+    name: 'instructor-create-markdown',
+    component: () => import('../views/InstructorCreateMarkdownView.vue'),
+  },
+  {
+    path: '/instructor/create-problem',
+    name: 'instructor-create-problem',
+    component: () => import('../views/InstructorCreateProblemView.vue'),
+  },
+  {
+    path: '/instructor/create-video',
+    name: 'instructor-create-video',
+    component: () => import('../views/InstructorCreateVideoView.vue'),
+  },
 ];
 
 const router = createRouter({

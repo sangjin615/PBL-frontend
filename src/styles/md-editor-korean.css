@@ -1,0 +1,488 @@
+/* md-editor-v3 한국어 강제 적용 */
+
+/* 글자 수 표시 */
+.md-editor .md-editor-footer .md-editor-word-count,
+.md-editor .md-editor-footer .md-editor-character-count {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* 글자 수 텍스트 강제 변경 */
+.md-editor .md-editor-footer .md-editor-word-count::before {
+  content: "글자 수: " !important;
+}
+
+/* 동기화 스크롤 텍스트 강제 변경 */
+.md-editor .md-editor-footer .md-editor-sync-scroll::before {
+  content: "동기화 스크롤" !important;
+}
+
+/* mermaid 드롭다운 메뉴 한국어 적용 */
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="mermaid"]::after {
+  content: "다이어그램" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="flowchart"]::after {
+  content: "플로우차트" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="sequence"]::after {
+  content: "시퀀스 다이어그램" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="gantt"]::after {
+  content: "간트 차트" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="class"]::after {
+  content: "클래스 다이어그램" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="state"]::after {
+  content: "상태 다이어그램" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="pie"]::after {
+  content: "파이 차트" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="relationship"]::after {
+  content: "관계 다이어그램" !important;
+}
+
+.md-editor .md-editor-toolbar .md-editor-dropdown-item[data-type="journey"]::after {
+  content: "여정 맵" !important;
+}
+
+/* 툴바 버튼 툴팁 한국어 적용 */
+.md-editor .md-editor-toolbar button[title*="下标"]::after {
+  content: "아래 첨자" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="上标"]::after {
+  content: "위 첨자" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="粗体"]::after {
+  content: "굵게" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="斜体"]::after {
+  content: "기울임꼴" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="下划线"]::after {
+  content: "밑줄" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="删除线"]::after {
+  content: "취소선" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="引用"]::after {
+  content: "인용" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="无序列表"]::after {
+  content: "순서 없는 목록" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="有序列表"]::after {
+  content: "순서 있는 목록" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="任务列表"]::after {
+  content: "할 일 목록" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="行内代码"]::after {
+  content: "인라인 코드" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="代码块"]::after {
+  content: "코드 블록" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="链接"]::after {
+  content: "링크" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="图片"]::after {
+  content: "이미지" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="表格"]::after {
+  content: "표" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="撤销"]::after {
+  content: "실행 취소" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="重做"]::after {
+  content: "다시 실행" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="保存"]::after {
+  content: "저장" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="全屏"]::after {
+  content: "전체 화면" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="预览"]::after {
+  content: "미리보기" !important;
+}
+
+.md-editor .md-editor-toolbar button[title*="HTML预览"]::after {
+  content: "HTML 미리보기" !important;
+}
+
+/* "后退" 툴팁 처리 */
+.md-editor .md-editor-toolbar button[title*="后退"]::after {
+  content: "실행 취소" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button[title*="后退"]:hover::after {
+  opacity: 1;
+}
+
+/* "屏幕 전체 화면" 툴팁 처리 */
+.md-editor .md-editor-toolbar button[title*="屏幕 전체 화면"]::after {
+  content: "전체 화면" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button[title*="屏幕 전체 화면"]:hover::after {
+  opacity: 1;
+}
+
+/* 이미지 드롭다운 메뉴 항목들 한국어 적용 */
+.md-editor .md-editor-dropdown-item[data-type="addLink"]::after {
+  content: "링크 추가" !important;
+}
+
+.md-editor .md-editor-dropdown-item[data-type="uploadImage"]::after {
+  content: "이미지 업로드" !important;
+}
+
+.md-editor .md-editor-dropdown-item[data-type="cropUpload"]::after {
+  content: "크롭 업로드" !important;
+}
+
+/* 모든 드롭다운 메뉴 항목 중국어 숨기기 */
+.md-editor .md-editor-dropdown-item {
+  position: relative;
+}
+
+/* 중국어+한국어 혼합 텍스트 숨기기 */
+.md-editor .md-editor-dropdown-item:contains("添加링크") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor .md-editor-dropdown-item:contains("上传이미지") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+/* 순수 중국어 텍스트 숨기기 */
+.md-editor .md-editor-dropdown-item:contains("添加链接") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor .md-editor-dropdown-item:contains("上传图片") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor .md-editor-dropdown-item:contains("裁剪上传") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor .md-editor-dropdown-item:contains("行内公式") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor .md-editor-dropdown-item:contains("块级公式") {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+/* 드롭다운 메뉴 항목들 한국어 강제 표시 */
+/* 중국어+한국어 혼합 텍스트 처리 */
+.md-editor .md-editor-dropdown-item:contains("添加링크")::after {
+  content: "링크 추가" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+.md-editor .md-editor-dropdown-item:contains("上传이미지")::after {
+  content: "이미지 업로드" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+/* 순수 중국어 텍스트 처리 */
+.md-editor .md-editor-dropdown-item:contains("添加链接")::after {
+  content: "링크 추가" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+.md-editor .md-editor-dropdown-item:contains("上传图片")::after {
+  content: "이미지 업로드" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+.md-editor .md-editor-dropdown-item:contains("裁剪上传")::after {
+  content: "크롭 업로드" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+.md-editor .md-editor-dropdown-item:contains("行内公式")::after {
+  content: "인라인 수식" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+.md-editor .md-editor-dropdown-item:contains("块级公式")::after {
+  content: "블록 수식" !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: #333 !important;
+  font-size: 14px !important;
+  background: white;
+}
+
+/* 1, 14, 18, 22번 항목 특화 해결 */
+/* 1번 항목 - 굵게 버튼 */
+.md-editor .md-editor-toolbar button:nth-child(1) {
+  position: relative;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(1)::after {
+  content: "굵게" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(1):hover::after {
+  opacity: 1;
+}
+
+/* 14번 항목 - 이미지 버튼 */
+.md-editor .md-editor-toolbar button:nth-child(14) {
+  position: relative;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(14)::after {
+  content: "이미지" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(14):hover::after {
+  opacity: 1;
+}
+
+/* 18번 항목 - katex 수학식 버튼 */
+.md-editor .md-editor-toolbar button:nth-child(18) {
+  position: relative;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(18)::after {
+  content: "수학식" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(18):hover::after {
+  opacity: 1;
+}
+
+/* 22번 항목 - 저장 버튼 */
+.md-editor .md-editor-toolbar button:nth-child(22) {
+  position: relative;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(22)::after {
+  content: "저장" !important;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.md-editor .md-editor-toolbar button:nth-child(22):hover::after {
+  opacity: 1;
+}
+
+/* 중국어 텍스트 강제 숨기기 */
+.md-editor [title*="가굵"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor [title*="前进"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor [title*="浏览器全屏"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor [title*="html代码미리보기"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor [title*="块级代码"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.md-editor [title*="块级公式"] {
+  color: transparent !important;
+  font-size: 0 !important;
+}

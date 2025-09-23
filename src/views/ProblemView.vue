@@ -108,21 +108,27 @@
 
         <!-- 코드 에디터 -->
         <div class="flex-1 p-4">
-          <textarea
+          <MonacoEditor
             v-model="code"
-            class="w-full h-full font-mono text-sm border rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            :placeholder="getCodeTemplate()"
-          ></textarea>
+            :language="selectedLanguage"
+            theme="vs-dark"
+            :options="editorOptions"
+            class="w-full h-full border rounded-lg"
+          />
         </div>
 
-        <!-- 실행 결과 -->
+        <!-- 실행 결과 터미널 -->
         <div class="bg-white border-t">
           <div class="px-4 py-3 border-b">
             <h3 class="font-medium">실행결과</h3>
           </div>
-          <div class="p-4 min-h-[120px]">
-            <pre v-if="executionResult" class="text-sm whitespace-pre-wrap">{{ executionResult }}</pre>
-            <p v-else class="text-gray-500 text-sm">코드를 실행하면 결과가 여기에 표시됩니다.</p>
+          <div class="h-48">
+            <Terminal
+              :output="executionResult"
+              :is-running="isRunning"
+              :language="selectedLanguage"
+              ref="terminalRef"
+            />
           </div>
         </div>
       </div>
@@ -153,6 +159,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MonacoEditor from '../components/editor/MonacoEditor.vue'
+import Terminal from '../components/terminal/Terminal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,22 +187,79 @@ const problem = ref({
 const selectedLanguage = ref('python')
 const code = ref('')
 const executionResult = ref('')
+const isRunning = ref(false)
+const terminalRef = ref()
+
+// Monaco Editor 옵션
+const editorOptions = ref({
+  theme: 'vs-dark',
+  fontSize: 14,
+  minimap: { enabled: false },
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  wordWrap: 'on',
+  lineNumbers: 'on',
+  folding: true,
+  selectOnLineNumbers: true,
+  roundedSelection: false,
+  readOnly: false,
+  cursorStyle: 'line',
+  automaticLayout: true,
+})
 
 // 언어별 코드 템플릿
-function getCodeTemplate() {
-  const templates = {
-    python: '# Python 코드를 작성하세요\na, b = map(int, input().split())\nprint(a + b)',
-    javascript: '// JavaScript 코드를 작성하세요\nconst readline = require("readline");\n// 코드 작성',
-    java: '// Java 코드를 작성하세요\nimport java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        // 코드 작성\n    }\n}',
-    cpp: '// C++ 코드를 작성하세요\n#include <iostream>\nusing namespace std;\nint main() {\n    // 코드 작성\n    return 0;\n}'
+const codeTemplates = {
+  python: '# Python 코드를 작성하세요\na, b = map(int, input().split())\nprint(a + b)',
+  javascript: '// JavaScript 코드를 작성하세요\nconst readline = require("readline");\n// 코드 작성',
+  java: '// Java 코드를 작성하세요\nimport java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        // 코드 작성\n    }\n}',
+  cpp: '// C++ 코드를 작성하세요\n#include <iostream>\nusing namespace std;\nint main() {\n    // 코드 작성\n    return 0;\n}'
+}
+
+// 언어 변경 시 코드 템플릿 설정
+function setCodeTemplate() {
+  if (!code.value.trim()) {
+    code.value = codeTemplates[selectedLanguage.value as keyof typeof codeTemplates]
   }
-  return templates[selectedLanguage.value as keyof typeof templates]
 }
 
 // 코드 실행
-function runCode() {
-  // 실제로는 백엔드 API를 호출해야 함
-  executionResult.value = '실행 결과가 여기에 표시됩니다.\n코드 실행 기능은 백엔드와 연동이 필요합니다.'
+async function runCode() {
+  if (!code.value.trim()) {
+    if (terminalRef.value) {
+      terminalRef.value.showError('실행할 코드가 없습니다.');
+    }
+    return;
+  }
+
+  isRunning.value = true;
+  executionResult.value = '';
+
+  try {
+    // 실제 환경에서는 백엔드 API를 호출해야 함
+    // 여기서는 시뮬레이션
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 문제에 맞는 실행 결과 시뮬레이션
+    if (selectedLanguage.value === 'python') {
+      if (code.value.includes('a + b') || code.value.includes('a+b')) {
+        executionResult.value = '2\n5\n7\n17\n7';
+      } else {
+        executionResult.value = '실행 결과가 여기에 표시됩니다.\n코드 실행 기능은 백엔드와 연동이 필요합니다.';
+      }
+    } else if (selectedLanguage.value === 'javascript') {
+      executionResult.value = '2\n5\n7\n17\n7';
+    } else if (selectedLanguage.value === 'java') {
+      executionResult.value = '2\n5\n7\n17\n7';
+    } else if (selectedLanguage.value === 'cpp') {
+      executionResult.value = '2\n5\n7\n17\n7';
+    } else {
+      executionResult.value = '실행 결과가 여기에 표시됩니다.\n코드 실행 기능은 백엔드와 연동이 필요합니다.';
+    }
+  } catch (error) {
+    executionResult.value = `실행 오류: ${error}`;
+  } finally {
+    isRunning.value = false;
+  }
 }
 
 // 코드 제출
@@ -212,6 +277,6 @@ function goBack() {
 
 // 컴포넌트 마운트 시 코드 템플릿 설정
 onMounted(() => {
-  code.value = getCodeTemplate()
+  setCodeTemplate()
 })
 </script>

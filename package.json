@@ -11,6 +11,9 @@
     "figma:map": "tsx scripts/map-figma.ts"
   },
   "dependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "md-editor-v3": "^6.0.1",
+    "monaco-editor": "^0.53.0",
     "pinia": "^2.2.4",
     "vue": "^3.5.8",
     "vue-router": "^4.4.5"
