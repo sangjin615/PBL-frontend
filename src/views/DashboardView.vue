@@ -99,9 +99,11 @@
               class="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium"
               :class="item.type === 'curriculum' 
                 ? 'bg-blue-100 text-blue-800' 
+                : (item as any).format === '문제'
+                ? 'bg-red-100 text-red-800'
                 : 'bg-green-100 text-green-800'"
             >
-              {{ item.type === 'curriculum' ? '커리큘럼' : '강의물' }}
+              {{ item.type === 'curriculum' ? '커리큘럼' : (item as any).format || '강의물' }}
             </div>
           </div>
           
@@ -119,7 +121,7 @@
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                   </svg>
-                  {{ item.courseCount }}개 강의
+                  {{ (item as any).courseCount || 0 }}개 강의
                 </div>
                 <div class="flex items-center text-sm text-gray-600">
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 // 사용자 정보
 const userInfo = ref({
@@ -259,7 +261,8 @@ const materials = ref([
     thumbnailColor: '#F5F5F5',
     type: 'material',
     duration: '3시간 30분',
-    tags: ['#HTML5', '#웹개발', '#기초']
+    tags: ['#HTML5', '#웹개발', '#기초'],
+    format: '마크다운'
   },
   {
     id: 6,
@@ -269,7 +272,8 @@ const materials = ref([
     thumbnailColor: '#F5F5F5',
     type: 'material',
     duration: '2시간 45분',
-    tags: ['#CSS', '#Flexbox', '#레이아웃']
+    tags: ['#CSS', '#Flexbox', '#레이아웃'],
+    format: '마크다운'
   },
   {
     id: 7,
@@ -279,7 +283,8 @@ const materials = ref([
     thumbnailColor: '#F5F5F5',
     type: 'material',
     duration: '4시간 15분',
-    tags: ['#JavaScript', '#ES6', '#프로그래밍']
+    tags: ['#JavaScript', '#ES6', '#프로그래밍'],
+    format: '마크다운'
   },
   {
     id: 8,
@@ -289,22 +294,51 @@ const materials = ref([
     thumbnailColor: '#F5F5F5',
     type: 'material',
     duration: '3시간 20분',
-    tags: ['#React', '#Hooks', '#프론트엔드']
+    tags: ['#React', '#Hooks', '#프론트엔드'],
+    format: '마크다운'
   }
 ]);
 
+// 발행된 강의 데이터 (localStorage에서 불러옴)
+const publishedCourses = ref([]);
+
+// localStorage에서 발행된 강의 불러오기
+function loadPublishedCourses() {
+  const storedCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
+  if (storedCourses.length > 0) {
+    // 발행된 강의를 강의물 형태로 변환
+    publishedCourses.value = storedCourses.map((course: any) => ({
+      id: course.id,
+      title: course.title,
+      createdDate: new Date(course.createdAt).toLocaleDateString('ko-KR'),
+      privacy: '공개',
+      thumbnailColor: course.format === '문제' ? '#E3F2FD' : '#E8F5E8',
+      type: 'material',
+      duration: '미정',
+      tags: [course.category, course.format],
+      format: course.format,
+      status: course.status
+    }));
+  }
+}
+
 // 필터링된 데이터
 const filteredItems = computed(() => {
-  const allItems = [...curricula.value, ...materials.value];
+  const allItems = [...curricula.value, ...materials.value, ...publishedCourses.value];
   
   switch (activeTab.value) {
     case 'curriculum':
       return curricula.value;
     case 'materials':
-      return materials.value;
+      return [...materials.value, ...publishedCourses.value];
     case 'all':
     default:
       return allItems;
   }
+});
+
+// 컴포넌트 마운트 시 발행된 강의 로드
+onMounted(() => {
+  loadPublishedCourses();
 });
 </script>

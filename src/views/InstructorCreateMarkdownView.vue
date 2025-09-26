@@ -319,7 +319,28 @@ function saveDraft() {
 function publishCourse() {
   // 강의 발행 기능 구현
   console.log('강의 발행:', courseData)
+  
+  // 대시보드에 새 강의 추가
+  const newCourse = {
+    id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
+    title: courseData.title,
+    category: courseData.category,
+    status: 'published',
+    students: 0,
+    rating: 0,
+    format: '마크다운',
+    createdAt: new Date().toISOString()
+  }
+  
+  // localStorage에 저장 (실제로는 백엔드 API 호출)
+  const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
+  existingCourses.push(newCourse)
+  localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
+  
   alert('강의가 발행되었습니다.')
+  
+  // 일반 대시보드로 이동
+  router.push({ name: 'dashboard' })
 }
 
 // 중국어와 글자 깨짐 문제 해결 (최종 강화 버전)

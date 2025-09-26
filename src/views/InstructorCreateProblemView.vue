@@ -282,22 +282,20 @@
 
             <!-- 지원 언어 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">지원 언어</label>
-              <div class="flex flex-wrap gap-2">
-                <label 
+              <label class="block text-sm font-medium text-gray-700 mb-2">지원 언어 *</label>
+              <select 
+                v-model="problemData.language"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option :value="null">언어를 선택하세요</option>
+                <option 
                   v-for="language in availableLanguages" 
-                  :key="language"
-                  class="flex items-center"
+                  :key="language.id"
+                  :value="language.id"
                 >
-                  <input 
-                    v-model="problemData.languages"
-                    :value="language"
-                    type="checkbox" 
-                    class="mr-2"
-                  />
-                  {{ language }}
-                </label>
-              </div>
+                  {{ language.name }}
+                </option>
+              </select>
             </div>
 
             <!-- 에디터 테마 -->
@@ -380,14 +378,62 @@ const problemData = reactive({
     }
   ],
   isPublic: true,
-  languages: [] as string[]
+  language: null as number | null
 })
 
 // 에디터 설정
 const editorTheme = ref('light')
 
-// 사용 가능한 언어
-const availableLanguages = ['Python', 'Java', 'JavaScript', 'C++', 'C#', 'Go', 'Rust']
+// 백엔드에서 제공된 언어 데이터
+const availableLanguages = [
+  { id: 45, name: "Assembly (NASM 2.14.02)" },
+  { id: 46, name: "Bash (5.0.0)" },
+  { id: 47, name: "Basic (FBC 1.07.1)" },
+  { id: 75, name: "C (Clang 7.0.1)" },
+  { id: 48, name: "C (GCC 7.4.0)" },
+  { id: 49, name: "C (GCC 8.3.0)" },
+  { id: 50, name: "C (GCC 9.2.0)" },
+  { id: 51, name: "C# (Mono 6.6.0.161)" },
+  { id: 76, name: "C++ (Clang 7.0.1)" },
+  { id: 52, name: "C++ (GCC 7.4.0)" },
+  { id: 53, name: "C++ (GCC 8.3.0)" },
+  { id: 54, name: "C++ (GCC 9.2.0)" },
+  { id: 77, name: "COBOL (GnuCOBOL 2.2)" },
+  { id: 86, name: "Clojure (1.10.1)" },
+  { id: 55, name: "Common Lisp (SBCL 2.0.0)" },
+  { id: 56, name: "D (DMD 2.089.1)" },
+  { id: 57, name: "Elixir (1.9.4)" },
+  { id: 58, name: "Erlang (OTP 22.2)" },
+  { id: 44, name: "Executable" },
+  { id: 87, name: "F# (.NET Core SDK 3.1.202)" },
+  { id: 59, name: "Fortran (GFortran 9.2.0)" },
+  { id: 60, name: "Go (1.13.5)" },
+  { id: 88, name: "Groovy (3.0.3)" },
+  { id: 61, name: "Haskell (GHC 8.8.1)" },
+  { id: 62, name: "Java (OpenJDK 13.0.1)" },
+  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
+  { id: 78, name: "Kotlin (1.3.70)" },
+  { id: 64, name: "Lua (5.3.5)" },
+  { id: 89, name: "Multi-file program" },
+  { id: 65, name: "OCaml (4.09.0)" },
+  { id: 79, name: "Objective-C (Clang 7.0.1)" },
+  { id: 66, name: "Octave (5.1.0)" },
+  { id: 68, name: "PHP (7.4.1)" },
+  { id: 67, name: "Pascal (FPC 3.0.4)" },
+  { id: 85, name: "Perl (5.28.1)" },
+  { id: 43, name: "Plain Text" },
+  { id: 69, name: "Prolog (GNU Prolog 1.4.5)" },
+  { id: 70, name: "Python (2.7.17)" },
+  { id: 71, name: "Python (3.8.1)" },
+  { id: 80, name: "R (4.0.0)" },
+  { id: 72, name: "Ruby (2.7.0)" },
+  { id: 73, name: "Rust (1.40.0)" },
+  { id: 82, name: "SQL (SQLite 3.27.2)" },
+  { id: 81, name: "Scala (2.13.2)" },
+  { id: 83, name: "Swift (5.2.3)" },
+  { id: 74, name: "TypeScript (3.7.4)" },
+  { id: 84, name: "Visual Basic.Net (vbnc 0.0.0.5943)" }
+]
 
 // 툴바 설정
 const toolbars = [
@@ -424,7 +470,29 @@ function saveDraft() {
 function publishProblem() {
   // 문제 발행 기능 구현
   console.log('문제 발행:', problemData)
+  
+  // 대시보드에 새 강의 추가
+  const newCourse = {
+    id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
+    title: problemData.title,
+    category: problemData.category,
+    status: 'published',
+    students: 0,
+    rating: 0,
+    format: '문제',
+    difficulty: problemData.difficulty,
+    createdAt: new Date().toISOString()
+  }
+  
+  // localStorage에 저장 (실제로는 백엔드 API 호출)
+  const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
+  existingCourses.push(newCourse)
+  localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
+  
   alert('문제가 발행되었습니다.')
+  
+  // 일반 대시보드로 이동
+  router.push({ name: 'dashboard' })
 }
 
 // 중국어와 글자 깨짐 문제 해결 (최종 강화 버전)

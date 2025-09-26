@@ -110,3 +110,4 @@ function selectType(type: 'markdown' | 'problem' | 'video') {
   closeModal()
 }
 </script>
+

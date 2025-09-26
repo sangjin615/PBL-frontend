@@ -14,7 +14,18 @@
             <p class="text-sm text-gray-600">[코드팩토리] [초급] Flutter 3.0 앱 개발 - 10개의 프로젝트로 오늘 초보 탈출!</p>
           </div>
         </div>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-4">
+          <!-- 다음 강의 버튼 -->
+          <button 
+            v-if="nextLesson"
+            @click="goToNextLesson"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+            <span>다음 강의</span>
+          </button>
           <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
         </div>
       </div>
@@ -122,13 +133,13 @@
           <div class="px-4 py-3 border-b">
             <h3 class="font-medium">실행결과</h3>
           </div>
-          <div class="h-48">
-            <Terminal
-              :output="executionResult"
-              :is-running="isRunning"
-              :language="selectedLanguage"
-              ref="terminalRef"
-            />
+          <div class="h-48 p-4 bg-black text-green-400 font-mono text-sm overflow-auto">
+            <div v-if="isRunning" class="flex items-center space-x-2">
+              <div class="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
+              <span>실행 중...</span>
+            </div>
+            <div v-else-if="executionResult" class="whitespace-pre-wrap">{{ executionResult }}</div>
+            <div v-else class="text-gray-500">실행 결과가 여기에 표시됩니다.</div>
           </div>
         </div>
       </div>
@@ -160,7 +171,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
-import Terminal from '../components/terminal/Terminal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -188,7 +198,10 @@ const selectedLanguage = ref('python')
 const code = ref('')
 const executionResult = ref('')
 const isRunning = ref(false)
-const terminalRef = ref()
+// terminalRef는 더 이상 필요하지 않음
+
+// 다음 강의 정보
+const nextLesson = ref(null)
 
 // Monaco Editor 옵션
 const editorOptions = ref({
@@ -225,9 +238,7 @@ function setCodeTemplate() {
 // 코드 실행
 async function runCode() {
   if (!code.value.trim()) {
-    if (terminalRef.value) {
-      terminalRef.value.showError('실행할 코드가 없습니다.');
-    }
+    executionResult.value = '실행할 코드가 없습니다.';
     return;
   }
 
@@ -275,8 +286,29 @@ function goBack() {
   router.back()
 }
 
+// 다음 강의로 이동
+function goToNextLesson() {
+  if (nextLesson.value) {
+    if (nextLesson.value.format === '문제') {
+      // 문제 형식인 경우 문제 페이지로 이동
+      router.push({ name: 'problem', params: { problemId: nextLesson.value.id } });
+    } else {
+      // 마크다운 형식인 경우 학습 페이지로 이동
+      router.push({ name: 'learning', params: { lessonId: nextLesson.value.id } });
+    }
+  }
+}
+
 // 컴포넌트 마운트 시 코드 템플릿 설정
 onMounted(() => {
   setCodeTemplate()
+  
+  // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
+  const currentProblemId = parseInt(route.params.problemId as string);
+  nextLesson.value = {
+    id: currentProblemId + 1,
+    title: '9998번 문제 - A - B',
+    format: '문제'
+  };
 })
 </script>

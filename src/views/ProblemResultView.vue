@@ -14,7 +14,18 @@
             <p class="text-sm text-gray-600">[코드팩토리] [초급] Flutter 3.0 앱 개발 - 10개의 프로젝트로 오늘 초보 탈출!</p>
           </div>
         </div>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-4">
+          <!-- 다음 강의 버튼 -->
+          <button 
+            v-if="nextLesson"
+            @click="goToNextLesson"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+            <span>다음 강의</span>
+          </button>
           <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
         </div>
       </div>
@@ -136,6 +147,9 @@ const testResults = ref([
   }
 ])
 
+// 다음 강의 정보
+const nextLesson = ref(null)
+
 // 통계 계산
 const successCount = computed(() => testResults.value.filter(r => r.isSuccess).length)
 const failureCount = computed(() => testResults.value.filter(r => !r.isSuccess).length)
@@ -155,6 +169,19 @@ function goNext() {
   router.push({ name: 'curriculum-detail', params: { id: 'course_1' } })
 }
 
+// 다음 강의로 이동
+function goToNextLesson() {
+  if (nextLesson.value) {
+    if (nextLesson.value.format === '문제') {
+      // 문제 형식인 경우 문제 페이지로 이동
+      router.push({ name: 'problem', params: { problemId: nextLesson.value.id } });
+    } else {
+      // 마크다운 형식인 경우 학습 페이지로 이동
+      router.push({ name: 'learning', params: { lessonId: nextLesson.value.id } });
+    }
+  }
+}
+
 // 뒤로가기
 function goBack() {
   router.back()
@@ -164,6 +191,15 @@ function goBack() {
 onMounted(() => {
   // 실제로는 백엔드에서 채점 결과를 받아와야 함
   console.log('채점 결과 페이지 로드됨')
+  
+  // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
+  const currentProblemId = parseInt(route.params.problemId as string);
+  nextLesson.value = {
+    id: currentProblemId + 1,
+    title: '9998번 문제 - A - B',
+    format: '문제'
+  };
 })
 </script>
+
 
