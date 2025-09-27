@@ -22,11 +22,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/QnAView.vue'),
   },
   {
-    path: '/qna/:id',
-    name: 'qna-detail',
-    component: () => import('../views/QnADetailView.vue'),
-  },
-  {
     path: '/subscriptions',
     name: 'subscriptions',
     component: () => import('../views/SubscriptionsView.vue'),
@@ -55,11 +50,6 @@ const routes: RouteRecordRaw[] = [
     path: '/problem/:problemId',
     name: 'problem',
     component: () => import('../views/ProblemView.vue'),
-  },
-  {
-    path: '/problem/:problemId/result',
-    name: 'problem-result',
-    component: () => import('../views/ProblemResultView.vue'),
   },
   {
     path: '/instructor/create-course',

@@ -86,6 +86,7 @@
         <div 
           v-for="item in filteredItems" 
           :key="item.id" 
+          @click="handleItemClick(item)"
           class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer group"
         >
           <!-- 강의 썸네일 -->
@@ -185,6 +186,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // 사용자 정보
 const userInfo = ref({
@@ -336,6 +340,31 @@ const filteredItems = computed(() => {
       return allItems;
   }
 });
+
+// 아이템 클릭 핸들러
+function handleItemClick(item: any) {
+  if (item.type === 'curriculum') {
+    // 커리큘럼 클릭 시 커리큘럼 개요 페이지로 이동 (강의자 모드)
+    router.push({ 
+      name: 'curriculum-overview', 
+      params: { id: `course_${item.id}` },
+      query: { mode: 'instructor' } // 강의자 모드 표시
+    });
+  } else {
+    // 강의물 클릭 시 강의 수정 페이지로 이동
+    if (item.format === '문제') {
+      router.push({ 
+        name: 'instructor-create-problem',
+        query: { edit: item.id, mode: 'edit' }
+      });
+    } else {
+      router.push({ 
+        name: 'instructor-create-markdown',
+        query: { edit: item.id, mode: 'edit' }
+      });
+    }
+  }
+}
 
 // 컴포넌트 마운트 시 발행된 강의 로드
 onMounted(() => {

@@ -31,7 +31,14 @@
             @click="publishCourse"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            강의 발행
+            {{ isEditMode ? '수정 완료' : '강의 발행' }}
+          </button>
+          <button 
+            v-if="isEditMode"
+            @click="deleteCourse"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            삭제하기
           </button>
         </div>
       </div>
@@ -222,14 +229,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '../styles/md-editor-korean.css'
 import koKR from '../locales/ko-KR'
 
 const router = useRouter()
+const route = useRoute()
+
+// 편집 모드 확인
+const isEditMode = computed(() => route.query.mode === 'edit')
 
 // 탭 관리
 const tabs = [
@@ -306,8 +317,29 @@ function goBack() {
 }
 
 function previewCourse() {
-  // 미리보기 기능 구현
-  alert('미리보기 기능은 구현 예정입니다.')
+  // 미리보기 기능 구현 - 학습자 화면으로 이동
+  console.log('마크다운 강의 미리보기:', courseData)
+  
+  // 임시 강의 ID 생성 (실제로는 백엔드에서 생성)
+  const tempLessonId = Date.now()
+  
+  // 강의 데이터를 localStorage에 임시 저장 (미리보기용)
+  const previewData = {
+    id: tempLessonId,
+    title: courseData.title || '미리보기 강의',
+    content: courseData.content || '# 강의 내용\n\n강의 내용을 작성해주세요.',
+    format: '마크다운',
+    isPreview: true
+  }
+  
+  localStorage.setItem('previewLesson', JSON.stringify(previewData))
+  
+  // 학습자 화면으로 이동
+  router.push({ 
+    name: 'learning', 
+    params: { lessonId: tempLessonId },
+    query: { preview: 'true' }
+  })
 }
 
 function saveDraft() {
@@ -317,31 +349,68 @@ function saveDraft() {
 }
 
 function publishCourse() {
-  // 강의 발행 기능 구현
-  console.log('강의 발행:', courseData)
+  // 강의 발행/수정 기능 구현
+  console.log(isEditMode.value ? '강의 수정:' : '강의 발행:', courseData)
   
-  // 대시보드에 새 강의 추가
-  const newCourse = {
-    id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
-    title: courseData.title,
-    category: courseData.category,
-    status: 'published',
-    students: 0,
-    rating: 0,
-    format: '마크다운',
-    createdAt: new Date().toISOString()
+  if (isEditMode.value) {
+    // 수정 모드
+    alert('강의가 수정되었습니다!')
+  } else {
+    // 발행 모드
+    const newCourse = {
+      id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
+      title: courseData.title,
+      category: courseData.category,
+      status: 'published',
+      students: 0,
+      rating: 0,
+      format: '마크다운',
+      createdAt: new Date().toISOString()
+    }
+    
+    // localStorage에 저장 (실제로는 백엔드 API 호출)
+    const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
+    existingCourses.push(newCourse)
+    localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
+    
+    alert('강의가 발행되었습니다.')
   }
-  
-  // localStorage에 저장 (실제로는 백엔드 API 호출)
-  const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-  existingCourses.push(newCourse)
-  localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
-  
-  alert('강의가 발행되었습니다.')
   
   // 일반 대시보드로 이동
   router.push({ name: 'dashboard' })
 }
+
+// 강의 삭제하기 (편집 모드에서만)
+function deleteCourse() {
+  console.log('강의 삭제하기 클릭됨');
+  
+  if (confirm('정말로 이 강의를 삭제하시겠습니까?\n삭제된 강의는 복구할 수 없습니다.')) {
+    // localStorage에서 강의 삭제
+    const courseId = route.query.edit;
+    console.log('삭제할 강의 ID:', courseId);
+    
+    if (courseId) {
+      // 기존 강의 목록 가져오기
+      const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
+      
+      // 해당 강의 제거
+      const updatedCourses = existingCourses.filter((course: any) => course.id.toString() !== courseId.toString());
+      
+      // localStorage 업데이트
+      localStorage.setItem('instructorCourses', JSON.stringify(updatedCourses));
+      
+      console.log('강의 삭제 완료:', courseId);
+      alert('강의가 삭제되었습니다.');
+    } else {
+      console.log('강의 ID를 찾을 수 없습니다.');
+      alert('강의 삭제에 실패했습니다.');
+    }
+    
+    // 대시보드로 이동
+    router.push('/dashboard');
+  }
+}
+
 
 // 중국어와 글자 깨짐 문제 해결 (최종 강화 버전)
 function translateChineseToKorean() {

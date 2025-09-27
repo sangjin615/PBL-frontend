@@ -210,11 +210,21 @@
           <div class="bg-figma-1 rounded-lg border p-6 sticky top-6" style="border-color: rgb(var(--figma-color-4))">
             <div class="space-y-4">
               <button 
-                @click="toggleEnrollment"
+                @click="isInstructorMode ? editCurriculum() : toggleEnrollment()"
                 class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors" 
-                :style="isEnrolled ? 'background-color: rgb(var(--figma-color-17))' : 'background-color: rgb(var(--figma-color-6))'"
+                :style="isInstructorMode ? 'background-color: rgb(var(--figma-color-6))' : (isEnrolled ? 'background-color: rgb(var(--figma-color-17))' : 'background-color: rgb(var(--figma-color-6))')"
               >
-                {{ isEnrolled ? '수강 취소하기' : '수강신청하기' }}
+                {{ isInstructorMode ? '수정하기' : (isEnrolled ? '수강 취소하기' : '수강신청하기') }}
+              </button>
+              
+              <!-- 강의자 모드에서만 삭제 버튼 표시 -->
+              <button 
+                v-if="isInstructorMode"
+                @click="deleteCurriculum"
+                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors mt-3" 
+                style="background-color: #dc2626"
+              >
+                삭제하기
               </button>
               
               <!-- 학습하기 버튼 (수강 신청 후에만 표시) -->
@@ -272,6 +282,9 @@ import { courses } from '../mock/courses';
 
 const router = useRouter();
 const route = useRoute();
+
+// 강의자 모드 확인
+const isInstructorMode = computed(() => route.query.mode === 'instructor');
 
 // 탭 상태
 const activeTab = ref('intro');
@@ -665,6 +678,32 @@ function goToLearning() {
   const path = `/curriculum/${curriculumId}/learn`;
   console.log('절대 경로로 이동:', path);
   router.push(path);
+}
+
+// 커리큘럼 수정하기 (강의자 모드)
+function editCurriculum() {
+  console.log('커리큘럼 수정하기 클릭됨');
+  // TODO: 커리큘럼 수정 페이지로 이동
+  alert('커리큘럼 수정 기능은 구현 예정입니다.');
+}
+
+// 커리큘럼 삭제하기 (강의자 모드)
+function deleteCurriculum() {
+  console.log('커리큘럼 삭제하기 클릭됨');
+  
+  if (confirm('정말로 이 커리큘럼을 삭제하시겠습니까?\n삭제된 커리큘럼은 복구할 수 없습니다.')) {
+    // localStorage에서 커리큘럼 삭제
+    const curriculumId = route.params.id as string;
+    console.log('삭제할 커리큘럼 ID:', curriculumId);
+    
+    // 현재는 하드코딩된 데이터이므로 실제로는 백엔드 API 호출
+    // TODO: 실제 삭제 API 호출
+    console.log('커리큘럼 삭제 확인됨');
+    alert('커리큘럼이 삭제되었습니다.');
+    
+    // 대시보드로 이동
+    router.push('/dashboard');
+  }
 }
 
 // 페이지 로드 시 커리큘럼 데이터 설정

@@ -31,7 +31,14 @@
             @click="publishProblem"
             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            문제 발행
+            {{ isEditMode ? '수정 완료' : '문제 발행' }}
+          </button>
+          <button 
+            v-if="isEditMode"
+            @click="deleteProblem"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            삭제하기
           </button>
         </div>
       </div>
@@ -317,14 +324,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '../styles/md-editor-korean.css'
 import koKR from '../locales/ko-KR'
 
 const router = useRouter()
+const route = useRoute()
+
+// 편집 모드 확인
+const isEditMode = computed(() => route.query.mode === 'edit')
 
 // 탭 관리
 const tabs = [
@@ -457,8 +468,33 @@ function goBack() {
 }
 
 function previewProblem() {
-  // 미리보기 기능 구현
-  alert('미리보기 기능은 구현 예정입니다.')
+  // 미리보기 기능 구현 - 학습자 화면으로 이동
+  console.log('문제 강의 미리보기:', problemData)
+  
+  // 임시 문제 ID 생성 (실제로는 백엔드에서 생성)
+  const tempProblemId = Date.now()
+  
+  // 문제 데이터를 localStorage에 임시 저장 (미리보기용)
+  const previewData = {
+    id: tempProblemId,
+    title: problemData.title || '미리보기 문제',
+    description: problemData.problemDescription || '문제 설명을 작성해주세요.',
+    inputDescription: problemData.inputDescription || '입력 설명을 작성해주세요.',
+    outputDescription: problemData.outputDescription || '출력 설명을 작성해주세요.',
+    testCases: problemData.testCases || [],
+    language: problemData.language || 71, // Python 3.8.1 기본값
+    format: '문제',
+    isPreview: true
+  }
+  
+  localStorage.setItem('previewProblem', JSON.stringify(previewData))
+  
+  // 학습자 화면으로 이동
+  router.push({ 
+    name: 'problem', 
+    params: { problemId: tempProblemId },
+    query: { preview: 'true' }
+  })
 }
 
 function saveDraft() {
@@ -468,32 +504,69 @@ function saveDraft() {
 }
 
 function publishProblem() {
-  // 문제 발행 기능 구현
-  console.log('문제 발행:', problemData)
+  // 문제 발행/수정 기능 구현
+  console.log(isEditMode.value ? '문제 수정:' : '문제 발행:', problemData)
   
-  // 대시보드에 새 강의 추가
-  const newCourse = {
-    id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
-    title: problemData.title,
-    category: problemData.category,
-    status: 'published',
-    students: 0,
-    rating: 0,
-    format: '문제',
-    difficulty: problemData.difficulty,
-    createdAt: new Date().toISOString()
+  if (isEditMode.value) {
+    // 수정 모드
+    alert('문제가 수정되었습니다!')
+  } else {
+    // 발행 모드
+    const newCourse = {
+      id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
+      title: problemData.title,
+      category: problemData.category,
+      status: 'published',
+      students: 0,
+      rating: 0,
+      format: '문제',
+      difficulty: problemData.difficulty,
+      createdAt: new Date().toISOString()
+    }
+    
+    // localStorage에 저장 (실제로는 백엔드 API 호출)
+    const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
+    existingCourses.push(newCourse)
+    localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
+    
+    alert('문제가 발행되었습니다.')
   }
-  
-  // localStorage에 저장 (실제로는 백엔드 API 호출)
-  const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-  existingCourses.push(newCourse)
-  localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
-  
-  alert('문제가 발행되었습니다.')
   
   // 일반 대시보드로 이동
   router.push({ name: 'dashboard' })
 }
+
+// 문제 삭제하기 (편집 모드에서만)
+function deleteProblem() {
+  console.log('문제 삭제하기 클릭됨');
+  
+  if (confirm('정말로 이 문제를 삭제하시겠습니까?\n삭제된 문제는 복구할 수 없습니다.')) {
+    // localStorage에서 문제 삭제
+    const problemId = route.query.edit;
+    console.log('삭제할 문제 ID:', problemId);
+    
+    if (problemId) {
+      // 기존 강의 목록 가져오기
+      const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
+      
+      // 해당 문제 제거
+      const updatedCourses = existingCourses.filter((course: any) => course.id.toString() !== problemId.toString());
+      
+      // localStorage 업데이트
+      localStorage.setItem('instructorCourses', JSON.stringify(updatedCourses));
+      
+      console.log('문제 삭제 완료:', problemId);
+      alert('문제가 삭제되었습니다.');
+    } else {
+      console.log('문제 ID를 찾을 수 없습니다.');
+      alert('문제 삭제에 실패했습니다.');
+    }
+    
+    // 대시보드로 이동
+    router.push('/dashboard');
+  }
+}
+
 
 // 중국어와 글자 깨짐 문제 해결 (최종 강화 버전)
 function translateChineseToKorean() {
