@@ -52,6 +52,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ProblemView.vue'),
   },
   {
+    path: '/problem-result/:problemId',
+    name: 'problem-result',
+    component: () => import('../views/ProblemResultView.vue'),
+  },
+  {
     path: '/instructor/create-course',
     name: 'instructor-create-course',
     component: () => import('../views/InstructorCreateCourseView.vue'),

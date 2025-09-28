@@ -101,27 +101,38 @@
         <!-- 파일명과 언어 선택 -->
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
           <div class="flex items-center space-x-4">
-            <span class="font-medium">{{ selectedLanguage }}</span>
-            <select v-model="selectedLanguage" class="text-sm border rounded px-2 py-1">
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
-              <option value="java">Java</option>
-              <option value="cpp">C++</option>
+            <h3 class="font-semibold">코드 에디터</h3>
+            <select 
+              v-model="selectedLanguage" 
+              class="px-3 py-1 border rounded text-sm"
+            >
+              <option v-for="lang in supportedLanguages" :key="lang.id" :value="lang.id">
+                {{ lang.name }}
+              </option>
             </select>
           </div>
-          <button 
-            @click="runCode"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            코드실행
-          </button>
+            <div class="flex space-x-2">
+              <button 
+                @click="runCode"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                코드실행
+              </button>
+              <button 
+                @click="submitCode"
+                :disabled="isRunning"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {{ isRunning ? '채점 중...' : '제출하기' }}
+              </button>
+            </div>
         </div>
 
         <!-- 코드 에디터 -->
         <div class="flex-1 p-4">
           <MonacoEditor
             v-model="code"
-            :language="selectedLanguage"
+            :language="getMonacoLanguage(selectedLanguage)"
             theme="vs-dark"
             :options="editorOptions"
             class="w-full h-full border rounded-lg"
@@ -158,9 +169,10 @@
         </div>
         <button 
           @click="submitCode"
-          class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          :disabled="isRunning"
+          class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          제출하기
+          {{ isRunning ? '채점 중...' : '제출하기' }}
         </button>
       </div>
     </div>
@@ -177,34 +189,38 @@ const router = useRouter()
 
 // 문제 데이터
 const problem = ref({
-  id: 1,
-  title: '9999번문제 - A + B',
+  id: 3,
+  title: 'A + B',
   timeLimit: '1초',
   memoryLimit: '256MB',
-  successRate: '34.348%',
+  successRate: '75.2%',
   description: '두 정수 A와 B를 입력받은 다음, A+B를 출력하는 프로그램을 작성하시오.',
-  inputDescription: '입력은 여러 개의 테스트 케이스로 이루어져 있다. 각 테스트 케이스는 한 줄로 이루어져 있으며, 각 줄에 A와 B가 주어진다. (0<A, B<10)',
-  outputDescription: '각 테스트 케이스마다 A+B를 출력한다.',
+  inputDescription: '첫째 줄에 A와 B가 공백으로 구분되어 주어진다. (0 ≤ A, B ≤ 10)',
+  outputDescription: '첫째 줄에 A+B를 출력한다.',
   testCases: [
     {
-      input: '1 1\n2 3\n3 4\n9 8\n5 2',
-      output: '2\n5\n7\n17\n7'
+      input: '1 2',
+      output: '3'
+    },
+    {
+      input: '5 7',
+      output: '12'
     }
   ]
 })
 
 // 코드 에디터 관련
-const selectedLanguage = ref('python')
+const selectedLanguage = ref(71) // Python 3의 ID를 기본값으로
 const code = ref('')
 const executionResult = ref('')
 const isRunning = ref(false)
-// terminalRef는 더 이상 필요하지 않음
+const supportedLanguages = ref([]) // API에서 가져올 언어 목록
 
 // 다음 강의 정보
 const nextLesson = ref(null)
 
 // Monaco Editor 옵션
-const editorOptions = ref({
+const editorOptions = {
   theme: 'vs-dark',
   fontSize: 14,
   minimap: { enabled: false },
@@ -216,27 +232,43 @@ const editorOptions = ref({
   selectOnLineNumbers: true,
   roundedSelection: false,
   readOnly: false,
-  cursorStyle: 'line',
-  automaticLayout: true,
-})
+  cursorStyle: 'line'
+};
 
 // 언어별 코드 템플릿
-const codeTemplates = {
-  python: '# Python 코드를 작성하세요\na, b = map(int, input().split())\nprint(a + b)',
-  javascript: '// JavaScript 코드를 작성하세요\nconst readline = require("readline");\n// 코드 작성',
-  java: '// Java 코드를 작성하세요\nimport java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        // 코드 작성\n    }\n}',
-  cpp: '// C++ 코드를 작성하세요\n#include <iostream>\nusing namespace std;\nint main() {\n    // 코드 작성\n    return 0;\n}'
-}
+const codeTemplates: Record<number, string> = {
+  71: '# A + B 문제\n# 두 정수를 입력받아 더한 값을 출력\n\na, b = map(int, input().split())\nprint(a + b)',
+  63: '// A + B 문제\n// JavaScript는 백엔드에서 지원하지 않을 수 있습니다\nconsole.log("JavaScript는 현재 지원되지 않습니다.");',
+  62: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\nimport java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}',
+  54: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}'
+};
+
+// Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
+const getMonacoLanguage = (languageId: number): string => {
+  const languageMap: Record<number, string> = {
+    70: 'python', 71: 'python', 63: 'javascript', 74: 'typescript',
+    62: 'java', 48: 'c', 49: 'c', 50: 'c', 75: 'c',
+    52: 'cpp', 53: 'cpp', 54: 'cpp', 76: 'cpp', 51: 'csharp',
+    60: 'go', 73: 'rust', 72: 'ruby', 68: 'php', 64: 'lua',
+    85: 'perl', 46: 'shell', 61: 'haskell', 55: 'lisp', 65: 'ocaml',
+    69: 'prolog', 66: 'matlab', 80: 'r', 59: 'fortran', 67: 'pascal',
+    56: 'd', 58: 'erlang', 57: 'elixir', 88: 'groovy', 86: 'clojure',
+    81: 'scala', 78: 'kotlin', 79: 'objective-c', 83: 'swift', 84: 'vb',
+    47: 'basic', 77: 'cobol', 45: 'asm', 82: 'sql', 87: 'fsharp',
+    43: 'plaintext', 44: 'plaintext', 89: 'plaintext'
+  };
+  return languageMap[languageId] || 'plaintext';
+};
 
 // 언어 변경 시 코드 템플릿 설정
-function setCodeTemplate() {
+const setCodeTemplate = (): void => {
   if (!code.value.trim()) {
-    code.value = codeTemplates[selectedLanguage.value as keyof typeof codeTemplates]
+    code.value = codeTemplates[selectedLanguage.value] || codeTemplates[71];
   }
-}
+};
 
-// 코드 실행
-async function runCode() {
+// 코드 실행 (테스트용)
+const runCode = async (): Promise<void> => {
   if (!code.value.trim()) {
     executionResult.value = '실행할 코드가 없습니다.';
     return;
@@ -246,69 +278,135 @@ async function runCode() {
   executionResult.value = '';
 
   try {
-    // 실제 환경에서는 백엔드 API를 호출해야 함
-    // 여기서는 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // 문제에 맞는 실행 결과 시뮬레이션
-    if (selectedLanguage.value === 'python') {
-      if (code.value.includes('a + b') || code.value.includes('a+b')) {
-        executionResult.value = '2\n5\n7\n17\n7';
-      } else {
-        executionResult.value = '실행 결과가 여기에 표시됩니다.\n코드 실행 기능은 백엔드와 연동이 필요합니다.';
-      }
-    } else if (selectedLanguage.value === 'javascript') {
-      executionResult.value = '2\n5\n7\n17\n7';
-    } else if (selectedLanguage.value === 'java') {
-      executionResult.value = '2\n5\n7\n17\n7';
-    } else if (selectedLanguage.value === 'cpp') {
-      executionResult.value = '2\n5\n7\n17\n7';
-    } else {
-      executionResult.value = '실행 결과가 여기에 표시됩니다.\n코드 실행 기능은 백엔드와 연동이 필요합니다.';
+    const response = await fetch('http://localhost:2358/submissions?wait=true', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source_code: code.value,
+        language_id: selectedLanguage.value,
+        stdin: '1 2\n5 7'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  } catch (error) {
-    executionResult.value = `실행 오류: ${error}`;
+
+    const result = await response.json();
+    
+    if (result.status?.id === 3) {
+      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.';
+    } else if (result.status?.id === 6) {
+      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`;
+    } else if (result.status?.id === 7) {
+      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`;
+    } else {
+      const statusMessage = result.status?.description || '알 수 없는 상태';
+      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
+    }
+    
+  } catch (error: any) {
+    executionResult.value = `실행 오류: ${error.message}`;
   } finally {
     isRunning.value = false;
   }
-}
+};
 
-// 코드 제출
-function submitCode() {
-  // 실제로는 백엔드 API를 호출해서 채점 결과를 받아와야 함
-  // 현재는 더미 데이터로 채점 결과 페이지로 이동
-  const problemId = route.params.problemId
-  router.push({ name: 'problem-result', params: { problemId } })
-}
-
-// 뒤로가기
-function goBack() {
-  router.back()
-}
-
-// 다음 강의로 이동
-function goToNextLesson() {
-  if (nextLesson.value) {
-    if (nextLesson.value.format === '문제') {
-      // 문제 형식인 경우 문제 페이지로 이동
-      router.push({ name: 'problem', params: { problemId: nextLesson.value.id } });
-    } else {
-      // 마크다운 형식인 경우 학습 페이지로 이동
-      router.push({ name: 'learning', params: { lessonId: nextLesson.value.id } });
-    }
+// 코드 제출 (채점)
+const submitCode = async (): Promise<void> => {
+  if (!code.value.trim()) {
+    alert('제출할 코드가 없습니다.');
+    return;
   }
-}
 
-// 컴포넌트 마운트 시 코드 템플릿 설정
-onMounted(() => {
-  setCodeTemplate()
+  isRunning.value = true;
+  executionResult.value = '채점을 제출하고 있습니다...';
+
+  try {
+    const response = await fetch(`http://localhost:2358/grading/${problem.value.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source_code: code.value,
+        language_id: selectedLanguage.value
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.token) {
+      router.push({
+        name: 'problem-result',
+        params: { problemId: problem.value.id.toString() },
+        query: { token: result.token }
+      });
+    } else {
+      throw new Error('채점 토큰을 받지 못했습니다.');
+    }
+    
+  } catch (error: any) {
+    executionResult.value = `채점 제출 오류: ${error.message}`;
+    isRunning.value = false;
+  }
+};
+
+
+// 네비게이션 함수들
+const goBack = (): void => {
+  router.back();
+};
+
+const goToNextLesson = (): void => {
+  if (!nextLesson.value) return;
   
-  // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
+  const routeName = nextLesson.value.format === '문제' ? 'problem' : 'learning';
+  const params = nextLesson.value.format === '문제' 
+    ? { problemId: nextLesson.value.id }
+    : { lessonId: nextLesson.value.id };
+  
+  router.push({ name: routeName, params });
+};
+
+// API에서 지원하는 언어 목록을 가져오는 함수
+const fetchSupportedLanguages = async (): Promise<void> => {
+  try {
+    const response = await fetch('http://localhost:2358/languages');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const languages = await response.json();
+    supportedLanguages.value = languages;
+    console.log('언어 목록 로드 완료:', languages.length, '개 언어');
+  } catch (error) {
+    console.error('언어 목록 로드 실패:', error);
+    // 기본 언어 목록으로 fallback
+    supportedLanguages.value = [
+      { id: 71, name: 'Python (3.8.1)' },
+      { id: 63, name: 'JavaScript (Node.js 12.14.0)' },
+      { id: 62, name: 'Java (OpenJDK 13.0.1)' },
+      { id: 54, name: 'C++ (GCC 9.2.0)' }
+    ];
+  }
+};
+
+// 컴포넌트 초기화
+onMounted(async () => {
+  setCodeTemplate();
+  await fetchSupportedLanguages();
+  
   const currentProblemId = parseInt(route.params.problemId as string);
   nextLesson.value = {
-    id: currentProblemId + 1,
-    title: '9998번 문제 - A - B',
+    id: 4,
+    title: 'A - B 문제',
     format: '문제'
   };
-})
+});
 </script>
