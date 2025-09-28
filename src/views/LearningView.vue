@@ -121,10 +121,9 @@
               class="px-3 py-1 border rounded text-sm"
               style="border-color: rgb(var(--figma-color-4))"
             >
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
-              <option value="java">Java</option>
-              <option value="cpp">C++</option>
+              <option v-for="lang in supportedLanguages" :key="lang.id" :value="lang.id">
+                {{ lang.name }}
+              </option>
             </select>
           </div>
           
@@ -147,7 +146,7 @@
         <div class="flex-1 p-4">
           <MonacoEditor
             v-model="code"
-            :language="selectedLanguage"
+            :language="getMonacoLanguage(selectedLanguage)"
             theme="vs-dark"
             :options="editorOptions"
             class="w-full h-full border rounded-lg"
@@ -187,7 +186,8 @@ const progress = ref(25);
 const isRunning = ref(false);
 const executionResult = ref('');
 const code = ref('');
-const selectedLanguage = ref('python');
+const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
+const supportedLanguages = ref([]); // API에서 가져올 언어 목록
 const currentChapter = ref({});
 // terminalRef는 더 이상 필요하지 않음
 
@@ -319,42 +319,216 @@ async function runCode() {
   executionResult.value = '';
 
   try {
-    // 실제 환경에서는 서버로 코드를 전송하여 실행
-    // 여기서는 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // 간단한 Python 코드 실행 시뮬레이션
-    if (selectedLanguage.value === 'python') {
-      if (code.value.includes('print')) {
-        if (code.value.includes('bubble_sort')) {
-          executionResult.value = '정렬 전: [64, 34, 25, 12, 22, 11, 90]\n정렬 후: [11, 12, 22, 25, 34, 64, 90]';
-        } else {
-          executionResult.value = 'Hello, World!\n[1, 2, 3, 4, 5]\n정렬 완료!';
-        }
-      } else if (code.value.includes('bubble_sort')) {
-        executionResult.value = '[11, 12, 22, 25, 34, 64, 90]\n정렬이 완료되었습니다.';
-      } else {
-        executionResult.value = '코드가 성공적으로 실행되었습니다.\n(실제 환경에서는 서버에서 실행됩니다)';
-      }
-    } else if (selectedLanguage.value === 'javascript') {
-      executionResult.value = 'Hello from JavaScript!\nundefined';
-    } else if (selectedLanguage.value === 'java') {
-      executionResult.value = 'Hello from Java!\nProcess finished with exit code 0';
-    } else if (selectedLanguage.value === 'cpp') {
-      executionResult.value = 'Hello from C++!\n';
-    } else {
-      executionResult.value = `${selectedLanguage.value} 코드가 실행되었습니다.\n(실제 환경에서는 서버에서 실행됩니다)`;
+    // 백엔드 judge0 API로 코드 실행 요청
+    const response = await fetch('http://localhost:2358/submissions?wait=true', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source_code: code.value,
+        language_id: selectedLanguage.value,
+        stdin: '', // 필요시 입력 추가
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const result = await response.json();
+    
+    // 결과 처리
+    if (result.status && result.status.id === 3) {
+      // Accepted (정답)
+      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.';
+    } else if (result.status && result.status.id === 6) {
+      // Compilation Error (컴파일 오류)
+      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`;
+    } else if (result.status && result.status.id === 7) {
+      // Runtime Error (런타임 오류)
+      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`;
+    } else if (result.status && result.status.id === 5) {
+      // Time Limit Exceeded
+      executionResult.value = '시간 초과: 코드 실행 시간이 제한을 초과했습니다.';
+    } else if (result.status && result.status.id === 10) {
+      // Memory Limit Exceeded
+      executionResult.value = '메모리 초과: 코드가 허용된 메모리 제한을 초과했습니다.';
+    } else if (result.status && result.status.id === 2) {
+      // Processing (아직 처리 중)
+      executionResult.value = '코드가 실행 중입니다... 잠시 후 다시 시도해주세요.';
+    } else {
+      // 기타 상태
+      const statusMessage = result.status ? result.status.description : '알 수 없는 상태';
+      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
+    }
+    
   } catch (error) {
-    executionResult.value = `실행 오류: ${error}`;
+    console.error('API 호출 오류:', error);
+    executionResult.value = `실행 오류: ${error.message}`;
   } finally {
     isRunning.value = false;
   }
 }
 
+// API에서 지원하는 언어 목록을 가져오는 함수
+async function fetchSupportedLanguages() {
+  try {
+    const response = await fetch('http://localhost:2358/languages');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const languages = await response.json();
+    supportedLanguages.value = languages;
+    console.log('언어 목록 로드 완료:', languages.length, '개 언어');
+  } catch (error) {
+    console.error('언어 목록 로드 실패:', error);
+    // 기본 언어 목록으로 fallback
+    supportedLanguages.value = [
+      { id: 71, name: 'Python (3.8.1)' },
+      { id: 63, name: 'JavaScript (Node.js 12.14.0)' },
+      { id: 62, name: 'Java (OpenJDK 13.0.1)' },
+      { id: 54, name: 'C++ (GCC 9.2.0)' }
+    ];
+  }
+}
+
+// Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
+function getMonacoLanguage(languageId) {
+  const languageMap = {
+    // Python
+    70: 'python',
+    71: 'python',
+    
+    // JavaScript/TypeScript
+    63: 'javascript',
+    74: 'typescript',
+    
+    // Java
+    62: 'java',
+    
+    // C/C++
+    48: 'c',
+    49: 'c',
+    50: 'c',
+    75: 'c',
+    52: 'cpp',
+    53: 'cpp',
+    54: 'cpp',
+    76: 'cpp',
+    
+    // C#
+    51: 'csharp',
+    
+    // Go
+    60: 'go',
+    
+    // Rust
+    73: 'rust',
+    
+    // Ruby
+    72: 'ruby',
+    
+    // PHP
+    68: 'php',
+    
+    // Lua
+    64: 'lua',
+    
+    // Perl
+    85: 'perl',
+    
+    // Bash
+    46: 'shell',
+    
+    // Haskell
+    61: 'haskell',
+    
+    // Lisp
+    55: 'lisp',
+    
+    // OCaml
+    65: 'ocaml',
+    
+    // Prolog
+    69: 'prolog',
+    
+    // Octave (MATLAB)
+    66: 'matlab',
+    
+    // R
+    80: 'r',
+    
+    // Fortran
+    59: 'fortran',
+    
+    // Pascal
+    67: 'pascal',
+    
+    // D
+    56: 'd',
+    
+    // Erlang
+    58: 'erlang',
+    
+    // Elixir
+    57: 'elixir',
+    
+    // Groovy
+    88: 'groovy',
+    
+    // Clojure
+    86: 'clojure',
+    
+    // Scala
+    81: 'scala',
+    
+    // Kotlin
+    78: 'kotlin',
+    
+    // Objective-C
+    79: 'objective-c',
+    
+    // Swift
+    83: 'swift',
+    
+    // Visual Basic
+    84: 'vb',
+    
+    // Basic
+    47: 'basic',
+    
+    // COBOL
+    77: 'cobol',
+    
+    // Assembly
+    45: 'asm',
+    
+    // SQL
+    82: 'sql',
+    
+    // F#
+    87: 'fsharp',
+    
+    // Plain Text
+    43: 'plaintext',
+    
+    // Executable
+    44: 'plaintext',
+    
+    // Multi-file program
+    89: 'plaintext'
+  };
+  
+  return languageMap[languageId] || 'plaintext';
+}
+
 // 초기화
-onMounted(() => {
+onMounted(async () => {
   currentChapter.value = lessonData.value.chapters[0];
+  
+  // API에서 지원하는 언어 목록 가져오기
+  await fetchSupportedLanguages();
   
   // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
   const currentLessonId = parseInt(route.params.lessonId as string);
@@ -365,20 +539,12 @@ onMounted(() => {
   };
   
   // 기본 코드 예제 설정
-  code.value = `# 버블 정렬 예제
-def bubble_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        for j in range(0, n - i - 1):
-            if arr[j] > arr[j + 1]:
-                arr[j], arr[j + 1] = arr[j + 1], arr[j]
-    return arr
+  code.value = `# Python 3 - Hello World
+print("Hello, World!")
 
-# 테스트
-numbers = [64, 34, 25, 12, 22, 11, 90]
-print("정렬 전:", numbers)
-sorted_numbers = bubble_sort(numbers.copy())
-print("정렬 후:", sorted_numbers)`;
+# 간단한 계산
+result = 10 + 20
+print(f"결과: {result}")`;
 });
 </script>
 
