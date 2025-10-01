@@ -24,8 +24,8 @@ export interface Lecture {
   memoryLimit?: number;
   testCaseCount: number;
   testCases?: TestCase[];
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  createdAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
+  updatedAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
 }
 
 export interface CreateLectureRequest {
@@ -77,4 +77,6 @@ export interface DashboardItem {
   category?: string;
   difficulty?: string;
   testCaseCount?: number;
+  courseCount?: number; // 커리큘럼용 강의 개수
+  status?: string; // 발행 상태
 }
