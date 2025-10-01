@@ -3,9 +3,19 @@
     <!-- 헤더 섹션 -->
     <div class="bg-figma-1 border-b" style="border-color: rgb(var(--figma-color-4))">
       <div class="px-6 py-6">
-        <div>
-          <h1 class="text-2xl font-bold" style="color: rgb(var(--figma-color-2))">수강 목록</h1>
-          <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">내가 수강 중인 강의들을 확인하세요</p>
+        <div class="flex items-start justify-between">
+          <div>
+            <h1 class="text-2xl font-bold" style="color: rgb(var(--figma-color-2))">수강 목록</h1>
+            <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">내가 수강 중인 강의들을 확인하세요</p>
+          </div>
+          <div>
+            <button
+              class="px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white shadow hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              @click="goMySubmissions"
+            >
+              내 제출 보기
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -334,5 +344,9 @@ function goToCourse(courseId: string) {
     // 개별 강의인 경우 학습 페이지로 이동
     router.push({ name: 'learning', params: { lessonId: courseId } });
   }
+}
+
+function goMySubmissions() {
+  router.push({ name: 'my-submissions' });
 }
 </script>

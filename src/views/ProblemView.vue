@@ -80,16 +80,51 @@
             <h3 class="text-lg font-semibold mb-3">테스트 케이스</h3>
             <div class="space-y-4">
               <div v-for="(testCase, index) in problem.testCases" :key="index" class="bg-gray-50 rounded-lg p-4">
+                <div class="flex items-start justify-between mb-2">
+                  <h4 class="font-medium text-gray-700">테스트케이스 {{ index + 1 }}</h4>
+                  <button
+                    :aria-label="`테스트케이스 ${index + 1} 실행`
+                    "
+                    class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    @click="runTestCase(index)"
+                    :disabled="isRunning"
+                    title="이 테스트케이스로 실행"
+                  >
+                    <svg v-if="!isRunning" class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M6.5 5.5v9l8-4.5-8-4.5z"></path>
+                    </svg>
+                    <div v-else class="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  </button>
+                </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 class="font-medium text-gray-700 mb-2">입력{{ index + 1 }}</h4>
+                    <h5 class="font-medium text-gray-700 mb-2">입력</h5>
                     <pre class="text-sm bg-white p-2 rounded border">{{ testCase.input }}</pre>
                   </div>
                   <div>
-                    <h4 class="font-medium text-gray-700 mb-2">출력{{ index + 1 }}</h4>
+                    <h5 class="font-medium text-gray-700 mb-2">출력</h5>
                     <pre class="text-sm bg-white p-2 rounded border">{{ testCase.output }}</pre>
                   </div>
                 </div>
+              </div>
+            </div>
+            
+            <!-- 사용자 임의 입력 실행 영역 -->
+            <div class="mt-6 bg-gray-50 rounded-lg p-4">
+              <h4 class="font-medium text-gray-700 mb-2">사용자 입력으로 실행</h4>
+              <textarea
+                v-model="customInput"
+                class="w-full h-24 text-sm bg-white p-2 rounded border focus:outline-none focus:ring"
+                placeholder="표준 입력(stdin)에 들어갈 값을 입력하세요. 여러 줄 입력 가능"
+              ></textarea>
+              <div class="mt-3 flex justify-end">
+                <button
+                  @click="runCustomInput"
+                  :disabled="isRunning || !code.trim()"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {{ isRunning ? '실행 중...' : '입력으로 실행' }}
+                </button>
               </div>
             </div>
           </div>
@@ -215,6 +250,7 @@ const code = ref('')
 const executionResult = ref('')
 const isRunning = ref(false)
 const supportedLanguages = ref([]) // API에서 가져올 언어 목록
+const customInput = ref('')
 
 // 다음 강의 정보
 const nextLesson = ref(null)
@@ -313,6 +349,95 @@ const runCode = async (): Promise<void> => {
     isRunning.value = false;
   }
 };
+
+// 특정 테스트케이스 입력으로 실행
+const runTestCase = async (index: number): Promise<void> => {
+  const tc = problem.value.testCases[index]
+  if (!tc) return
+
+  if (!code.value.trim()) {
+    executionResult.value = '실행할 코드가 없습니다.'
+    return
+  }
+
+  isRunning.value = true
+  executionResult.value = ''
+
+  try {
+    const response = await fetch('http://localhost:2358/submissions?wait=true', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_code: code.value,
+        language_id: selectedLanguage.value,
+        stdin: tc.input
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    if (result.status?.id === 3) {
+      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.'
+    } else if (result.status?.id === 6) {
+      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`
+    } else if (result.status?.id === 7) {
+      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`
+    } else {
+      const statusMessage = result.status?.description || '알 수 없는 상태'
+      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`
+    }
+  } catch (error: any) {
+    executionResult.value = `실행 오류: ${error.message}`
+  } finally {
+    isRunning.value = false
+  }
+}
+
+// 사용자 임의 입력으로 실행
+const runCustomInput = async (): Promise<void> => {
+  if (!code.value.trim()) {
+    executionResult.value = '실행할 코드가 없습니다.'
+    return
+  }
+
+  isRunning.value = true
+  executionResult.value = ''
+
+  try {
+    const response = await fetch('http://localhost:2358/submissions?wait=true', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_code: code.value,
+        language_id: selectedLanguage.value,
+        stdin: customInput.value || ''
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    if (result.status?.id === 3) {
+      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.'
+    } else if (result.status?.id === 6) {
+      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`
+    } else if (result.status?.id === 7) {
+      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`
+    } else {
+      const statusMessage = result.status?.description || '알 수 없는 상태'
+      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`
+    }
+  } catch (error: any) {
+    executionResult.value = `실행 오류: ${error.message}`
+  } finally {
+    isRunning.value = false
+  }
+}
 
 // 코드 제출 (채점)
 const submitCode = async (): Promise<void> => {

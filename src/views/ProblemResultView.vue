@@ -36,7 +36,29 @@
       <!-- 왼쪽: 소스코드 에디터 -->
       <div class="w-1/2 bg-white border-r">
         <div class="p-4">
-          <h3 class="text-lg font-semibold mb-4">제출한 소스코드</h3>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex bg-gray-100 rounded-lg p-1">
+              <button
+                @click="activeCodeTab = 'current'"
+                class="px-3 py-1 text-sm rounded-md"
+                :class="activeCodeTab === 'current' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+              >
+                제출한 소스코드
+              </button>
+              <button
+                @click="activeCodeTab = 'history'"
+                class="px-3 py-1 text-sm rounded-md"
+                :class="activeCodeTab === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+              >
+                내 제출
+              </button>
+            </div>
+            <div v-if="activeCodeTab === 'history'" class="flex items-center gap-2">
+              <select v-model="selectedHistoryId" @change="loadSelectedHistory" class="px-2 py-1 border rounded-md text-sm">
+                <option v-for="(s, idx) in mySubmissions" :key="s.id" :value="s.id">{{ idx + 1 }}차 · {{ s.submittedAt }}</option>
+              </select>
+            </div>
+          </div>
           <div class="h-[calc(100vh-200px)]">
             <MonacoEditor
               v-model="sourceCode"
@@ -130,7 +152,7 @@
             @click="tryAgain"
             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            다시풀기
+            돌아가기
           </button>
           <button 
             @click="goNext"
@@ -138,6 +160,33 @@
           >
             넘어가기
           </button>
+          <button 
+            @click="toggleExplanation"
+            class="px-6 py-3 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium"
+          >
+            {{ showExplanation ? '해설 닫기' : '해설보기' }}
+          </button>
+        </div>
+
+        <!-- AI 해설 패널 -->
+        <div v-if="!isGrading && showExplanation" class="mt-6">
+          <div class="bg-white rounded-lg border p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold">AI 해설</h3>
+              <button @click="toggleExplanation" class="text-sm text-gray-500 hover:text-gray-700">닫기</button>
+            </div>
+            <div class="text-sm text-gray-600 mb-3">제출한 코드 분석과 테스트 결과를 기반으로 오답 원인을 설명합니다.</div>
+            <div class="max-h-64 overflow-y-auto space-y-4">
+              <div v-if="isLoadingExplanation" class="flex items-center space-x-2 text-purple-600">
+                <div class="animate-spin w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full"></div>
+                <span>해설을 생성하고 있습니다...</span>
+              </div>
+              <div v-else-if="explanation.length > 0" class="prose prose-sm max-w-none">
+                <div v-for="(para, idx) in explanation" :key="idx" class="whitespace-pre-wrap">{{ para }}</div>
+              </div>
+              <div v-else class="text-gray-500">해설이 없습니다. 해설보기를 눌러 생성하세요.</div>
+            </div>
+          </div>
         </div>
         </div>
       </div>
@@ -169,6 +218,16 @@ const doneTestCase = ref(0)
 
 // 테스트 결과 데이터
 const testResults = ref<Array<{input: string, output: string, isSuccess: boolean}>>([])
+
+// AI 해설 상태
+const showExplanation = ref(false)
+const isLoadingExplanation = ref(false)
+const explanation = ref<string[]>([])
+
+// 코드 탭/내 제출 히스토리
+const activeCodeTab = ref<'current' | 'history'>('current')
+const mySubmissions = ref<Array<{id: string, submittedAt: string, language_id?: number, source_code: string}>>([])
+const selectedHistoryId = ref('')
 
 
 // Monaco Editor 옵션
@@ -219,6 +278,33 @@ const goToNextLesson = (): void => {
 
 const goBack = (): void => {
   router.back();
+};
+
+// 해설 토글 및 더미 생성 로직 (백엔드 연동 전 임시)
+const toggleExplanation = (): void => {
+  showExplanation.value = !showExplanation.value;
+  if (showExplanation.value && explanation.value.length === 0) {
+    isLoadingExplanation.value = true;
+    // 임시 지연 후 예시 해설 세팅
+    setTimeout(() => {
+      explanation.value = [
+        '입력 파싱 단계에서 공백 분리 후 형변환이 제대로 수행되는지 확인하세요.',
+        '테스트케이스 2에서 예상 출력이 7인데 5가 출력되었습니다. 덧셈 연산 전에 문자열 상태로 더해졌을 가능성이 있습니다.',
+        '에지 케이스: 음수, 큰 수 입력 시 오버플로우/형변환 오류가 없는지 점검하세요.',
+        '시간 복잡도는 본 문제에서 핵심 이슈가 아니지만, 반복 입력 처리 시 불필요한 I/O 호출을 줄이면 안정성이 높아집니다.'
+      ];
+      isLoadingExplanation.value = false;
+    }, 800);
+  }
+};
+
+// 히스토리 코드 불러오기
+const loadSelectedHistory = (): void => {
+  if (!selectedHistoryId.value) return;
+  const item = mySubmissions.value.find(s => s.id === selectedHistoryId.value);
+  if (!item) return;
+  sourceCode.value = item.source_code || '';
+  if (item.language_id) languageId.value = item.language_id;
 };
 
 // 언어 ID를 Monaco Editor 언어로 변환
@@ -430,6 +516,26 @@ print(a + b)`;
     isGrading.value = false;
   }
   
+  // 과거 제출 로드 (로컬스토리지 모킹)
+  try {
+    const saved = localStorage.getItem('mySubmissions');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // 간단 매핑: 코드 필드가 없으면 예시 코드로 채움
+      mySubmissions.value = parsed.map((p: any, idx: number) => ({
+        id: p.id || `h${idx}`,
+        submittedAt: p.submittedAt || '알 수 없음',
+        language_id: p.language_id || 71,
+        source_code: p.source_code || '# 제출 코드가 없습니다\nprint(1+1)'
+      }));
+      if (mySubmissions.value.length > 0) {
+        selectedHistoryId.value = mySubmissions.value[0].id;
+      }
+    }
+  } catch (e) {
+    console.warn('mySubmissions 파싱 실패:', e);
+  }
+
   const currentProblemId = parseInt(route.params.problemId as string);
   nextLesson.value = {
     id: currentProblemId + 1,

@@ -27,6 +27,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/SubscriptionsView.vue'),
   },
   {
+    path: '/my-submissions',
+    name: 'my-submissions',
+    component: () => import('../views/MySubmissionsView.vue'),
+  },
+  {
     path: '/course/:id',
     name: 'course-overview',
     component: () => import('../views/CourseOverviewView.vue'),
