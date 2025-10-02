@@ -21,12 +21,45 @@ export interface ProgressResponse {
   estimated_remaining_time?: number;
 }
 
+export interface GradingListResponse {
+  grading: GradingResponse[];
+  meta: {
+    current_page: number;
+    next_page: number | null;
+    prev_page: number | null;
+    total_pages: number;
+    total_count: number;
+    per_page: number;
+  };
+}
+
 export interface GradingResponse {
   id?: number;
   token?: string;
   source_code?: string;
   language_id?: number;
-  constraints?: any;
+  constraints?: {
+    number_of_runs?: number;
+    cpu_time_limit?: number;
+    cpu_extra_time?: number;
+    wall_time_limit?: number;
+    memory_limit?: number;
+    stack_limit?: number;
+    max_processes_and_or_threads?: number;
+    enable_per_process_and_thread_time_limit?: boolean;
+    enable_per_process_and_thread_memory_limit?: boolean;
+    max_file_size?: number;
+    redirect_stderr_to_stdout?: boolean;
+    enable_network?: boolean;
+  };
+  input_output?: {
+    stdin?: string;
+    expectedOutput?: string;
+    stdout?: string;
+    stderr?: string;
+    compileOutput?: string;
+    message?: string;
+  };
   err_inputOutput?: {
     stdin?: string;
     expectedOutput?: string;
@@ -120,6 +153,77 @@ export class GradingAPI {
         throw new Error('요청 시간이 초과되었습니다.');
       }
       throw new Error(`채점 제출 실패: ${error.message}`);
+    }
+  }
+
+  /**
+   * 채점 목록을 조회합니다.
+   * @param page 페이지 번호 (기본값: 1)
+   * @param perPage 페이지당 항목 수 (기본값: 20)
+   * @param problemId 문제 ID (선택사항)
+   * @param base64Encoded Base64 인코딩 여부 (기본값: false)
+   * @param fields 반환할 필드 목록 (선택사항)
+   * @returns Promise<GradingListResponse> 채점 목록과 페이지네이션 정보
+   */
+  async getGradingList(
+    page: number = 1,
+    perPage: number = 20,
+    problemId?: number,
+    base64Encoded: boolean = false,
+    fields?: string
+  ): Promise<GradingListResponse> {
+    try {
+      console.log('=== GradingAPI.getGradingList 시작 ===');
+      
+      // 쿼리 파라미터 구성
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: perPage.toString(),
+        base64_encoded: base64Encoded.toString()
+      });
+      
+      if (problemId) {
+        params.append('problem_id', problemId.toString());
+      }
+      
+      if (fields) {
+        params.append('fields', fields);
+      }
+      
+      const url = `${this.baseUrl}/grading?${params.toString()}`;
+      console.log('요청 URL:', url);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('응답 상태:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('HTTP 오류 응답:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('채점 목록 응답:', result);
+      
+      return result;
+    } catch (error: any) {
+      console.error('채점 목록 조회 오류:', error);
+      if (error.name === 'AbortError') {
+        throw new Error('요청 시간이 초과되었습니다.');
+      }
+      throw new Error(`채점 목록 조회 실패: ${error.message}`);
     }
   }
 

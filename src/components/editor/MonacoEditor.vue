@@ -19,7 +19,6 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   language: 'javascript',
-  theme: 'vs-dark',
   options: () => ({})
 })
 
@@ -34,7 +33,6 @@ async function createEditor() {
 
   // Monaco Editor 옵션
   const defaultOptions = {
-    theme: props.theme,
     fontSize: 14,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -53,6 +51,7 @@ async function createEditor() {
   editor = monaco.editor.create(editorContainer.value, {
     value: props.modelValue,
     language: props.language,
+    theme: props.theme || 'vs', // 기본 테마를 밝은 테마로 설정
     ...defaultOptions
   })
 

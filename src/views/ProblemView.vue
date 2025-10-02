@@ -164,11 +164,11 @@
         </div>
 
         <!-- 코드 에디터 -->
-        <div class="flex-1 p-4">
+        <div class="flex-1">
           <MonacoEditor
             v-model="code"
             :language="getMonacoLanguage(selectedLanguage)"
-            theme="vs-dark"
+            theme="vs"
             :options="editorOptions"
             class="w-full h-full border rounded-lg"
           />

@@ -46,7 +46,7 @@
                 제출한 소스코드
               </button>
               <button
-                @click="activeCodeTab = 'history'"
+                @click="activeCodeTab = 'history'; loadSubmissionHistory()"
                 class="px-3 py-1 text-sm rounded-md"
                 :class="activeCodeTab === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
               >
@@ -54,16 +54,26 @@
               </button>
             </div>
             <div v-if="activeCodeTab === 'history'" class="flex items-center gap-2">
-              <select v-model="selectedHistoryId" @change="loadSelectedHistory" class="px-2 py-1 border rounded-md text-sm">
-                <option v-for="(s, idx) in mySubmissions" :key="s.id" :value="s.id">{{ idx + 1 }}차 · {{ s.submittedAt }}</option>
+              <select 
+                v-model="selectedHistoryId" 
+                @change="loadSelectedHistory" 
+                class="px-2 py-1 border rounded-md text-sm"
+                :disabled="isLoadingSubmissions"
+              >
+                <option v-if="isLoadingSubmissions" value="">로딩 중...</option>
+                <option v-else-if="mySubmissions.length === 0" value="">제출 기록이 없습니다 ({{ mySubmissions.length }}개)</option>
+                <option v-else v-for="(s, idx) in mySubmissions" :key="s.token" :value="s.token">
+                  {{ idx + 1 }}차 · {{ s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '알 수 없음' }} · {{ s.status?.description || 'Unknown' }}
+                </option>
               </select>
+
             </div>
           </div>
           <div class="h-[calc(100vh-200px)]">
             <MonacoEditor
               v-model="sourceCode"
               :language="getMonacoLanguage(languageId)"
-              theme="vs-dark"
+              theme="vs"
               :options="editorOptions"
               class="w-full h-full border rounded-lg"
             />
@@ -97,7 +107,7 @@
 
         <!-- 채점 결과 -->
         <div v-else class="text-center mb-8">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">채점 결과: {{ successRate }}% 성공!!</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">채점 결과: {{ successRate }}% 완료!!</h2>
 
         </div>
 
@@ -228,13 +238,14 @@ const explanation = ref<string[]>([])
 
 // 코드 탭/내 제출 히스토리
 const activeCodeTab = ref<'current' | 'history'>('current')
-const mySubmissions = ref<Array<{id: string, submittedAt: string, language_id?: number, source_code: string}>>([])
+const mySubmissions = ref<GradingResponse[]>([])
 const selectedHistoryId = ref('')
+const isLoadingSubmissions = ref(false)
 
 
 // Monaco Editor 옵션
 const editorOptions = {
-  theme: 'vs-dark',
+  theme: 'vs',
   fontSize: 14,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
@@ -303,10 +314,44 @@ const toggleExplanation = (): void => {
 // 히스토리 코드 불러오기
 const loadSelectedHistory = (): void => {
   if (!selectedHistoryId.value) return;
-  const item = mySubmissions.value.find(s => s.id === selectedHistoryId.value);
+  const item = mySubmissions.value.find(s => s.token === selectedHistoryId.value);
   if (!item) return;
   sourceCode.value = item.source_code || '';
   if (item.language_id) languageId.value = item.language_id;
+};
+
+// 제출 히스토리 로드 (gradingAPI 사용)
+const loadSubmissionHistory = async (): Promise<void> => {
+  try {
+    isLoadingSubmissions.value = true;
+    console.log('채점 제출 히스토리 로드 시작');
+    
+    // 현재 문제 ID 가져오기
+    const currentProblemId = parseInt(route.params.problemId as string);
+    console.log('현재 문제 ID:', currentProblemId);
+    
+    const response = await gradingAPI.getGradingList(0, 20, currentProblemId);
+    console.log('채점 제출 히스토리 응답:', response);
+    console.log('응답의 grading 필드:', response.grading);
+    console.log('응답의 grading 타입:', typeof response.grading);
+    console.log('응답의 grading 길이:', response.grading?.length);
+    
+    mySubmissions.value = response.grading || [];
+    console.log('mySubmissions.value 설정 후:', mySubmissions.value);
+    console.log('mySubmissions.value.length:', mySubmissions.value.length);
+    
+    if (mySubmissions.value.length > 0) {
+      selectedHistoryId.value = mySubmissions.value[0].token || '';
+      console.log('첫 번째 제출 선택됨:', selectedHistoryId.value);
+    }
+    
+    console.log('채점 제출 히스토리 로드 완료:', mySubmissions.value.length, '개');
+  } catch (error) {
+    console.error('채점 제출 히스토리 로드 오류:', error);
+    mySubmissions.value = [];
+  } finally {
+    isLoadingSubmissions.value = false;
+  }
 };
 
 // 언어 ID를 Monaco Editor 언어로 변환
@@ -456,6 +501,8 @@ const displayFinalResult = (result: any): void => {
   isGrading.value = false;
   progressPercentage.value = 100;
   
+  console.log('최종 결과 표시:', result);
+  
   // 백엔드 DTO 구조에 맞게 결과 처리 (err_inputOutput 필드 사용)
   if (result.status?.id === 3) {
     // Accepted - 성공
@@ -464,47 +511,109 @@ const displayFinalResult = (result: any): void => {
     totalTestCase.value = result.progress?.total_test_case || 1;
     doneTestCase.value = result.progress?.done_test_case || 1;
   } else if (result.status?.id === 4) {
-    // Wrong Answer - 실패
-    currentStatus.value = '채점 완료! 일부 테스트케이스 실패';
-    testResults.value = []; // 실패 시에도 개별 테스트케이스 표시하지 않음
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
-  } else if (result.status?.id === 6) {
-    // Compilation Error
-    currentStatus.value = '컴파일 오류가 발생했습니다.';
-    testResults.value = [{
-      input: '컴파일 오류',
-      output: result.err_inputOutput?.compileOutput || result.err_inputOutput?.stderr || '컴파일 중 오류가 발생했습니다.',
-      isSuccess: false
-    }];
+    // Wrong Answer - 오답
+    currentStatus.value = '입출력 값이 다릅니다! 코드를 확인해주세요.';
+    
+    // 테스트 결과 상세 표시
+    if (result.input_output || result.err_inputOutput) {
+      const inputOutput = result.input_output || result.err_inputOutput;
+      testResults.value = [{
+        input: `입력: ${inputOutput.stdin || 'N/A'}`,
+        output: `정답 출력: ${inputOutput.expectedOutput || 'N/A'}\n실제 출력: ${inputOutput.stdout || 'N/A'}`,
+        isSuccess: false
+      }];
+    } else {
+      testResults.value = [{
+        input: '오답',
+        output: '입력과 출력이 일치하지 않습니다.',
+        isSuccess: false
+      }];
+    }
+    
     totalTestCase.value = result.progress?.total_test_case || 1;
     doneTestCase.value = result.progress?.done_test_case || 0;
   } else if (result.status?.id === 7) {
-    // Runtime Error
-    currentStatus.value = '런타임 오류가 발생했습니다.';
+    // Compilation Error - 컴파일 오류
+    currentStatus.value = '컴파일 오류가 발생했습니다.';
+    
+    const inputOutput = result.input_output || result.err_inputOutput;
+    if (inputOutput?.compileOutput) {
+      testResults.value = [{
+        input: '컴파일 오류',
+        output: inputOutput.compileOutput,
+        isSuccess: false
+      }];
+    } else {
+      testResults.value = [{
+        input: '컴파일 오류',
+        output: '컴파일 중 오류가 발생했습니다.',
+        isSuccess: false
+      }];
+    }
+    
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
+  } else if (result.status?.id === 5) {
+    // Time Limit Exceeded - 시간 초과
+    currentStatus.value = '시간 초과가 발생했습니다.';
     testResults.value = [{
-      input: '런타임 오류',
-      output: result.err_inputOutput?.stderr || '실행 중 오류가 발생했습니다.',
+      input: '시간 초과',
+      output: '코드 실행 시간이 제한을 초과했습니다.',
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
     doneTestCase.value = result.progress?.done_test_case || 0;
-  } else if (result.status?.id === 5) {
-    // Time Limit Exceeded
-    currentStatus.value = '시간 초과가 발생했습니다.';
+  } else if (result.status?.id === 6) {
+    // Memory Limit Exceeded - 메모리 초과
+    currentStatus.value = '메모리 초과가 발생했습니다.';
     testResults.value = [{
-      input: '시간 초과',
-      output: result.err_inputOutput?.stderr || '코드 실행 시간이 제한을 초과했습니다.',
+      input: '메모리 초과',
+      output: '코드가 사용하는 메모리가 제한을 초과했습니다.',
+      isSuccess: false
+    }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
+  } else if (result.status?.id >= 8 && result.status?.id <= 13) {
+    // Runtime Error (SIGSEGV, SIGXFSZ, SIGFPE, SIGABRT, NZEC, OTHER)
+    const runtimeErrorMessages: Record<number, string> = {
+      8: '메모리 접근 오류 (SIGSEGV)',
+      9: '파일 크기 초과 (SIGXFSZ)',
+      10: '부동소수점 연산 오류 (SIGFPE)',
+      11: '프로그램 강제 종료 (SIGABRT)',
+      12: '비정상 종료 코드 (NZEC)',
+      13: '기타 런타임 오류'
+    };
+    
+    currentStatus.value = `런타임 오류가 발생했습니다: ${runtimeErrorMessages[result.status.id] || '알 수 없는 오류'}`;
+    const inputOutput = result.input_output || result.err_inputOutput;
+    testResults.value = [{
+      input: '런타임 오류',
+      output: inputOutput?.stderr || result.message || '실행 중 오류가 발생했습니다.',
+      isSuccess: false
+    }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
+  } else if (result.status?.id >= 14) {
+    // Internal Error, Exec Format Error
+    const systemErrorMessages: Record<number, string> = {
+      14: '시스템 내부 오류',
+      15: '실행 파일 형식 오류'
+    };
+    
+    currentStatus.value = `시스템 오류: ${systemErrorMessages[result.status.id] || '알 수 없는 시스템 오류'}`;
+    testResults.value = [{
+      input: '시스템 오류',
+      output: result.message || '시스템 내부 오류가 발생했습니다.',
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
     doneTestCase.value = result.progress?.done_test_case || 0;
   } else {
-    // 기타 오류 (시스템 오류 포함)
-    currentStatus.value = `채점 완료! 상태: ${result.status?.description || '알 수 없음'}`;
+    // 기타 상태 (QUEUE, PROCESS 등)
+    currentStatus.value = `채점 상태: ${result.status?.description || '알 수 없음'}`;
     testResults.value = [{
-      input: '오류',
-      output: result.err_inputOutput?.stderr || result.message || '알 수 없는 오류가 발생했습니다.',
+      input: '알 수 없는 상태',
+      output: result.message || '알 수 없는 상태입니다.',
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
@@ -513,7 +622,7 @@ const displayFinalResult = (result: any): void => {
 };
 
 // 컴포넌트 초기화
-onMounted(() => {
+onMounted(async () => {
   console.log('=== ProblemResultView 초기화 ===');
   console.log('현재 라우트:', route);
   console.log('라우트 파라미터:', route.params);
@@ -536,25 +645,8 @@ print(a + b)`;
     isGrading.value = false;
   }
   
-  // 과거 제출 로드 (로컬스토리지 모킹)
-  try {
-    const saved = localStorage.getItem('mySubmissions');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // 간단 매핑: 코드 필드가 없으면 예시 코드로 채움
-      mySubmissions.value = parsed.map((p: any, idx: number) => ({
-        id: p.id || `h${idx}`,
-        submittedAt: p.submittedAt || '알 수 없음',
-        language_id: p.language_id || 71,
-        source_code: p.source_code || '# 제출 코드가 없습니다\nprint(1+1)'
-      }));
-      if (mySubmissions.value.length > 0) {
-        selectedHistoryId.value = mySubmissions.value[0].id;
-      }
-    }
-  } catch (e) {
-    console.warn('mySubmissions 파싱 실패:', e);
-  }
+  // 과거 제출 로드 (gradingAPI 사용)
+  await loadSubmissionHistory();
 
   const currentProblemId = parseInt(route.params.problemId as string);
   nextLesson.value = {
