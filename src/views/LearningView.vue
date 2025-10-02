@@ -164,7 +164,9 @@
               <div class="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
               <span>실행 중...</span>
             </div>
-            <div v-else-if="executionResult" class="whitespace-pre-wrap">{{ executionResult }}</div>
+            <div v-else-if="executionResult" class="whitespace-pre-wrap">
+              {{ executionResult.message || executionResult.stdout || '실행 결과가 없습니다.' }}
+            </div>
             <div v-else class="text-gray-500">실행 결과가 여기에 표시됩니다.</div>
           </div>
         </div>
@@ -178,6 +180,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
 import { languageApiService } from '../services/languageApi';
+import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 
 const route = useRoute();
 const router = useRouter();
@@ -185,7 +188,7 @@ const router = useRouter();
 // 반응형 데이터
 const progress = ref(25);
 const isRunning = ref(false);
-const executionResult = ref('');
+const executionResult = ref<SubmissionResult | null>(null);
 const code = ref('');
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
@@ -311,61 +314,29 @@ function copyCode(codeText: string) {
 
 async function runCode() {
   if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.';
+    executionResult.value = {
+      message: '실행할 코드가 없습니다.'
+    };
     return;
   }
 
   isRunning.value = true;
-  executionResult.value = '';
+  executionResult.value = null;
 
   try {
-    // 백엔드 judge0 API로 코드 실행 요청
-    const response = await fetch('http://localhost:2358/submissions?wait=true', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value,
-        stdin: '', // 필요시 입력 추가
-      })
+    const result = await submissionAPI.executeCode({
+      source_code: code.value,
+      language_id: selectedLanguage.value,
+      stdin: ''
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    // 결과 처리
-    if (result.status && result.status.id === 3) {
-      // Accepted (정답)
-      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.';
-    } else if (result.status && result.status.id === 6) {
-      // Compilation Error (컴파일 오류)
-      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`;
-    } else if (result.status && result.status.id === 7) {
-      // Runtime Error (런타임 오류)
-      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`;
-    } else if (result.status && result.status.id === 5) {
-      // Time Limit Exceeded
-      executionResult.value = '시간 초과: 코드 실행 시간이 제한을 초과했습니다.';
-    } else if (result.status && result.status.id === 10) {
-      // Memory Limit Exceeded
-      executionResult.value = '메모리 초과: 코드가 허용된 메모리 제한을 초과했습니다.';
-    } else if (result.status && result.status.id === 2) {
-      // Processing (아직 처리 중)
-      executionResult.value = '코드가 실행 중입니다... 잠시 후 다시 시도해주세요.';
-    } else {
-      // 기타 상태
-      const statusMessage = result.status ? result.status.description : '알 수 없는 상태';
-      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
-    }
+    executionResult.value = result;
     
   } catch (error: any) {
-    console.error('API 호출 오류:', error);
-    executionResult.value = `실행 오류: ${error.message}`;
+    console.error('코드 실행 오류:', error);
+    executionResult.value = {
+      message: `실행 오류: ${error.message}`
+    };
   } finally {
     isRunning.value = false;
   }

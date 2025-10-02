@@ -184,7 +184,9 @@
               <div class="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
               <span>실행 중...</span>
             </div>
-            <div v-else-if="executionResult" class="whitespace-pre-wrap">{{ executionResult }}</div>
+            <div v-else-if="executionResult" class="whitespace-pre-wrap">
+              {{ executionResult.stdout || executionResult.message || '실행 결과가 없습니다.' }}
+            </div>
             <div v-else class="text-gray-500">실행 결과가 여기에 표시됩니다.</div>
           </div>
         </div>
@@ -219,6 +221,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
+import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
 
 const route = useRoute()
 const router = useRouter()
@@ -248,7 +251,7 @@ const problem = ref({
 // 코드 에디터 관련
 const selectedLanguage = ref(71) // Python 3의 ID를 기본값으로
 const code = ref('')
-const executionResult = ref('')
+const executionResult = ref<SubmissionResult | null>(null)
 const isRunning = ref(false)
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]) // API에서 가져올 언어 목록
 const customInput = ref('')
@@ -290,45 +293,28 @@ const setCodeTemplate = (): void => {
 // 코드 실행 (테스트용)
 const runCode = async (): Promise<void> => {
   if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.';
+    executionResult.value = {
+      message: '실행할 코드가 없습니다.'
+    };
     return;
   }
 
   isRunning.value = true;
-  executionResult.value = '';
+  executionResult.value = null;
 
   try {
-    const response = await fetch('http://localhost:2358/submissions?wait=true', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value,
-        stdin: '1 2\n5 7'
-      })
+    const result = await submissionAPI.executeCode({
+      source_code: code.value,
+      language_id: selectedLanguage.value,
+      stdin: '1 2\n5 7'
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    if (result.status?.id === 3) {
-      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.';
-    } else if (result.status?.id === 6) {
-      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`;
-    } else if (result.status?.id === 7) {
-      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`;
-    } else {
-      const statusMessage = result.status?.description || '알 수 없는 상태';
-      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
-    }
+    executionResult.value = result;
     
   } catch (error: any) {
-    executionResult.value = `실행 오류: ${error.message}`;
+    executionResult.value = {
+      message: `실행 오류: ${error.message}`
+    };
   } finally {
     isRunning.value = false;
   }
@@ -340,41 +326,27 @@ const runTestCase = async (index: number): Promise<void> => {
   if (!tc) return
 
   if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.'
+    executionResult.value = {
+      message: '실행할 코드가 없습니다.'
+    }
     return
   }
 
   isRunning.value = true
-  executionResult.value = ''
+  executionResult.value = null
 
   try {
-    const response = await fetch('http://localhost:2358/submissions?wait=true', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value,
-        stdin: tc.input
-      })
-    })
+    const result = await submissionAPI.executeWithTestCase(
+      code.value,
+      selectedLanguage.value,
+      tc.input
+    )
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    if (result.status?.id === 3) {
-      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.'
-    } else if (result.status?.id === 6) {
-      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`
-    } else if (result.status?.id === 7) {
-      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`
-    } else {
-      const statusMessage = result.status?.description || '알 수 없는 상태'
-      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`
-    }
+    executionResult.value = result
   } catch (error: any) {
-    executionResult.value = `실행 오류: ${error.message}`
+    executionResult.value = {
+      message: `실행 오류: ${error.message}`
+    }
   } finally {
     isRunning.value = false
   }
@@ -383,41 +355,27 @@ const runTestCase = async (index: number): Promise<void> => {
 // 사용자 임의 입력으로 실행
 const runCustomInput = async (): Promise<void> => {
   if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.'
+    executionResult.value = {
+      message: '실행할 코드가 없습니다.'
+    }
     return
   }
 
   isRunning.value = true
-  executionResult.value = ''
+  executionResult.value = null
 
   try {
-    const response = await fetch('http://localhost:2358/submissions?wait=true', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value,
-        stdin: customInput.value || ''
-      })
+    const result = await submissionAPI.executeCode({
+      source_code: code.value,
+      language_id: selectedLanguage.value,
+      stdin: customInput.value || ''
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    if (result.status?.id === 3) {
-      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.'
-    } else if (result.status?.id === 6) {
-      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`
-    } else if (result.status?.id === 7) {
-      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`
-    } else {
-      const statusMessage = result.status?.description || '알 수 없는 상태'
-      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`
-    }
+    executionResult.value = result
   } catch (error: any) {
-    executionResult.value = `실행 오류: ${error.message}`
+    executionResult.value = {
+      message: `실행 오류: ${error.message}`
+    }
   } finally {
     isRunning.value = false
   }
@@ -431,38 +389,35 @@ const submitCode = async (): Promise<void> => {
   }
 
   isRunning.value = true;
-  executionResult.value = '채점을 제출하고 있습니다...';
+  executionResult.value = {
+    message: '채점을 제출하고 있습니다...'
+  };
 
   try {
-    const response = await fetch(`http://localhost:2358/grading/${problem.value.id}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const result = await submissionAPI.submitForGrading(
+      code.value,
+      selectedLanguage.value,
+      problem.value.id
+    );
     
-    if (result.token) {
+    // 제출 성공 메시지 표시
+    executionResult.value = {
+      message: `제출 완료! 채점 토큰: ${result.token}\n결과 페이지로 이동합니다...`
+    };
+    
+    // 잠시 후 결과 페이지로 이동
+    setTimeout(() => {
       router.push({
         name: 'problem-result',
         params: { problemId: problem.value.id.toString() },
         query: { token: result.token }
       });
-    } else {
-      throw new Error('채점 토큰을 받지 못했습니다.');
-    }
+    }, 2000);
     
   } catch (error: any) {
-    executionResult.value = `채점 제출 오류: ${error.message}`;
+    executionResult.value = {
+      message: `채점 제출 오류: ${error.message}`
+    };
     isRunning.value = false;
   }
 };

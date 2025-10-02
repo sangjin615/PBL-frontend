@@ -1,21 +1,43 @@
 /**
  * API 설정 파일
- * 환경변수를 통한 API URL 관리
+ * 환경변수와 기본값을 관리합니다.
  */
 
-export const API_CONFIG = {
-  // Spring Boot API 서버 URL
-  BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:2358/api",
+// 환경변수에서 API URL 가져오기, 없으면 기본값 사용
+const getApiBaseUrl = (): string => {
+  // Vite 환경변수는 VITE_ 접두사가 필요
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:2358';
+};
 
-  // Judge0 API URL (기존)
-  JUDGE0_URL: import.meta.env.VITE_JUDGE0_URL || "http://localhost:2358",
-
-  // 기본 헤더
-  DEFAULT_HEADERS: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
+// Judge0 API 설정
+export const judge0Config = {
+  baseUrl: getApiBaseUrl(),
+  endpoints: {
+    submissions: '/submissions',
+    grading: '/grading',
+    languages: '/languages',
+    statuses: '/statuses'
   },
+  timeout: 30000, // 30초
+  retryAttempts: 3
+};
 
-  // 타임아웃 설정 (밀리초)
-  TIMEOUT: 10000,
-} as const;
+// 백엔드 API 설정 (추후 확장 가능)
+export const backendConfig = {
+  baseUrl: import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080',
+  endpoints: {
+    lectures: '/api/lectures',
+    problems: '/api/problems',
+    submissions: '/api/submissions'
+  }
+};
+
+// 전체 API 설정
+export const apiConfig = {
+  judge0: judge0Config,
+  backend: backendConfig,
+  isDevelopment: import.meta.env.DEV,
+  isProduction: import.meta.env.PROD
+};
+
+export default apiConfig;

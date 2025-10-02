@@ -4,13 +4,13 @@
  */
 
 import type { Language, LanguageResponse, MonacoLanguage } from '@/types/language';
-import { API_CONFIG } from '@/config/api';
+import { apiConfig } from '../config/api';
 
 class LanguageApiService {
   private readonly baseURL: string;
 
   constructor() {
-    this.baseURL = API_CONFIG.JUDGE0_URL;
+    this.baseURL = apiConfig.judge0.baseUrl;
   }
 
   /**
@@ -24,7 +24,7 @@ class LanguageApiService {
 
     const config: RequestInit = {
       headers: {
-        ...API_CONFIG.DEFAULT_HEADERS,
+        'Content-Type': 'application/json',
         ...options.headers,
       },
       ...options,
