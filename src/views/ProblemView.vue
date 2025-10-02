@@ -222,6 +222,7 @@ import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
+import { gradingAPI, type GradingRequest } from '../services/gradingAPI'
 
 const route = useRoute()
 const router = useRouter()
@@ -388,33 +389,52 @@ const submitCode = async (): Promise<void> => {
     return;
   }
 
+  console.log('=== 제출 시작 ===');
+  console.log('코드:', code.value);
+  console.log('언어 ID:', selectedLanguage.value);
+  console.log('문제 ID:', problem.value.id);
+
   isRunning.value = true;
   executionResult.value = {
     message: '채점을 제출하고 있습니다...'
   };
 
   try {
-    const result = await submissionAPI.submitForGrading(
-      code.value,
-      selectedLanguage.value,
-      problem.value.id
-    );
+    const gradingRequest: GradingRequest = {
+      source_code: code.value,
+      language_id: selectedLanguage.value,
+      problem_id: problem.value.id
+    };
+
+    console.log('채점 요청:', gradingRequest);
+    const result = await gradingAPI.submitForGrading(gradingRequest);
+    console.log('채점 응답:', result);
     
     // 제출 성공 메시지 표시
     executionResult.value = {
       message: `제출 완료! 채점 토큰: ${result.token}\n결과 페이지로 이동합니다...`
     };
     
-    // 잠시 후 결과 페이지로 이동
-    setTimeout(() => {
-      router.push({
-        name: 'problem-result',
-        params: { problemId: problem.value.id.toString() },
-        query: { token: result.token }
-      });
-    }, 2000);
+    // 즉시 결과 페이지로 이동 (테스트용)
+    const routeParams = {
+      name: 'problem-result',
+      params: { problemId: problem.value.id.toString() },
+      query: { token: result.token }
+    };
+    console.log('라우팅 시도:', routeParams);
+    
+    router.push(routeParams).then(() => {
+      console.log('라우팅 성공!');
+    }).catch((error) => {
+      console.error('라우팅 실패:', error);
+      executionResult.value = {
+        message: `라우팅 오류: ${error.message}`
+      };
+      isRunning.value = false;
+    });
     
   } catch (error: any) {
+    console.error('채점 제출 오류:', error);
     executionResult.value = {
       message: `채점 제출 오류: ${error.message}`
     };

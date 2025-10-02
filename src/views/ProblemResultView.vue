@@ -199,6 +199,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
+import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
 
 const route = useRoute()
 const router = useRouter()
@@ -211,7 +212,7 @@ const token = ref('')
 // 진행상황 및 상태
 const isGrading = ref(true)
 const progressPercentage = ref(0)
-const currentStatus = ref('채점을 시작합니다...')
+const currentStatus = ref('채점 결과를 불러오는 중...')
 const eventSource = ref<EventSource | null>(null)
 const isConnected = ref(false) // 연결 상태 추적
 const totalTestCase = ref(0) // 기본값 설정
@@ -313,44 +314,58 @@ const getMonacoLanguage = (languageId: number): string => {
   return languageApiService.getMonacoLanguage(languageId);
 };
 
-// SSE 진행상황 연결
+// 채점 결과 조회 (일반 조회 → 프로그레스로 전환)
 const startGradingProgress = async (token: string): Promise<void> => {
-  if (isConnected.value || eventSource.value) {
-    console.log('이미 SSE 연결이 존재합니다.');
-    return;
-  }
-  
   try {
-    // 채점 상태 확인
-    const response = await fetch(`http://localhost:2358/grading/${token}`);
-    if (response.ok) {
-      const result = await response.json();
-      
-      // 소스코드와 언어 정보 업데이트
-      if (result.source_code) {
-        sourceCode.value = result.source_code;
-      }
-      if (result.language_id) {
-        languageId.value = result.language_id;
-      }
-      
-      // 이미 완료된 경우
-      if (result.status?.id >= 3) {
-        displayFinalResult(result);
-        isGrading.value = false;
-        return;
-      }
+    console.log('=== 채점 진행상황 시작 ===');
+    console.log('토큰:', token);
+    
+    // 1. 먼저 일반 조회 (제출 상태 확인)
+    const result = await gradingAPI.getGradingResult(token, false);
+    console.log('일반 조회 결과:', result);
+    
+    // 소스코드와 언어 정보 업데이트
+    if (result.source_code) {
+      sourceCode.value = result.source_code;
     }
+    if (result.language_id) {
+      languageId.value = result.language_id;
+    }
+    
+    // 채점이 완료되었는지 확인
+    if (result.status && result.status.id >= 3) {
+      // 완료된 경우 결과 표시
+      console.log('채점 완료됨, 결과 표시');
+      displayFinalResult(result);
+      isGrading.value = false;
+    } else {
+      // 아직 진행 중인 경우 프로그레스로 전환
+      console.log('채점 진행 중, SSE 연결 시작');
+      currentStatus.value = '채점이 진행 중입니다. 프로그레스를 확인합니다...';
+      await startProgressMonitoring(token);
+    }
+    
+  } catch (error) {
+    console.error('채점 결과 조회 오류:', error);
+    isGrading.value = false;
+    currentStatus.value = '채점 결과를 불러오는 중 오류가 발생했습니다.';
+  }
+};
+
+// 프로그레스 모니터링 시작 (SSE 연결)
+const startProgressMonitoring = async (token: string): Promise<void> => {
+  try {
+    console.log('SSE 연결 시작:', token);
     
     // SSE 연결 시작
     isConnected.value = true;
     eventSource.value = new EventSource(`http://localhost:2358/grading/${token}/progress`);
     setupSSEHandlers();
+    
   } catch (error) {
-    console.error('채점 상태 확인 오류:', error);
-    isConnected.value = true;
-    eventSource.value = new EventSource(`http://localhost:2358/grading/${token}/progress`);
-    setupSSEHandlers();
+    console.error('프로그레스 모니터링 오류:', error);
+    isGrading.value = false;
+    currentStatus.value = '채점 진행상황을 확인할 수 없습니다.';
   }
 };
 
@@ -359,22 +374,23 @@ const setupSSEHandlers = (): void => {
   if (!eventSource.value) return;
   
   eventSource.value.onopen = () => {
+    console.log('SSE 연결 열림');
     currentStatus.value = '채점 진행상황을 받고 있습니다...';
   };
   
   eventSource.value.addEventListener('progress', (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      console.log('진행상황 데이터 수신:', data);
       
-      nextTick(() => {
-        if (data.current_status === 'COMPLETED' || data.status?.id >= 3) {
-          displayFinalResult(data);
-          closeSSEConnection();
-          isGrading.value = false;
-        } else {
-          updateProgressDisplay(data);
-        }
-      });
+      if (data.current_status === 'COMPLETED' || data.status?.id >= 3) {
+        console.log('채점 완료, 최종 결과 표시');
+        displayFinalResult(data);
+        closeSSEConnection();
+        isGrading.value = false;
+      } else {
+        updateProgressDisplay(data);
+      }
     } catch (error) {
       console.error('SSE 데이터 파싱 오류:', error);
     }
@@ -384,26 +400,23 @@ const setupSSEHandlers = (): void => {
   eventSource.value.addEventListener('error', (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      console.log('Error 이벤트 수신:', data);
       
-      nextTick(() => {
-        console.log('Error 이벤트 수신:', data);
-        // error 이벤트로 받은 데이터를 최종 결과로 처리
-        displayFinalResult(data);
-        closeSSEConnection();
-        isGrading.value = false;
-      });
+      // error 이벤트로 받은 데이터를 최종 결과로 처리
+      displayFinalResult(data);
+      closeSSEConnection();
+      isGrading.value = false;
     } catch (error) {
       console.error('Error 이벤트 데이터 파싱 오류:', error);
       // 파싱 실패 시 단순 문자열로 처리
-      nextTick(() => {
-        currentStatus.value = `오류: ${event.data}`;
-        isGrading.value = false;
-        closeSSEConnection();
-      });
+      currentStatus.value = `오류: ${event.data}`;
+      isGrading.value = false;
+      closeSSEConnection();
     }
   });
 
   eventSource.value.onerror = () => {
+    console.error('SSE 연결 오류');
     closeSSEConnection();
     currentStatus.value = '채점 진행상황을 가져올 수 없습니다.';
     isGrading.value = false;
@@ -441,62 +454,80 @@ const updateProgressDisplay = (progress: any): void => {
 // 최종 결과 표시
 const displayFinalResult = (result: any): void => {
   isGrading.value = false;
-  totalTestCase.value = result.total_test_case || 0;
-  doneTestCase.value = result.done_test_case || 0;
   progressPercentage.value = 100;
   
-  // 채점 결과에 따른 메시지 설정
+  // 백엔드 DTO 구조에 맞게 결과 처리 (err_inputOutput 필드 사용)
   if (result.status?.id === 3) {
-    // Accepted - 모든 테스트케이스 통과
-    currentStatus.value = `채점 완료! 총 ${totalTestCase.value}개 테스트케이스 모두 통과`;
+    // Accepted - 성공
+    currentStatus.value = '채점 완료! 모든 테스트케이스 통과';
     testResults.value = []; // 성공 시에는 상세 결과 표시하지 않음
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 1;
   } else if (result.status?.id === 4) {
-    // Wrong Answer - 일부 실패
-    currentStatus.value = `채점 완료! 총 ${totalTestCase.value}개 테스트케이스 중 ${doneTestCase.value}개 통과`;
+    // Wrong Answer - 실패
+    currentStatus.value = '채점 완료! 일부 테스트케이스 실패';
     testResults.value = []; // 실패 시에도 개별 테스트케이스 표시하지 않음
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
   } else if (result.status?.id === 6) {
     // Compilation Error
     currentStatus.value = '컴파일 오류가 발생했습니다.';
     testResults.value = [{
       input: '컴파일 오류',
-      output: result.compile_output || result.stderr || '컴파일 중 오류가 발생했습니다.',
+      output: result.err_inputOutput?.compileOutput || result.err_inputOutput?.stderr || '컴파일 중 오류가 발생했습니다.',
       isSuccess: false
     }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
   } else if (result.status?.id === 7) {
     // Runtime Error
     currentStatus.value = '런타임 오류가 발생했습니다.';
     testResults.value = [{
       input: '런타임 오류',
-      output: result.stderr || '실행 중 오류가 발생했습니다.',
+      output: result.err_inputOutput?.stderr || '실행 중 오류가 발생했습니다.',
       isSuccess: false
     }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
   } else if (result.status?.id === 5) {
     // Time Limit Exceeded
     currentStatus.value = '시간 초과가 발생했습니다.';
     testResults.value = [{
       input: '시간 초과',
-      output: result.stderr || '코드 실행 시간이 제한을 초과했습니다.',
+      output: result.err_inputOutput?.stderr || '코드 실행 시간이 제한을 초과했습니다.',
       isSuccess: false
     }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
   } else {
-    // 기타 오류 (시스템 오류 포함) - stderr 우선 표시
+    // 기타 오류 (시스템 오류 포함)
     currentStatus.value = `채점 완료! 상태: ${result.status?.description || '알 수 없음'}`;
     testResults.value = [{
       input: '오류',
-      output: result.stderr || result.message || '알 수 없는 오류가 발생했습니다.',
+      output: result.err_inputOutput?.stderr || result.message || '알 수 없는 오류가 발생했습니다.',
       isSuccess: false
     }];
+    totalTestCase.value = result.progress?.total_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || 0;
   }
 };
 
 // 컴포넌트 초기화
 onMounted(() => {
+  console.log('=== ProblemResultView 초기화 ===');
+  console.log('현재 라우트:', route);
+  console.log('라우트 파라미터:', route.params);
+  console.log('라우트 쿼리:', route.query);
+  
   const tokenParam = route.query.token as string;
+  console.log('토큰 파라미터:', tokenParam);
   
   if (tokenParam) {
+    console.log('토큰이 있음, 채점 진행상황 시작');
     token.value = tokenParam;
     startGradingProgress(tokenParam);
   } else {
+    console.log('토큰이 없음, 기본 테스트용 데이터 설정');
     // 토큰이 없으면 기본 테스트용 데이터 설정
     sourceCode.value = `# A + B 문제
 a, b = map(int, input().split())
@@ -534,7 +565,14 @@ print(a + b)`;
 });
 
 // 컴포넌트 정리
-onUnmounted(closeSSEConnection);
+onUnmounted(() => {
+  // SSE 연결 정리
+  if (eventSource.value) {
+    eventSource.value.close();
+    eventSource.value = null;
+  }
+  isConnected.value = false;
+});
 </script>
 
 

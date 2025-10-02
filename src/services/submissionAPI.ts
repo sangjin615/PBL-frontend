@@ -167,56 +167,6 @@ export class SubmissionAPI {
     
     return Promise.all(promises);
   }
-
-  /**
-   * 코드 제출 (채점)을 위한 비동기 실행
-   * @param sourceCode 소스 코드
-   * @param languageId 언어 ID
-   * @param problemId 문제 ID
-   * @returns Promise<{token: string}> 채점 토큰
-   */
-  async submitForGrading(
-    sourceCode: string, 
-    languageId: number, 
-    problemId: number
-  ): Promise<{token: string}> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(`${this.baseUrl}${apiConfig.judge0.endpoints.grading}/${problemId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          source_code: sourceCode,
-          language_id: languageId
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (!result.token) {
-        throw new Error('채점 토큰을 받지 못했습니다.');
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('코드 제출 오류:', error);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다.');
-      }
-      throw new Error(`코드 제출 실패: ${error.message}`);
-    }
-  }
 }
 
 // 싱글톤 인스턴스 생성
