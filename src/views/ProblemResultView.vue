@@ -198,6 +198,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
+import { languageApiService } from '../services/languageApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -309,19 +310,7 @@ const loadSelectedHistory = (): void => {
 
 // 언어 ID를 Monaco Editor 언어로 변환
 const getMonacoLanguage = (languageId: number): string => {
-  const languageMap: Record<number, string> = {
-    70: 'python', 71: 'python', 63: 'javascript', 74: 'typescript',
-    62: 'java', 48: 'c', 49: 'c', 50: 'c', 75: 'c',
-    52: 'cpp', 53: 'cpp', 54: 'cpp', 76: 'cpp', 51: 'csharp',
-    60: 'go', 73: 'rust', 72: 'ruby', 68: 'php', 64: 'lua',
-    85: 'perl', 46: 'shell', 61: 'haskell', 55: 'lisp', 65: 'ocaml',
-    69: 'prolog', 66: 'matlab', 80: 'r', 59: 'fortran', 67: 'pascal',
-    56: 'd', 58: 'erlang', 57: 'elixir', 88: 'groovy', 86: 'clojure',
-    81: 'scala', 78: 'kotlin', 79: 'objective-c', 83: 'swift', 84: 'vb',
-    47: 'basic', 77: 'cobol', 45: 'asm', 82: 'sql', 87: 'fsharp',
-    43: 'plaintext', 44: 'plaintext', 89: 'plaintext'
-  };
-  return languageMap[languageId] || 'plaintext';
+  return languageApiService.getMonacoLanguage(languageId);
 };
 
 // SSE 진행상황 연결
@@ -373,7 +362,7 @@ const setupSSEHandlers = (): void => {
     currentStatus.value = '채점 진행상황을 받고 있습니다...';
   };
   
-  eventSource.value.addEventListener('progress', (event) => {
+  eventSource.value.addEventListener('progress', (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
       
@@ -392,7 +381,7 @@ const setupSSEHandlers = (): void => {
   });
 
   // error 이벤트 핸들러 추가
-  eventSource.value.addEventListener('error', (event) => {
+  eventSource.value.addEventListener('error', (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
       

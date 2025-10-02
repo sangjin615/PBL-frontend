@@ -218,6 +218,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
+import { languageApiService } from '../services/languageApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -249,11 +250,11 @@ const selectedLanguage = ref(71) // Python 3의 ID를 기본값으로
 const code = ref('')
 const executionResult = ref('')
 const isRunning = ref(false)
-const supportedLanguages = ref([]) // API에서 가져올 언어 목록
+const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]) // API에서 가져올 언어 목록
 const customInput = ref('')
 
 // 다음 강의 정보
-const nextLesson = ref(null)
+const nextLesson = ref<{id: number, title: string, format: string} | null>(null)
 
 // Monaco Editor 옵션
 const editorOptions = {
@@ -277,23 +278,6 @@ const codeTemplates: Record<number, string> = {
   63: '// A + B 문제\n// JavaScript는 백엔드에서 지원하지 않을 수 있습니다\nconsole.log("JavaScript는 현재 지원되지 않습니다.");',
   62: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\nimport java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}',
   54: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}'
-};
-
-// Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
-const getMonacoLanguage = (languageId: number): string => {
-  const languageMap: Record<number, string> = {
-    70: 'python', 71: 'python', 63: 'javascript', 74: 'typescript',
-    62: 'java', 48: 'c', 49: 'c', 50: 'c', 75: 'c',
-    52: 'cpp', 53: 'cpp', 54: 'cpp', 76: 'cpp', 51: 'csharp',
-    60: 'go', 73: 'rust', 72: 'ruby', 68: 'php', 64: 'lua',
-    85: 'perl', 46: 'shell', 61: 'haskell', 55: 'lisp', 65: 'ocaml',
-    69: 'prolog', 66: 'matlab', 80: 'r', 59: 'fortran', 67: 'pascal',
-    56: 'd', 58: 'erlang', 57: 'elixir', 88: 'groovy', 86: 'clojure',
-    81: 'scala', 78: 'kotlin', 79: 'objective-c', 83: 'swift', 84: 'vb',
-    47: 'basic', 77: 'cobol', 45: 'asm', 82: 'sql', 87: 'fsharp',
-    43: 'plaintext', 44: 'plaintext', 89: 'plaintext'
-  };
-  return languageMap[languageId] || 'plaintext';
 };
 
 // 언어 변경 시 코드 템플릿 설정
@@ -503,23 +487,24 @@ const goToNextLesson = (): void => {
 // API에서 지원하는 언어 목록을 가져오는 함수
 const fetchSupportedLanguages = async (): Promise<void> => {
   try {
-    const response = await fetch('http://localhost:2358/languages');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const languages = await response.json();
+    const languages = await languageApiService.getLanguages();
     supportedLanguages.value = languages;
     console.log('언어 목록 로드 완료:', languages.length, '개 언어');
   } catch (error) {
     console.error('언어 목록 로드 실패:', error);
     // 기본 언어 목록으로 fallback
     supportedLanguages.value = [
-      { id: 71, name: 'Python (3.8.1)' },
-      { id: 63, name: 'JavaScript (Node.js 12.14.0)' },
-      { id: 62, name: 'Java (OpenJDK 13.0.1)' },
-      { id: 54, name: 'C++ (GCC 9.2.0)' }
+      { id: 71, name: 'Python (3.8.1)', version: '3.8.1', file_extension: '.py' },
+      { id: 63, name: 'JavaScript (Node.js 12.14.0)', version: '12.14.0', file_extension: '.js' },
+      { id: 62, name: 'Java (OpenJDK 13.0.1)', version: '13.0.1', file_extension: '.java' },
+      { id: 54, name: 'C++ (GCC 9.2.0)', version: '9.2.0', file_extension: '.cpp' }
     ];
   }
+};
+
+// Judge0 언어 ID를 Monaco Editor 언어로 변환하는 함수
+const getMonacoLanguage = (languageId: number): string => {
+  return languageApiService.getMonacoLanguage(languageId);
 };
 
 // 컴포넌트 초기화

@@ -177,6 +177,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
+import { languageApiService } from '../services/languageApi';
 
 const route = useRoute();
 const router = useRouter();
@@ -187,12 +188,12 @@ const isRunning = ref(false);
 const executionResult = ref('');
 const code = ref('');
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
-const supportedLanguages = ref([]); // API에서 가져올 언어 목록
-const currentChapter = ref({});
+const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
+const currentChapter = ref<{id: number, title: string, sections: Array<{id: number, title: string, content: string, codeExample?: {language: string, code: string}, explanation?: string}>}>({} as any);
 // terminalRef는 더 이상 필요하지 않음
 
 // 다음 강의 정보
-const nextLesson = ref(null);
+const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
 
 // Monaco Editor 옵션
 const editorOptions = ref({
@@ -207,8 +208,7 @@ const editorOptions = ref({
   selectOnLineNumbers: true,
   roundedSelection: false,
   readOnly: false,
-  cursorStyle: 'line',
-  automaticLayout: true,
+  cursorStyle: 'line'
 });
 
 // 강의 데이터
@@ -363,7 +363,7 @@ async function runCode() {
       executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('API 호출 오류:', error);
     executionResult.value = `실행 오류: ${error.message}`;
   } finally {
@@ -374,153 +374,24 @@ async function runCode() {
 // API에서 지원하는 언어 목록을 가져오는 함수
 async function fetchSupportedLanguages() {
   try {
-    const response = await fetch('http://localhost:2358/languages');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const languages = await response.json();
+    const languages = await languageApiService.getLanguages();
     supportedLanguages.value = languages;
     console.log('언어 목록 로드 완료:', languages.length, '개 언어');
   } catch (error) {
     console.error('언어 목록 로드 실패:', error);
     // 기본 언어 목록으로 fallback
     supportedLanguages.value = [
-      { id: 71, name: 'Python (3.8.1)' },
-      { id: 63, name: 'JavaScript (Node.js 12.14.0)' },
-      { id: 62, name: 'Java (OpenJDK 13.0.1)' },
-      { id: 54, name: 'C++ (GCC 9.2.0)' }
+      { id: 71, name: 'Python (3.8.1)', version: '3.8.1', file_extension: '.py' },
+      { id: 63, name: 'JavaScript (Node.js 12.14.0)', version: '12.14.0', file_extension: '.js' },
+      { id: 62, name: 'Java (OpenJDK 13.0.1)', version: '13.0.1', file_extension: '.java' },
+      { id: 54, name: 'C++ (GCC 9.2.0)', version: '9.2.0', file_extension: '.cpp' }
     ];
   }
 }
 
 // Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
-function getMonacoLanguage(languageId) {
-  const languageMap = {
-    // Python
-    70: 'python',
-    71: 'python',
-    
-    // JavaScript/TypeScript
-    63: 'javascript',
-    74: 'typescript',
-    
-    // Java
-    62: 'java',
-    
-    // C/C++
-    48: 'c',
-    49: 'c',
-    50: 'c',
-    75: 'c',
-    52: 'cpp',
-    53: 'cpp',
-    54: 'cpp',
-    76: 'cpp',
-    
-    // C#
-    51: 'csharp',
-    
-    // Go
-    60: 'go',
-    
-    // Rust
-    73: 'rust',
-    
-    // Ruby
-    72: 'ruby',
-    
-    // PHP
-    68: 'php',
-    
-    // Lua
-    64: 'lua',
-    
-    // Perl
-    85: 'perl',
-    
-    // Bash
-    46: 'shell',
-    
-    // Haskell
-    61: 'haskell',
-    
-    // Lisp
-    55: 'lisp',
-    
-    // OCaml
-    65: 'ocaml',
-    
-    // Prolog
-    69: 'prolog',
-    
-    // Octave (MATLAB)
-    66: 'matlab',
-    
-    // R
-    80: 'r',
-    
-    // Fortran
-    59: 'fortran',
-    
-    // Pascal
-    67: 'pascal',
-    
-    // D
-    56: 'd',
-    
-    // Erlang
-    58: 'erlang',
-    
-    // Elixir
-    57: 'elixir',
-    
-    // Groovy
-    88: 'groovy',
-    
-    // Clojure
-    86: 'clojure',
-    
-    // Scala
-    81: 'scala',
-    
-    // Kotlin
-    78: 'kotlin',
-    
-    // Objective-C
-    79: 'objective-c',
-    
-    // Swift
-    83: 'swift',
-    
-    // Visual Basic
-    84: 'vb',
-    
-    // Basic
-    47: 'basic',
-    
-    // COBOL
-    77: 'cobol',
-    
-    // Assembly
-    45: 'asm',
-    
-    // SQL
-    82: 'sql',
-    
-    // F#
-    87: 'fsharp',
-    
-    // Plain Text
-    43: 'plaintext',
-    
-    // Executable
-    44: 'plaintext',
-    
-    // Multi-file program
-    89: 'plaintext'
-  };
-  
-  return languageMap[languageId] || 'plaintext';
+function getMonacoLanguage(languageId: number): string {
+  return languageApiService.getMonacoLanguage(languageId);
 }
 
 // 초기화
