@@ -10,15 +10,15 @@ import type {
   LectureSearchResponse,
   LectureStats,
   TestCase,
-  LectureType,
 } from "@/types/lecture";
-import { API_CONFIG } from "@/config/api";
+import { LectureType } from "@/types/lecture";
+import { apiConfig } from "@/config/api";
 
 class LectureApiService {
   private readonly baseURL: string;
 
   constructor() {
-    this.baseURL = API_CONFIG.BASE_URL;
+    this.baseURL = apiConfig.backend.baseUrl;
   }
 
   /**
@@ -32,7 +32,7 @@ class LectureApiService {
 
     const config: RequestInit = {
       headers: {
-        ...API_CONFIG.DEFAULT_HEADERS,
+        'Content-Type': 'application/json',
         ...options.headers,
       },
       ...options,
