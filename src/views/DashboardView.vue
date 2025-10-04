@@ -103,11 +103,53 @@
             </button>
 
             <!-- 만들기 버튼 -->
-            <button
-              class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              + 만들기
-            </button>
+            <div class="relative">
+              <button
+                @click="showCreateMenu = !showCreateMenu"
+                class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center space-x-1"
+              >
+                <span>+ 만들기</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+              
+              <!-- 드롭다운 메뉴 -->
+              <div
+                v-if="showCreateMenu"
+                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10"
+              >
+                <div class="py-1">
+                  <button
+                    @click="goToCreateCurriculum"
+                    class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                    <span>커리큘럼 만들기</span>
+                  </button>
+                  <button
+                    @click="goToCreateMarkdown"
+                    class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span>강의 만들기</span>
+                  </button>
+                  <button
+                    @click="goToCreateProblem"
+                    class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    <span>문제 만들기</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -389,6 +431,7 @@ const tabs = ref([
 
 const activeTab = ref("all");
 const sortBy = ref("recommended");
+const showCreateMenu = ref(false);
 
 // 하드코딩된 커리큘럼 데이터 (임시 유지 - 향후 커리큘럼 API 연결 시 제거)
 const curricula = ref([
@@ -398,7 +441,7 @@ const curricula = ref([
     createdDate: "2025.09.01",
     privacy: "비공개",
     thumbnailColor: "#FFE4E1",
-    type: "curriculum",
+    type: "curriculum" as const,
     courseCount: 12,
     duration: "48시간",
     tags: ["#웹개발", "#풀스택", "#프론트엔드", "#백엔드"],
@@ -409,7 +452,7 @@ const curricula = ref([
     createdDate: "2025.08.28",
     privacy: "비공개",
     thumbnailColor: "#FFE4B5",
-    type: "curriculum",
+    type: "curriculum" as const,
     courseCount: 8,
     duration: "32시간",
     tags: ["#데이터사이언스", "#파이썬", "#머신러닝", "#분석"],
@@ -563,6 +606,22 @@ async function testApi() {
     console.error("API 테스트 중 오류:", error);
     alert("❌ API 테스트 중 오류가 발생했습니다.");
   }
+}
+
+// 만들기 메뉴 네비게이션 함수들
+function goToCreateCurriculum() {
+  showCreateMenu.value = false;
+  router.push({ name: 'instructor-create-curriculum' });
+}
+
+function goToCreateMarkdown() {
+  showCreateMenu.value = false;
+  router.push({ name: 'instructor-create-markdown' });
+}
+
+function goToCreateProblem() {
+  showCreateMenu.value = false;
+  router.push({ name: 'instructor-create-problem' });
 }
 
 // 컴포넌트 마운트 시 데이터 로드

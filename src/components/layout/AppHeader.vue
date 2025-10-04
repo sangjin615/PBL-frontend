@@ -84,8 +84,7 @@ function createCourse() {
 
 function createCurriculum() {
   showCreateMenu.value = false;
-  // 커리큘럼 만들기 페이지는 아직 구현되지 않음
-  alert('커리큘럼 만들기 기능은 구현 예정입니다.');
+  router.push({ name: 'instructor-create-curriculum' });
 }
 
 // 드롭다운 메뉴 외부 클릭 시 닫기

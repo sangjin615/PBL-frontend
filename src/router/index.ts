@@ -81,6 +81,11 @@ const routes: RouteRecordRaw[] = [
     name: 'instructor-create-video',
     component: () => import('../views/InstructorCreateVideoView.vue'),
   },
+  {
+    path: '/instructor/create-curriculum',
+    name: 'instructor-create-curriculum',
+    component: () => import('../views/InstructorCreateCurriculumView.vue'),
+  },
 ];
 
 const router = createRouter({

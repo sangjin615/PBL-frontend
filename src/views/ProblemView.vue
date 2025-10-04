@@ -148,12 +148,6 @@
           </div>
             <div class="flex space-x-2">
               <button 
-                @click="runCode"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                코드실행
-              </button>
-              <button 
                 @click="submitCode"
                 :disabled="isRunning"
                 class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -195,7 +189,7 @@
 
     <!-- 하단 버튼들 -->
     <div class="bg-white border-t px-6 py-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-start">
         <div class="flex items-center space-x-4">
           <button class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
             질문하기
@@ -204,13 +198,6 @@
             초기화
           </button>
         </div>
-        <button 
-          @click="submitCode"
-          :disabled="isRunning"
-          class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {{ isRunning ? '채점 중...' : '제출하기' }}
-        </button>
       </div>
     </div>
   </div>
@@ -291,35 +278,6 @@ const setCodeTemplate = (): void => {
   }
 };
 
-// 코드 실행 (테스트용)
-const runCode = async (): Promise<void> => {
-  if (!code.value.trim()) {
-    executionResult.value = {
-      message: '실행할 코드가 없습니다.'
-    };
-    return;
-  }
-
-  isRunning.value = true;
-  executionResult.value = null;
-
-  try {
-    const result = await submissionAPI.executeCode({
-      source_code: code.value,
-      language_id: selectedLanguage.value,
-      stdin: '1 2\n5 7'
-    });
-
-    executionResult.value = result;
-    
-  } catch (error: any) {
-    executionResult.value = {
-      message: `실행 오류: ${error.message}`
-    };
-  } finally {
-    isRunning.value = false;
-  }
-};
 
 // 특정 테스트케이스 입력으로 실행
 const runTestCase = async (index: number): Promise<void> => {
