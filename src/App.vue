@@ -6,7 +6,7 @@
 
     <div :class="contentClass">
       <main class="flex-1 pt-16">
-        <router-view />
+        <router-view/>
       </main>
       <AppFooter />
     </div>

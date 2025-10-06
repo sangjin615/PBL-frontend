@@ -120,7 +120,7 @@
               <div class="mt-3 flex justify-end">
                 <button
                   @click="runCustomInput"
-                  :disabled="isRunning || !code.trim()"
+                  :disabled="isRunning"
                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {{ isRunning ? '실행 중...' : '입력으로 실행' }}
@@ -137,8 +137,9 @@
         <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <h3 class="font-semibold">코드 에디터</h3>
-            <select 
-              v-model="selectedLanguage" 
+            <select
+              v-model="selectedLanguage"
+              @change="changeLanguage(selectedLanguage)"
               class="px-3 py-1 border rounded text-sm"
             >
               <option v-for="lang in supportedLanguages" :key="lang.id" :value="lang.id">
@@ -158,14 +159,17 @@
         </div>
 
         <!-- 코드 에디터 -->
-        <div class="flex-1">
+        <div class="flex-1 p-4">
           <MonacoEditor
-            v-model="code"
-            :language="getMonacoLanguage(selectedLanguage)"
-            theme="vs"
-            :options="editorOptions"
+            v-if="isEditorReady"
+            ref="monacoEditorRef"
+            :key="editorConfig.languageId"
+            :config="editorConfig"
             class="w-full h-full border rounded-lg"
           />
+          <div v-else class="w-full h-full flex items-center justify-center">
+            <div class="text-gray-500">에디터 준비 중...</div>
+          </div>
         </div>
 
         <!-- 실행 결과 터미널 -->
@@ -210,6 +214,7 @@ import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI'
+import type { MonacoEditorConfig } from '../services/extendedClient'
 
 const route = useRoute()
 const router = useRouter()
@@ -238,53 +243,38 @@ const problem = ref({
 
 // 코드 에디터 관련
 const selectedLanguage = ref(71) // Python 3의 ID를 기본값으로
-const code = ref('')
 const executionResult = ref<SubmissionResult | null>(null)
 const isRunning = ref(false)
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]) // API에서 가져올 언어 목록
 const customInput = ref('')
+const monacoEditorRef = ref<any>(null)
+const isEditorReady = ref(false) // 에디터 준비 상태
+
+// Monaco Editor 통합 설정
+const editorConfig = ref<MonacoEditorConfig>(
+  languageApiService.createEditorConfig(71, '')
+)
 
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null)
 
-// Monaco Editor 옵션
-const editorOptions = {
-  theme: 'vs-dark',
-  fontSize: 14,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  automaticLayout: true,
-  wordWrap: 'on',
-  lineNumbers: 'on',
-  folding: true,
-  selectOnLineNumbers: true,
-  roundedSelection: false,
-  readOnly: false,
-  cursorStyle: 'line'
+// 언어 변경 핸들러 - 에디터 설정 재생성
+const changeLanguage = (newLanguageId: number) => {
+  selectedLanguage.value = newLanguageId;
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
+  console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
 };
-
-// 언어별 코드 템플릿
-const codeTemplates: Record<number, string> = {
-  71: '# A + B 문제\n# 두 정수를 입력받아 더한 값을 출력\n\na, b = map(int, input().split())\nprint(a + b)',
-  63: '// A + B 문제\n// JavaScript는 백엔드에서 지원하지 않을 수 있습니다\nconsole.log("JavaScript는 현재 지원되지 않습니다.");',
-  62: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\nimport java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}',
-  54: '// A + B 문제\n// 두 정수를 입력받아 더한 값을 출력\n#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}'
-};
-
-// 언어 변경 시 코드 템플릿 설정
-const setCodeTemplate = (): void => {
-  if (!code.value.trim()) {
-    code.value = codeTemplates[selectedLanguage.value] || codeTemplates[71];
-  }
-};
-
 
 // 특정 테스트케이스 입력으로 실행
 const runTestCase = async (index: number): Promise<void> => {
   const tc = problem.value.testCases[index]
   if (!tc) return
 
-  if (!code.value.trim()) {
+  // Monaco Editor에서 현재 코드 가져오기
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+
+  if (!currentCode.trim()) {
     executionResult.value = {
       message: '실행할 코드가 없습니다.'
     }
@@ -296,7 +286,7 @@ const runTestCase = async (index: number): Promise<void> => {
 
   try {
     const result = await submissionAPI.executeWithTestCase(
-      code.value,
+      currentCode,
       selectedLanguage.value,
       tc.input
     )
@@ -313,7 +303,10 @@ const runTestCase = async (index: number): Promise<void> => {
 
 // 사용자 임의 입력으로 실행
 const runCustomInput = async (): Promise<void> => {
-  if (!code.value.trim()) {
+  // Monaco Editor에서 현재 코드 가져오기
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+
+  if (!currentCode.trim()) {
     executionResult.value = {
       message: '실행할 코드가 없습니다.'
     }
@@ -325,7 +318,7 @@ const runCustomInput = async (): Promise<void> => {
 
   try {
     const result = await submissionAPI.executeCode({
-      source_code: code.value,
+      source_code: currentCode,
       language_id: selectedLanguage.value,
       stdin: customInput.value || ''
     })
@@ -342,13 +335,16 @@ const runCustomInput = async (): Promise<void> => {
 
 // 코드 제출 (채점)
 const submitCode = async (): Promise<void> => {
-  if (!code.value.trim()) {
+  // Monaco Editor에서 현재 코드 가져오기
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+
+  if (!currentCode.trim()) {
     alert('제출할 코드가 없습니다.');
     return;
   }
 
   console.log('=== 제출 시작 ===');
-  console.log('코드:', code.value);
+  console.log('코드:', currentCode);
   console.log('언어 ID:', selectedLanguage.value);
   console.log('문제 ID:', problem.value.id);
 
@@ -359,7 +355,7 @@ const submitCode = async (): Promise<void> => {
 
   try {
     const gradingRequest: GradingRequest = {
-      source_code: code.value,
+      source_code: currentCode,
       language_id: selectedLanguage.value,
       problem_id: problem.value.id
     };
@@ -435,16 +431,39 @@ const fetchSupportedLanguages = async (): Promise<void> => {
   }
 };
 
-// Judge0 언어 ID를 Monaco Editor 언어로 변환하는 함수
-const getMonacoLanguage = (languageId: number): string => {
-  return languageApiService.getMonacoLanguage(languageId);
-};
-
-// 컴포넌트 초기화
+// 컴포넌트 마운트 - 데이터 준비 후 에디터 렌더링
 onMounted(async () => {
-  setCodeTemplate();
+  console.log('ProblemView onMounted 시작');
+
+  // 1. 언어 목록 먼저 가져오기
   await fetchSupportedLanguages();
-  
+
+  // 2. 토큰이 있으면 소스코드와 언어 정보 가져오기
+  const tokenParam = route.query.token as string;
+  if (tokenParam) {
+    try {
+      console.log('토큰으로 정보 가져오기:', tokenParam);
+      const result = await gradingAPI.getGradingResult(tokenParam, false);
+
+      // 에디터 설정 업데이트 (언어 + 소스코드)
+      if (result.language_id && result.source_code) {
+        selectedLanguage.value = result.language_id;
+        editorConfig.value = languageApiService.createEditorConfig(
+          result.language_id,
+          result.source_code
+        );
+        console.log('에디터 설정 완료:', result.language_id, result.source_code.length);
+      }
+    } catch (error) {
+      console.error('토큰으로 정보 가져오기 실패:', error);
+    }
+  }
+
+  // 3. 에디터 렌더링 허용
+  isEditorReady.value = true;
+  console.log('에디터 렌더링 시작');
+
+  // 4. 기타 초기화
   const currentProblemId = parseInt(route.params.problemId as string);
   nextLesson.value = {
     id: 4,

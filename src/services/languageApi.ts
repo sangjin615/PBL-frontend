@@ -258,8 +258,8 @@ class LanguageApiService {
    */
   private getDefaultLanguages(): Language[] {
     return [
-      { id: 71, name: 'Python 3', version: '3.8.1', file_extension: '.py' },
-      { id: 63, name: 'JavaScript (Node.js)', version: '12.14.0', file_extension: '.js' },
+      { id: 71, name: 'Python 3', version: '3.8.1', file_extension: '.py'},
+      { id: 63, name: 'JavaScript (Node.js)', version: '12.14.0', file_extension: '.js'},
       { id: 74, name: 'TypeScript', version: '3.7.4', file_extension: '.ts' },
       { id: 62, name: 'Java', version: '13.0.1', file_extension: '.java' },
       { id: 49, name: 'C (GCC)', version: '9.2.0', file_extension: '.c' },
@@ -267,7 +267,7 @@ class LanguageApiService {
       { id: 51, name: 'C#', version: '6.12', file_extension: '.cs' },
       { id: 60, name: 'Go', version: '1.13.5', file_extension: '.go' },
       { id: 72, name: 'Ruby', version: '2.7.0', file_extension: '.rb' },
-      { id: 68, name: 'PHP', version: '7.4.1', file_extension: '.php' }
+      { id: 68, name: 'PHP', version: '7.4.1', file_extension: '.php' },
     ];
   }
 
@@ -289,10 +289,36 @@ class LanguageApiService {
   async searchLanguagesByName(query: string): Promise<Language[]> {
     const allLanguages = await this.getLanguages();
     const lowerQuery = query.toLowerCase();
-    
-    return allLanguages.filter(lang => 
+
+    return allLanguages.filter(lang =>
       lang.name.toLowerCase().includes(lowerQuery)
     );
+  }
+
+  /**
+   * Monaco Editor 통합 설정 생성
+   * Judge0 언어 ID + 소스코드 → 완전한 에디터 설정
+   */
+  createEditorConfig(languageId: number, sourceCode: string = ''): import('./extendedClient').MonacoEditorConfig {
+    const monacoLanguage = this.getMonacoLanguage(languageId);
+
+    return {
+      languageId,
+      sourceCode,
+      monacoLanguage,
+      lspConfig: {
+        languageId: monacoLanguage,
+        path: monacoLanguage,
+        basePath: ''
+      }
+    };
+  }
+
+  /**
+   * 에디터 설정 비교용 고유 키 생성
+   */
+  getConfigKey(config: import('./extendedClient').MonacoEditorConfig): string {
+    return `${config.languageId}-${config.monacoLanguage}`;
   }
 }
 

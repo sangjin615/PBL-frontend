@@ -116,8 +116,9 @@
         <div class="bg-figma-1 border-b px-4 py-3 flex items-center justify-between" style="border-color: rgb(var(--figma-color-4))">
           <div class="flex items-center space-x-4">
             <h3 class="font-semibold" style="color: rgb(var(--figma-color-2))">코드 에디터</h3>
-            <select 
-              v-model="selectedLanguage" 
+            <select
+              v-model="selectedLanguage"
+              @change="changeLanguage(selectedLanguage)"
               class="px-3 py-1 border rounded text-sm"
               style="border-color: rgb(var(--figma-color-4))"
             >
@@ -144,14 +145,14 @@
 
         <!-- 코드 에디터 -->
         <div class="flex-1 p-4">
-          <MonacoEditor
-            v-model="code"
-            :language="getMonacoLanguage(selectedLanguage)"
-            theme="vs-dark"
-            :options="editorOptions"
-            class="w-full h-full border rounded-lg"
-            style="border-color: rgb(var(--figma-color-4))"
-          />
+              <MonacoEditor
+                ref="monacoEditorRef"
+                :key="editorConfig.languageId"
+                :config="editorConfig"
+                class="w-full h-full border rounded-lg"
+                style="border-color: rgb(var(--figma-color-4))"
+              />
+
         </div>
 
         <!-- 실행 결과 터미널 -->
@@ -181,6 +182,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
 import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
+import type { MonacoEditorConfig } from '../services/extendedClient';
 
 const route = useRoute();
 const router = useRouter();
@@ -189,30 +191,18 @@ const router = useRouter();
 const progress = ref(25);
 const isRunning = ref(false);
 const executionResult = ref<SubmissionResult | null>(null);
-const code = ref('');
+const monacoEditorRef = ref<any>(null);
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
 const currentChapter = ref<{id: number, title: string, sections: Array<{id: number, title: string, content: string, codeExample?: {language: string, code: string}, explanation?: string}>}>({} as any);
-// terminalRef는 더 이상 필요하지 않음
+
+// Monaco Editor 통합 설정
+const editorConfig = ref<MonacoEditorConfig>(
+  languageApiService.createEditorConfig(71, '')
+)
 
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
-
-// Monaco Editor 옵션
-const editorOptions = ref({
-  theme: 'vs-dark',
-  fontSize: 14,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  automaticLayout: true,
-  wordWrap: 'on',
-  lineNumbers: 'on',
-  folding: true,
-  selectOnLineNumbers: true,
-  roundedSelection: false,
-  readOnly: false,
-  cursorStyle: 'line'
-});
 
 // 강의 데이터
 const lessonData = ref({
@@ -313,7 +303,10 @@ function copyCode(codeText: string) {
 }
 
 async function runCode() {
-  if (!code.value.trim()) {
+  // Monaco Editor에서 현재 코드 가져오기
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  
+  if (!currentCode.trim()) {
     executionResult.value = {
       message: '실행할 코드가 없습니다.'
     };
@@ -325,7 +318,7 @@ async function runCode() {
 
   try {
     const result = await submissionAPI.executeCode({
-      source_code: code.value,
+      source_code: currentCode,
       language_id: selectedLanguage.value,
       stdin: ''
     });
@@ -360,10 +353,13 @@ async function fetchSupportedLanguages() {
   }
 }
 
-// Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
-function getMonacoLanguage(languageId: number): string {
-  return languageApiService.getMonacoLanguage(languageId);
-}
+// 언어 변경 핸들러 - 에디터 설정 재생성
+const changeLanguage = (newLanguageId: number) => {
+  selectedLanguage.value = newLanguageId;
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
+  console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
+};
 
 // 초기화
 onMounted(async () => {
@@ -380,13 +376,7 @@ onMounted(async () => {
     format: '마크다운'
   };
   
-  // 기본 코드 예제 설정
-  code.value = `# Python 3 - Hello World
-print("Hello, World!")
-
-# 간단한 계산
-result = 10 + 20
-print(f"결과: {result}")`;
+  // 기본 코드는 Monaco Editor에서 언어별로 자동 설정됨
 });
 </script>
 

@@ -69,14 +69,17 @@
 
             </div>
           </div>
-          <div class="h-[calc(100vh-200px)]">
+          <div class="h-[calc(100vh-200px)] p-4">
             <MonacoEditor
-              v-model="sourceCode"
-              :language="getMonacoLanguage(languageId)"
-              theme="vs"
-              :options="editorOptions"
+              v-if="isEditorReady"
+              ref="monacoEditorRef"
+              :key="editorConfig.languageId"
+              :config="editorConfig"
               class="w-full h-full border rounded-lg"
             />
+            <div v-else class="w-full h-full flex items-center justify-center">
+              <div class="text-gray-500">에디터 준비 중...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -137,10 +140,10 @@
             <div 
               v-for="(result, index) in testResults" 
               :key="index"
-              class="flex items-center justify-between p-3 rounded-lg"
+              class="p-3 rounded-lg"
               :class="result.isSuccess ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'"
             >
-              <div class="flex items-center space-x-3">
+              <div class="flex items-center space-x-3 mb-2">
                 <div 
                   class="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold"
                   :class="result.isSuccess ? 'bg-green-500' : 'bg-red-500'"
@@ -149,8 +152,8 @@
                 </div>
                 <span class="font-medium">{{ result.input }}</span>
               </div>
-              <div class="text-sm text-gray-600 max-w-md">
-                <pre class="whitespace-pre-wrap">{{ result.output }}</pre>
+              <div class="text-sm text-gray-700 bg-white p-3 rounded border">
+                <pre class="whitespace-pre-wrap font-mono">{{ result.output }}</pre>
               </div>
             </div>
           </div>
@@ -205,19 +208,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
 import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
+import type { MonacoEditorConfig } from '../services/extendedClient'
 
 const route = useRoute()
 const router = useRouter()
 
 // 소스코드 및 언어 정보
-const sourceCode = ref('')
 const languageId = ref(71) // 기본값 Python
 const token = ref('')
+const monacoEditorRef = ref<any>(null)
+
+// Monaco Editor 통합 설정
+const editorConfig = ref<MonacoEditorConfig>(
+  languageApiService.createEditorConfig(71, '')
+)
 
 // 진행상황 및 상태
 const isGrading = ref(true)
@@ -227,6 +236,7 @@ const eventSource = ref<EventSource | null>(null)
 const isConnected = ref(false) // 연결 상태 추적
 const totalTestCase = ref(0) // 기본값 설정
 const doneTestCase = ref(0)
+const isEditorReady = ref(false) // 에디터 준비 상태
 
 // 테스트 결과 데이터
 const testResults = ref<Array<{input: string, output: string, isSuccess: boolean}>>([])
@@ -242,24 +252,6 @@ const mySubmissions = ref<GradingResponse[]>([])
 const selectedHistoryId = ref('')
 const isLoadingSubmissions = ref(false)
 
-
-// Monaco Editor 옵션
-const editorOptions = {
-  theme: 'vs',
-  fontSize: 14,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  automaticLayout: true,
-  wordWrap: 'on',
-  lineNumbers: 'on',
-  folding: true,
-  selectOnLineNumbers: true,
-  roundedSelection: false,
-  readOnly: true,
-  cursorStyle: 'line'
-};
-
-
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null)
 
@@ -271,7 +263,13 @@ const successRate = computed(() => {
 
 // 네비게이션 함수들
 const tryAgain = (): void => {
-  router.push({ name: 'problem', params: { problemId: route.params.problemId } });
+  // 현재 토큰을 쿼리 파라미터로 전달
+  const currentToken = token.value;
+  router.push({ 
+    name: 'problem', 
+    params: { problemId: route.params.problemId },
+    query: currentToken ? { token: currentToken } : {}
+  });
 };
 
 const goNext = (): void => {
@@ -311,13 +309,28 @@ const toggleExplanation = (): void => {
   }
 };
 
-// 히스토리 코드 불러오기
+// 히스토리 코드 불러오기 - 에디터 설정 재생성
 const loadSelectedHistory = (): void => {
   if (!selectedHistoryId.value) return;
   const item = mySubmissions.value.find(s => s.token === selectedHistoryId.value);
   if (!item) return;
-  sourceCode.value = item.source_code || '';
-  if (item.language_id) languageId.value = item.language_id;
+
+  // 에디터 설정 재생성 (언어 + 소스코드)
+  if (item.language_id && item.source_code) {
+    const langId = item.language_id;
+    const sourceCode = item.source_code;
+    languageId.value = langId;
+
+    // 에디터 강제 재렌더링을 위해 일시적으로 숨김
+    isEditorReady.value = false;
+
+    // 다음 틱에 에디터 설정 변경 및 재표시
+    setTimeout(() => {
+      editorConfig.value = languageApiService.createEditorConfig(langId, sourceCode);
+      console.log('히스토리 로드:', langId, sourceCode.length, '글자');
+      isEditorReady.value = true;
+    }, 10);
+  }
 };
 
 // 제출 히스토리 로드 (gradingAPI 사용)
@@ -354,38 +367,22 @@ const loadSubmissionHistory = async (): Promise<void> => {
   }
 };
 
-// 언어 ID를 Monaco Editor 언어로 변환
-const getMonacoLanguage = (languageId: number): string => {
-  return languageApiService.getMonacoLanguage(languageId);
-};
 
 // 채점 결과 조회 (일반 조회 → 프로그레스로 전환)
 const startGradingProgress = async (token: string): Promise<void> => {
   try {
-    console.log('=== 채점 진행상황 시작 ===');
-    console.log('토큰:', token);
+    console.log('채점 진행상황 시작:', token);
     
-    // 1. 먼저 일반 조회 (제출 상태 확인)
+    // 제출 상태 확인
     const result = await gradingAPI.getGradingResult(token, false);
-    console.log('일반 조회 결과:', result);
-    
-    // 소스코드와 언어 정보 업데이트
-    if (result.source_code) {
-      sourceCode.value = result.source_code;
-    }
-    if (result.language_id) {
-      languageId.value = result.language_id;
-    }
     
     // 채점이 완료되었는지 확인
     if (result.status && result.status.id >= 3) {
       // 완료된 경우 결과 표시
-      console.log('채점 완료됨, 결과 표시');
       displayFinalResult(result);
       isGrading.value = false;
     } else {
       // 아직 진행 중인 경우 프로그레스로 전환
-      console.log('채점 진행 중, SSE 연결 시작');
       currentStatus.value = '채점이 진행 중입니다. 프로그레스를 확인합니다...';
       await startProgressMonitoring(token);
     }
@@ -478,11 +475,18 @@ const closeSSEConnection = (): void => {
 };
 
 // 진행상황 표시 업데이트
-const updateProgressDisplay = (progress: any): void => {
+const updateProgressDisplay = (data: any): void => {
+  const progress = data.progress || {};
   // 데이터 업데이트
   totalTestCase.value = progress.total_test_case || 0;
-  doneTestCase.value = progress.done_test_case || 0;
-  progressPercentage.value = Math.round(progress.progress_percentage || 0);
+  doneTestCase.value = progress.current_test_case || 0;
+  progressPercentage.value = progress.progress_percentage || 0;
+
+  console.log('Progress 값 업데이트:', {
+    total: totalTestCase.value,
+    done: doneTestCase.value,
+    percentage: progressPercentage.value
+  });
   
   // 상태 메시지 설정
   const statusMessages: Record<string, string> = {
@@ -509,29 +513,36 @@ const displayFinalResult = (result: any): void => {
     currentStatus.value = '채점 완료! 모든 테스트케이스 통과';
     testResults.value = []; // 성공 시에는 상세 결과 표시하지 않음
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 1;
+    doneTestCase.value = result.progress?.current_test_case || 1;
   } else if (result.status?.id === 4) {
     // Wrong Answer - 오답
     currentStatus.value = '입출력 값이 다릅니다! 코드를 확인해주세요.';
     
+    console.log('오답 처리 - result 구조:', result);
+    console.log('input_output:', result.input_output);
+    console.log('err_inputOutput:', result.err_inputOutput);
+    
     // 테스트 결과 상세 표시
     if (result.input_output || result.err_inputOutput) {
       const inputOutput = result.input_output || result.err_inputOutput;
+      console.log('inputOutput 구조:', inputOutput);
+      
       testResults.value = [{
-        input: `입력: ${inputOutput.stdin || 'N/A'}`,
-        output: `정답 출력: ${inputOutput.expectedOutput || 'N/A'}\n실제 출력: ${inputOutput.stdout || 'N/A'}`,
+        input: `입력: ${inputOutput.stdin || inputOutput.input || 'N/A'}`,
+        output: `정답 출력: ${inputOutput.expectedOutput || inputOutput.expected_output || 'N/A'}\n실제 출력: ${inputOutput.stdout || inputOutput.actual_output || 'N/A'}`,
         isSuccess: false
       }];
     } else {
+      console.log('input_output 정보가 없음, 기본 메시지 표시');
       testResults.value = [{
         input: '오답',
-        output: '입력과 출력이 일치하지 않습니다.',
+        output: `입력과 출력이 일치하지 않습니다.\n상태: ${result.status?.description || 'Wrong Answer'}`,
         isSuccess: false
       }];
     }
     
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else if (result.status?.id === 7) {
     // Compilation Error - 컴파일 오류
     currentStatus.value = '컴파일 오류가 발생했습니다.';
@@ -552,7 +563,7 @@ const displayFinalResult = (result: any): void => {
     }
     
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else if (result.status?.id === 5) {
     // Time Limit Exceeded - 시간 초과
     currentStatus.value = '시간 초과가 발생했습니다.';
@@ -562,7 +573,7 @@ const displayFinalResult = (result: any): void => {
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else if (result.status?.id === 6) {
     // Memory Limit Exceeded - 메모리 초과
     currentStatus.value = '메모리 초과가 발생했습니다.';
@@ -572,9 +583,10 @@ const displayFinalResult = (result: any): void => {
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else if (result.status?.id >= 8 && result.status?.id <= 13) {
-    // Runtime Error (SIGSEGV, SIGXFSZ, SIGFPE, SIGABRT, NZEC, OTHER)
+    // Runtime Error (SIGSEGV, SIGXFSZ, SIGFPE, SIGABRT, NZEC, OTHello
+    // R)
     const runtimeErrorMessages: Record<number, string> = {
       8: '메모리 접근 오류 (SIGSEGV)',
       9: '파일 크기 초과 (SIGXFSZ)',
@@ -592,7 +604,7 @@ const displayFinalResult = (result: any): void => {
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else if (result.status?.id >= 14) {
     // Internal Error, Exec Format Error
     const systemErrorMessages: Record<number, string> = {
@@ -607,7 +619,7 @@ const displayFinalResult = (result: any): void => {
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   } else {
     // 기타 상태 (QUEUE, PROCESS 등)
     currentStatus.value = `채점 상태: ${result.status?.description || '알 수 없음'}`;
@@ -617,37 +629,65 @@ const displayFinalResult = (result: any): void => {
       isSuccess: false
     }];
     totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.done_test_case || 0;
+    doneTestCase.value = result.progress?.current_test_case || 0;
   }
 };
 
-// 컴포넌트 초기화
+// 컴포넌트 마운트 - 데이터 준비 후 에디터 렌더링
 onMounted(async () => {
-  console.log('=== ProblemResultView 초기화 ===');
-  console.log('현재 라우트:', route);
-  console.log('라우트 파라미터:', route.params);
-  console.log('라우트 쿼리:', route.query);
-  
   const tokenParam = route.query.token as string;
-  console.log('토큰 파라미터:', tokenParam);
-  
-  if (tokenParam) {
-    console.log('토큰이 있음, 채점 진행상황 시작');
-    token.value = tokenParam;
-    startGradingProgress(tokenParam);
-  } else {
-    console.log('토큰이 없음, 기본 테스트용 데이터 설정');
-    // 토큰이 없으면 기본 테스트용 데이터 설정
-    sourceCode.value = `# A + B 문제
-a, b = map(int, input().split())
-print(a + b)`;
-    languageId.value = 71;
-    isGrading.value = false;
-  }
-  
-  // 과거 제출 로드 (gradingAPI 사용)
-  await loadSubmissionHistory();
+  console.log('ProblemResultView onMounted - 토큰:', tokenParam);
 
+  if (tokenParam) {
+    try {
+      // 토큰으로 정보 가져오기
+      console.log('API 호출 시작 - getGradingResult');
+      const result = await gradingAPI.getGradingResult(tokenParam, false);
+      console.log('API 응답 받음:', result);
+
+      // 에디터 설정 업데이트 (언어 + 소스코드)
+      if (result.language_id && result.source_code) {
+        languageId.value = result.language_id;
+        editorConfig.value = languageApiService.createEditorConfig(
+          result.language_id,
+          result.source_code
+        );
+        console.log('에디터 설정 완료:', result.language_id, result.source_code.length);
+      } else if (result.language_id) {
+        // 소스코드가 없으면 기본 메시지
+        const defaultCode = result.language_id === 71
+          ? `# 소스코드를 불러올 수 없습니다`
+          : `// 소스코드를 불러올 수 없습니다`;
+        languageId.value = result.language_id;
+        editorConfig.value = languageApiService.createEditorConfig(result.language_id, defaultCode);
+      }
+
+      token.value = tokenParam;
+
+      // 에디터 렌더링 허용
+      isEditorReady.value = true;
+      console.log('에디터 렌더링 시작');
+
+      // 채점 진행상황 시작
+      startGradingProgress(tokenParam);
+    } catch (error) {
+      console.error('토큰 정보 로드 실패:', error);
+      editorConfig.value = languageApiService.createEditorConfig(71, `# 오류: 채점 정보를 불러올 수 없습니다`);
+      isEditorReady.value = true; // 에러가 나도 에디터는 표시
+    }
+  } else {
+    // 토큰이 없으면 기본 설정
+    console.log('토큰이 없음, 기본 설정 사용');
+    languageId.value = 71;
+    editorConfig.value = languageApiService.createEditorConfig(71, `# 토큰이 제공되지 않았습니다`);
+    isGrading.value = false;
+    isEditorReady.value = true;
+  }
+
+  // 백그라운드 작업
+  loadSubmissionHistory();
+
+  // 다음 강의 정보 설정
   const currentProblemId = parseInt(route.params.problemId as string);
   nextLesson.value = {
     id: currentProblemId + 1,
