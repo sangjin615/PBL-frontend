@@ -1,126 +1,83 @@
+<!-- Monaco Editor with LSP 컴포넌트 (단순화 버전) -->
 <template>
-  <div ref="editorContainer" class="monaco-editor-container"></div>
+  <div ref="editorContainer" id="monaco-editor-root" class="monaco-editor-container"></div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import * as monaco from 'monaco-editor'
+import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
+// this is required syntax highlighting
+// 언어 확장자들을 순서대로 로드
+import '@codingame/monaco-vscode-json-default-extension';
+import '@codingame/monaco-vscode-python-default-extension';
+import '@codingame/monaco-vscode-javascript-default-extension';
+import '@codingame/monaco-vscode-typescript-basics-default-extension';
+import '@codingame/monaco-vscode-typescript-language-features-default-extension';
+import { runExtendedClient, type MonacoEditorConfig } from '../../services/extendedClient';
 
-interface Props {
-  modelValue: string
-  language?: string
-  theme?: string
-  options?: any
-}
-
-interface Emits {
-  (e: 'update:modelValue', value: string): void
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  language: 'javascript',
-  options: () => ({})
-})
-
-const emit = defineEmits<Emits>()
+const props = defineProps<{
+  config: MonacoEditorConfig;
+}>();
 
 const editorContainer = ref<HTMLElement>()
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+let currentLcWrapper: any = null;
+let currentEditor: any = null;
 
-// 에디터 생성
-async function createEditor() {
-  if (!editorContainer.value) return
-
-  // Monaco Editor 옵션
-  const defaultOptions = {
-    fontSize: 14,
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-    wordWrap: 'on' as const,
-    lineNumbers: 'on' as const,
-    folding: true,
-    selectOnLineNumbers: true,
-    roundedSelection: false,
-    readOnly: false,
-    cursorStyle: 'line' as const,
-    ...props.options
+// 소스코드 getter
+const getCurrentCode = (): string => {
+  if (currentEditor && currentEditor.getEditor) {
+    return currentEditor.getEditor().getValue() || '';
   }
+  console.warn('MonacoEditor: 에디터 인스턴스가 아직 준비되지 않았습니다.');
+  return '';
+};
 
-  // 에디터 생성
-  editor = monaco.editor.create(editorContainer.value, {
-    value: props.modelValue,
-    language: props.language,
-    theme: props.theme || 'vs', // 기본 테마를 밝은 테마로 설정
-    ...defaultOptions
-  })
+// 외부에서 접근 가능하도록 expose
+defineExpose({
+  getCurrentCode
+});
 
-  // 값 변경 이벤트 리스너
-  editor.onDidChangeModelContent(() => {
-    if (editor) {
-      const value = editor.getValue()
-      emit('update:modelValue', value)
-    }
-  })
-}
-
-// 에디터 업데이트
-function updateEditor() {
-  if (!editor) return
-
-  const currentValue = editor.getValue()
-  if (currentValue !== props.modelValue) {
-    editor.setValue(props.modelValue)
-  }
-
-  // 언어 변경
-  const currentLanguage = editor.getModel()?.getLanguageId()
-  if (currentLanguage !== props.language) {
-    monaco.editor.setModelLanguage(editor.getModel()!, props.language)
-  }
-
-  // 테마 변경
-  monaco.editor.setTheme(props.theme)
-}
-
-// 에디터 정리
-function disposeEditor() {
-  if (editor) {
-    editor.dispose()
-    editor = null
-  }
-}
-
-// props 변경 감지
-watch(() => props.modelValue, () => {
-  updateEditor()
-})
-
-watch(() => props.language, () => {
-  updateEditor()
-})
-
-watch(() => props.theme, () => {
-  updateEditor()
-})
-
-// 컴포넌트 마운트
+// 컴포넌트 마운트 시 에디터 초기화
 onMounted(async () => {
-  await nextTick()
-  createEditor()
-})
+  console.log('MonacoEditor 초기화:', {
+    languageId: props.config.languageId,
+    monacoLanguage: props.config.monacoLanguage,
+    sourceCodeLength: props.config.sourceCode.length
+  });
 
-// 컴포넌트 언마운트
-onUnmounted(() => {
-  disposeEditor()
-})
+  const codeToUse = props.config.sourceCode || `print("소스코드 초기화 안됨")`;
+  const editorInstance = await runExtendedClient(props.config.lspConfig, codeToUse);
+  currentEditor = editorInstance.editorApp;
+  currentLcWrapper = editorInstance.lcWrapper;
+
+  console.log('MonacoEditor 초기화 완료');
+});
+
+// 리소스 정리 함수
+const cleanup = async () => {
+  if (currentEditor && currentEditor.dispose) {
+    console.log('MonacoEditor LSP 연결 해제 시작');
+    try {
+      await currentLcWrapper.dispose();
+      await currentEditor.dispose();
+      currentLcWrapper = null;
+      currentEditor = null;
+      console.log('MonacoEditor LSP 연결 해제 완료');
+    } catch (e) {
+      console.error('MonacoEditor 정리 중 오류:', e);
+    }
+  }
+};
+
+// 라우터 이동 전에 즉시 정리
+onBeforeUnmount(async () => {
+  console.log('MonacoEditor 언마운트 시작 - 즉시 정리');
+  await cleanup();
+});
+
+// // 안전장치 - 완전 언마운트 시에도 한번 더 정리
+// onUnmounted(async () => {
+//   console.log('MonacoEditor 언마운트 완료 - 최종 정리');
+//   await cleanup();
+// });
+
 </script>
-
-<style scoped>
-.monaco-editor-container {
-  width: 100%;
-  height: 100%;
-  min-height: 200px;
-}
-</style>
-

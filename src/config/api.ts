@@ -3,10 +3,14 @@
  * 환경변수와 기본값을 관리합니다.
  */
 
+const PROTOCOL = 'http://';
+export const URL_PREFIX = 'localhost';
+export const URL_PORT = 2358;
+
 // 환경변수에서 API URL 가져오기, 없으면 기본값 사용
 const getApiBaseUrl = (): string => {
   // Vite 환경변수는 VITE_ 접두사가 필요
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:2358';
+  return import.meta.env.VITE_API_BASE_URL || `${PROTOCOL}${URL_PREFIX}:${URL_PORT}`;
 };
 
 // Judge0 API 설정
