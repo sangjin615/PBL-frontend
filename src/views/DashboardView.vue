@@ -63,7 +63,7 @@
             <button
               v-for="tab in tabs"
               :key="tab.id"
-              @click="activeTab = tab.id"
+              @click="handleTabChange(tab.id)"
               class="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
               :class="
                 activeTab === tab.id
@@ -120,7 +120,8 @@
           <div class="flex items-center space-x-4">
             <span class="text-sm text-gray-600">정렬:</span>
             <select
-              v-model="sortBy"
+              :value="sortBy"
+              @change="handleSortChange"
               class="text-sm border-0 bg-transparent text-gray-700 focus:ring-0"
             >
               <option value="recommended">추천순</option>
@@ -136,7 +137,7 @@
     <div class="px-8 py-8">
       <!-- 로딩 상태 (데이터가 전혀 없을 때만 표시) -->
       <div
-        v-if="lecturesStore.loading && sortedItems.length === 0"
+        v-if="lecturesStore.loading && displayedItems.length === 0"
         class="flex justify-center items-center py-12"
       >
         <div
@@ -182,7 +183,7 @@
       <!-- 강의 카드 그리드 (항상 표시) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
-          v-for="item in sortedItems"
+          v-for="item in displayedItems"
           :key="`${item.type}-${item.id}`"
           @click="handleItemClick(item)"
           class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer group"
@@ -318,7 +319,7 @@
 
       <!-- 빈 상태 -->
       <div
-        v-if="sortedItems.length === 0 && !lecturesStore.loading"
+        v-if="allSortedItems.length === 0 && !lecturesStore.loading"
         class="text-center py-12"
       >
         <div
@@ -349,20 +350,27 @@
         </button>
       </div>
 
-      <!-- 더보기 버튼 -->
-      <div v-if="sortedItems.length > 0" class="flex justify-center mt-8">
-        <button
-          class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          더보기
-        </button>
+      <!-- 무한 스크롤 로딩 인디케이터 -->
+      <div v-if="isLoadingMore" class="flex justify-center items-center py-8">
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+        ></div>
+        <span class="ml-3 text-gray-600">더 많은 강의를 불러오는 중...</span>
+      </div>
+
+      <!-- 모든 아이템을 표시했을 때 메시지 -->
+      <div
+        v-if="!hasMoreItems && displayedItems.length > 8"
+        class="text-center py-8"
+      >
+        <p class="text-gray-500 text-sm">모든 강의를 표시했습니다.</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useLecturesStore } from "@/stores/lectures";
 import { useApiTest } from "@/composables/useApiTest";
@@ -389,6 +397,10 @@ const tabs = ref([
 
 const activeTab = ref("all");
 const sortBy = ref("recommended");
+
+// 무한 스크롤 관련 상태
+const displayLimit = ref(8); // 처음에 표시할 아이템 수
+const isLoadingMore = ref(false);
 
 // 하드코딩된 커리큘럼 데이터 (임시 유지 - 향후 커리큘럼 API 연결 시 제거)
 const curricula = ref([
@@ -479,8 +491,8 @@ const filteredItems = computed(() => {
   }
 });
 
-// 정렬된 아이템들
-const sortedItems = computed(() => {
+// 정렬된 아이템들 (전체)
+const allSortedItems = computed(() => {
   const items = [...filteredItems.value];
 
   switch (sortBy.value) {
@@ -512,6 +524,29 @@ const sortedItems = computed(() => {
   }
 });
 
+// 현재 표시할 아이템들 (무한 스크롤용)
+const displayedItems = computed(() => {
+  return allSortedItems.value.slice(0, displayLimit.value);
+});
+
+// 더 불러올 아이템이 있는지 확인
+const hasMoreItems = computed(() => {
+  return displayLimit.value < allSortedItems.value.length;
+});
+
+// 탭 변경 시 표시 제한 초기화
+function handleTabChange(tabId: string) {
+  activeTab.value = tabId;
+  displayLimit.value = 8; // 표시 제한 초기화
+}
+
+// 정렬 변경 시 표시 제한 초기화
+function handleSortChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  sortBy.value = target.value;
+  displayLimit.value = 8; // 표시 제한 초기화
+}
+
 // 아이템 클릭 핸들러
 function handleItemClick(item: DashboardItem) {
   if (item.type === "curriculum") {
@@ -537,10 +572,36 @@ function handleItemClick(item: DashboardItem) {
   }
 }
 
+// 더 많은 아이템 로드 (무한 스크롤)
+function loadMoreItems() {
+  if (isLoadingMore.value || !hasMoreItems.value) return;
+
+  isLoadingMore.value = true;
+
+  // 시뮬레이션을 위한 약간의 지연
+  setTimeout(() => {
+    displayLimit.value += 8; // 8개씩 추가로 표시
+    isLoadingMore.value = false;
+  }, 300);
+}
+
+// 스크롤 이벤트 핸들러
+function handleScroll() {
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const windowHeight = window.innerHeight;
+  const documentHeight = document.documentElement.scrollHeight;
+
+  // 페이지 하단에서 200px 전에 도달하면 더 로드
+  if (scrollTop + windowHeight >= documentHeight - 200) {
+    loadMoreItems();
+  }
+}
+
 // 새로고침 함수
 async function refreshLectures() {
   await lecturesStore.fetchAllLectures();
   loadPublishedCourses(); // localStorage 데이터도 다시 로드
+  displayLimit.value = 8; // 표시 제한 초기화
 }
 
 // API 테스트 함수
@@ -565,7 +626,7 @@ async function testApi() {
   }
 }
 
-// 컴포넌트 마운트 시 데이터 로드
+// 컴포넌트 마운트 시 데이터 로드 및 스크롤 이벤트 등록
 onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
   loadPublishedCourses();
@@ -578,5 +639,13 @@ onMounted(async () => {
     // API 실패 시에도 에러를 초기화하여 기존 데이터를 표시
     lecturesStore.clearError();
   }
+
+  // 무한 스크롤을 위한 스크롤 이벤트 리스너 등록
+  window.addEventListener("scroll", handleScroll);
+});
+
+// 컴포넌트 언마운트 시 스크롤 이벤트 해제
+onUnmounted(() => {
+  window.removeEventListener("scroll", handleScroll);
 });
 </script>
