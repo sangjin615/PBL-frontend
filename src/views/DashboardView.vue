@@ -725,22 +725,6 @@ function goToCreateProblem() {
   router.push({ name: "instructor-create-problem" });
 }
 
-// 만들기 메뉴 네비게이션 함수들
-function goToCreateCurriculum() {
-  showCreateMenu.value = false;
-  router.push({ name: "instructor-create-curriculum" });
-}
-
-function goToCreateMarkdown() {
-  showCreateMenu.value = false;
-  router.push({ name: "instructor-create-markdown" });
-}
-
-function goToCreateProblem() {
-  showCreateMenu.value = false;
-  router.push({ name: "instructor-create-problem" });
-}
-
 // 컴포넌트 마운트 시 데이터 로드 및 스크롤 이벤트 등록
 onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
