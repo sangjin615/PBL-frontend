@@ -62,6 +62,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ProblemResultView.vue'),
   },
   {
+    path: '/editor/popout/:lessonId',
+    name: 'editor-popout',
+    component: () => import('../views/EditorPopoutView.vue'),
+  },
+  {
     path: '/instructor/create-course',
     name: 'instructor-create-course',
     component: () => import('../views/InstructorCreateCourseView.vue'),
@@ -85,6 +90,11 @@ const routes: RouteRecordRaw[] = [
     path: '/instructor/create-curriculum',
     name: 'instructor-create-curriculum',
     component: () => import('../views/InstructorCreateCurriculumView.vue'),
+  },
+  {
+    path: '/assistant/ai',
+    name: 'ai-assistant',
+    component: () => import('../views/AiAssistantView.vue'),
   },
   {
     path: '/login',

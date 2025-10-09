@@ -44,6 +44,15 @@
             </svg>
             커리큘럼 만들기
           </button>
+          <button 
+            @click="openAiAssistant"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+          >
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 8.25h9m-9 3.75h6M3 12a9 9 0 1116.03 5.196L21 21 15.196 19.03A9 9 0 013 12z"/>
+            </svg>
+            AI 활용하기
+          </button>
         </div>
       </div>
     </div>
@@ -85,6 +94,11 @@ function createCourse() {
 function createCurriculum() {
   showCreateMenu.value = false;
   router.push({ name: 'instructor-create-curriculum' });
+}
+
+function openAiAssistant() {
+  showCreateMenu.value = false;
+  router.push({ name: 'ai-assistant' });
 }
 
 // 드롭다운 메뉴 외부 클릭 시 닫기

@@ -78,3 +78,4 @@ function handleSignup() {
   router.push({ name: 'login' })
 }
 </script>
+

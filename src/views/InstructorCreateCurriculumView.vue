@@ -137,6 +137,7 @@
               </div>
             </div>
           </div>
+          
         </div>
       </div>
 
@@ -201,6 +202,7 @@
               v-for="material in filteredMaterials"
               :key="material.id"
               class="bg-white rounded-lg border p-4 hover:shadow-md transition-shadow cursor-pointer"
+              :class="material.id === recentlyAddedId ? 'highlight-flash' : ''"
               @click="addToCurriculum(material)"
             >
               <div class="flex items-start justify-between">
@@ -355,6 +357,8 @@ const filterType = ref('')
 
 // 사용 가능한 강의물 목록 (localStorage에서 가져오기)
 const availableMaterials = ref<any[]>([])
+// 최근 추가된 아이템 하이라이트용
+const recentlyAddedId = ref<number | string | null>(null)
 
 // 계산된 속성들
 const filteredMaterials = computed(() => {
@@ -387,6 +391,8 @@ const problemCount = computed(() => {
   return curriculum.value.lessons.filter(lesson => lesson.type === 'problem').length
 })
 
+// (rollback) 드래그/아웃라인/요약 관련 보조 로직 제거
+
 // 메서드들
 const goBack = () => {
   router.back()
@@ -411,6 +417,13 @@ const addToCurriculum = (material: any) => {
   }
   
   curriculum.value.lessons.push({ ...material })
+  recentlyAddedId.value = material.id
+  // 1.2초 후 하이라이트 해제
+  window.setTimeout(() => {
+    if (recentlyAddedId.value === material.id) {
+      recentlyAddedId.value = null
+    }
+  }, 1200)
 }
 
 const removeFromCurriculum = (index: number) => {
@@ -499,4 +512,15 @@ onMounted(() => {
   loadAvailableMaterials()
 })
 </script>
+<style scoped>
+@keyframes flash {
+  0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); background-color: rgba(59,130,246,0.18); }
+  40% { box-shadow: 0 0 0 4px rgba(59,130,246,0.35); background-color: rgba(59,130,246,0.28); }
+  60% { box-shadow: 0 0 0 2px rgba(59,130,246,0.25); background-color: rgba(59,130,246,0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); background-color: rgba(59,130,246,0); }
+}
 
+.highlight-flash {
+  animation: flash 1.2s ease-out forwards;
+}
+</style>

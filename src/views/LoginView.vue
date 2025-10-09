@@ -67,3 +67,4 @@ function handleLogin() {
   // stay on page per request (no redirect). Could navigate elsewhere if needed.
 }
 </script>
+

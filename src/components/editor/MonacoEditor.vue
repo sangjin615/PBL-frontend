@@ -81,3 +81,11 @@ onBeforeUnmount(async () => {
 // });
 
 </script>
+
+<style scoped>
+.monaco-editor-container {
+  width: 100%;
+  height: 100%;
+  min-height: 300px; /* 안전 장치: 부모 높이 미지정 시에도 표시 */
+}
+</style>

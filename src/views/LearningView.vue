@@ -44,9 +44,9 @@
     </div>
 
     <!-- 메인 컨텐츠 -->
-    <div class="flex h-screen">
+    <div class="flex h-screen select-none">
       <!-- 왼쪽: 교과서 영역 -->
-      <div class="w-1/2 border-r overflow-y-auto" style="border-color: rgb(var(--figma-color-4))">
+      <div class="border-r overflow-y-auto" :style="{ width: leftPaneWidth + '%', borderColor: `rgb(var(--figma-color-4))` }">
         <div class="p-6">
           <!-- 챕터 네비게이션 -->
           <div class="mb-6">
@@ -110,8 +110,11 @@
         </div>
       </div>
 
+      <!-- 세로 분리선 -->
+      <div class="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize" @mousedown="startDragLeftRight"></div>
+
       <!-- 오른쪽: 코드 에디터 영역 -->
-      <div class="w-1/2 flex flex-col">
+      <div class="flex flex-col" :style="{ width: (100 - leftPaneWidth) + '%' }">
         <!-- 코드 에디터 헤더 -->
         <div class="bg-figma-1 border-b px-4 py-3 flex items-center justify-between" style="border-color: rgb(var(--figma-color-4))">
           <div class="flex items-center space-x-4">
@@ -128,39 +131,47 @@
             </select>
           </div>
           
-          <button 
-            @click="runCode"
-            :disabled="isRunning"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-          >
-            <svg v-if="isRunning" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>{{ isRunning ? '실행 중...' : '실행' }}</span>
-          </button>
-        </div>
-
-        <!-- 코드 에디터 -->
-        <div class="flex-1 p-4">
-              <MonacoEditor
-                ref="monacoEditorRef"
-                :key="editorConfig.languageId"
-                :config="editorConfig"
-                class="w-full h-full border rounded-lg"
-                style="border-color: rgb(var(--figma-color-4))"
-              />
-
-        </div>
-
-        <!-- 실행 결과 터미널 -->
-        <div class="border-t bg-gray-50" style="border-color: rgb(var(--figma-color-4))">
-          <div class="px-4 py-2 border-b" style="border-color: rgb(var(--figma-color-4))">
-            <h4 class="font-semibold text-sm" style="color: rgb(var(--figma-color-2))">실행 결과</h4>
+          <div class="flex items-center space-x-2">
+            <button 
+              @click="runCode"
+              :disabled="isRunning"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+            >
+              <svg v-if="isRunning" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>{{ isRunning ? '실행 중...' : '실행' }}</span>
+            </button>
+            <button
+              @click="openEditorPopout"
+              class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              title="새 창으로 에디터 열기"
+            >
+              팝아웃
+            </button>
           </div>
-          <div class="h-64 p-4 bg-black text-green-400 font-mono text-sm overflow-auto">
+        </div>
+
+        <!-- 코드 에디터 / 실행 결과 - 수직 분할 컨테이너 -->
+        <div class="flex-1 p-4 flex flex-col">
+          <div class="border rounded-lg overflow-hidden" style="border-color: rgb(var(--figma-color-4));" :style="{ height: editorAreaHeight + '%' }">
+            <MonacoEditor
+              ref="monacoEditorRef"
+              :key="editorConfig.languageId"
+              :config="editorConfig"
+              class="w-full h-full"
+            />
+          </div>
+          <!-- 가로 분리선 -->
+          <div class="h-1 bg-gray-300 hover:bg-gray-400 cursor-row-resize" @mousedown="startDragEditorTerminal"></div>
+          <div class="border bg-gray-50 flex-1 flex flex-col" style="border-color: rgb(var(--figma-color-4));" :style="{ height: (100 - editorAreaHeight) + '%' }">
+            <div class="px-4 py-2 border-b" style="border-color: rgb(var(--figma-color-4))">
+              <h4 class="font-semibold text-sm" style="color: rgb(var(--figma-color-2))">실행 결과</h4>
+            </div>
+            <div class="flex-1 p-4 bg-black text-green-400 font-mono text-sm overflow-auto">
             <div v-if="isRunning" class="flex items-center space-x-2">
               <div class="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
               <span>실행 중...</span>
@@ -169,6 +180,7 @@
               {{ executionResult.message || executionResult.stdout || '실행 결과가 없습니다.' }}
             </div>
             <div v-else class="text-gray-500">실행 결과가 여기에 표시됩니다.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -302,6 +314,19 @@ function copyCode(codeText: string) {
   alert('코드가 클립보드에 복사되었습니다!');
 }
 
+function openEditorPopout() {
+  const lessonId = route.params.lessonId as string;
+  const features = [
+    'popup=yes',
+    'width=1200',
+    'height=800',
+    'resizable=yes',
+    'scrollbars=yes'
+  ].join(',');
+  const url = router.resolve({ name: 'editor-popout', params: { lessonId } }).href;
+  window.open(url, '_blank', features);
+}
+
 async function runCode() {
   // Monaco Editor에서 현재 코드 가져오기
   const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
@@ -359,6 +384,52 @@ const changeLanguage = (newLanguageId: number) => {
   const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
   editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
   console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
+};
+
+// -----------------------------
+// 레이아웃: 분할바 드래그 (좌/우)
+// -----------------------------
+const leftPaneWidth = ref(50); // %
+let isDraggingLR = false;
+const startDragLeftRight = (e: MouseEvent) => {
+  isDraggingLR = true;
+  window.addEventListener('mousemove', onDragLR);
+  window.addEventListener('mouseup', stopDragLR);
+};
+const onDragLR = (e: MouseEvent) => {
+  if (!isDraggingLR) return;
+  const totalWidth = window.innerWidth;
+  const newLeft = Math.max(20, Math.min(80, (e.clientX / totalWidth) * 100));
+  leftPaneWidth.value = Math.round(newLeft);
+};
+const stopDragLR = () => {
+  isDraggingLR = false;
+  window.removeEventListener('mousemove', onDragLR);
+  window.removeEventListener('mouseup', stopDragLR);
+};
+
+// -----------------------------
+// 레이아웃: 에디터/터미널 수직 분할
+// -----------------------------
+const editorAreaHeight = ref(65); // %
+let isDraggingET = false;
+const startDragEditorTerminal = () => {
+  isDraggingET = true;
+  window.addEventListener('mousemove', onDragET);
+  window.addEventListener('mouseup', stopDragET);
+};
+const onDragET = (e: MouseEvent) => {
+  if (!isDraggingET) return;
+  const usableHeight = window.innerHeight - 200; // 상단 헤더/여백 보정
+  const rectTop = 150; // 대략적 헤더 높이 보정
+  const y = e.clientY - rectTop;
+  const next = Math.max(30, Math.min(85, (y / Math.max(usableHeight, 1)) * 100));
+  editorAreaHeight.value = Math.round(next);
+};
+const stopDragET = () => {
+  isDraggingET = false;
+  window.removeEventListener('mousemove', onDragET);
+  window.removeEventListener('mouseup', stopDragET);
 };
 
 // 초기화
