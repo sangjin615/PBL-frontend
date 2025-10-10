@@ -299,8 +299,7 @@ const successRate = computed(() => {
 const flushExplanationBuffer = (): void => {
   if (explanationBuffer.value.length > 0) {
     // Vue 반응성을 위해 완전히 새로운 문자열로 교체
-    const newExplanation = explanation.value + explanationBuffer.value
-    explanation.value = newExplanation
+    explanation.value = explanation.value + explanationBuffer.value
     explanationBuffer.value = ''
     console.log('[ProblemResult] 버퍼 플러시 완료, 현재 길이:', explanation.value.length)
   }
@@ -390,9 +389,9 @@ const toggleExplanation = (): void => {
     },
     // onChunk: 메시지 수신 시마다 버퍼에 누적
     (chunk: string) => {
-      console.log('[ProblemResult] 청크 받음:', chunk, '버퍼 길이:', explanationBuffer.value.length);
-      // 각 청크를 버퍼에 누적 (실시간 렌더링은 flushExplanationBuffer에서 처리)
-      explanationBuffer.value += chunk;
+      console.log('[ProblemResult] 청크 받음:', chunk, '청크 길이:', chunk.length, '버퍼 길이:', explanationBuffer.value.length);
+      // 각 청크를 버퍼에 누적 (Vue 반응성을 위해 새로운 문자열로 할당)
+      explanationBuffer.value = explanationBuffer.value + chunk;
       console.log('[ProblemResult] 버퍼 누적 후 길이:', explanationBuffer.value.length);
     },
     // onComplete: 스트리밍 완료 시

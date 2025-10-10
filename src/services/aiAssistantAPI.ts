@@ -67,10 +67,26 @@ export const fetchAIExplanationWithPost = (
 
     // 메시지 수신 시 (실시간 호출됨!)
     onmessage(event) {
-      console.log('[AI API] 메시지 수신:', event.data)
-
-      // 빈 데이터도 콜백으로 전달 (실시간 반영)
-      onChunk(event.data)
+      try {
+        // JSON 파싱하여 content 필드 추출
+        const parsed = JSON.parse(event.data)
+        console.log('[AI API] 메시지 수신:', parsed)
+        
+        // type이 content인 경우만 처리
+        if (parsed.type === 'content' && parsed.content !== undefined) {
+          console.log('[AI API] content 추출:', JSON.stringify(parsed.content), '길이:', parsed.content.length)
+          onChunk(parsed.content)
+        } else if (parsed.type === 'complete') {
+          console.log('[AI API] 스트리밍 완료 신호 받음')
+          // complete 타입은 무시 (onclose에서 처리)
+        } else {
+          console.warn('[AI API] 알 수 없는 타입:', parsed.type)
+        }
+      } catch (e) {
+        // JSON 파싱 실패 시 그대로 전달 (호환성)
+        console.warn('[AI API] JSON 파싱 실패, 원본 전달:', event.data)
+        onChunk(event.data)
+      }
     },
 
     // 연결 종료 시
