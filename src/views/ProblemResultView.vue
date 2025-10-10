@@ -189,15 +189,40 @@
               <button @click="toggleExplanation" class="text-sm text-gray-500 hover:text-gray-700">닫기</button>
             </div>
             <div class="text-sm text-gray-600 mb-3">제출한 코드 분석과 테스트 결과를 기반으로 오답 원인을 설명합니다.</div>
-            <div class="max-h-64 overflow-y-auto space-y-4">
-              <div v-if="isLoadingExplanation" class="flex items-center space-x-2 text-purple-600">
+
+            <!-- 에러 메시지 표시 -->
+            <div v-if="explanationError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div class="flex items-start space-x-2 text-red-600">
+                <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="text-sm">{{ explanationError }}</div>
+              </div>
+            </div>
+
+            <div class="max-h-96 overflow-y-auto">
+              <!-- 로딩 중일 때도 해설 내용이 있으면 표시 -->
+              <div v-if="explanation" class="space-y-4">
+
+                <!-- 마크다운 뷰어 (비교용) -->
+                <div class="prose prose-sm max-w-none">
+                  <MdPreview
+                    :modelValue="explanation"
+                    :theme="'light'"
+                    :showCodeRowNumber="true"
+                    language="ko-KR"
+                  />
+                </div>
+              </div>
+
+              <!-- 로딩 중이면서 해설이 없을 때만 로딩 표시 -->
+              <div v-else-if="isLoadingExplanation" class="flex items-center space-x-2 text-purple-600 py-4">
                 <div class="animate-spin w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full"></div>
                 <span>해설을 생성하고 있습니다...</span>
               </div>
-              <div v-else-if="explanation.length > 0" class="prose prose-sm max-w-none">
-                <div v-for="(para, idx) in explanation" :key="idx" class="whitespace-pre-wrap">{{ para }}</div>
-              </div>
-              <div v-else class="text-gray-500">해설이 없습니다. 해설보기를 눌러 생성하세요.</div>
+
+              <!-- 해설이 없고 로딩도 아닐 때 -->
+              <div v-else class="text-gray-500 py-4">해설이 없습니다. 해설보기를 눌러 생성하세요.</div>
             </div>
           </div>
         </div>
@@ -214,6 +239,9 @@ import MonacoEditor from '../components/editor/MonacoEditor.vue'
 import { languageApiService } from '../services/languageApi'
 import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
 import type { MonacoEditorConfig } from '../services/extendedClient'
+import { aiAssistantAPI } from '../services/aiAssistantAPI'
+import { MdPreview } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -244,7 +272,13 @@ const testResults = ref<Array<{input: string, output: string, isSuccess: boolean
 // AI 해설 상태
 const showExplanation = ref(false)
 const isLoadingExplanation = ref(false)
-const explanation = ref<string[]>([])
+const explanation = ref<string>('') // 문자열로 변경 (실시간 누적)
+const explanationStreamController = ref<AbortController | null>(null)
+const explanationError = ref<string>('')
+
+// 버퍼링을 위한 추가 상태
+const explanationBuffer = ref<string>('') // 버퍼 추가
+const isUpdatingExplanation = ref(false) // 업데이트 플래그
 
 // 코드 탭/내 제출 히스토리
 const activeCodeTab = ref<'current' | 'history'>('current')
@@ -260,6 +294,20 @@ const successRate = computed(() => {
   if (totalTestCase.value === 0) return 0;
   return Math.round((doneTestCase.value / totalTestCase.value) * 100);
 })
+
+// 주기적 업데이트 함수
+const flushExplanationBuffer = (): void => {
+  if (explanationBuffer.value.length > 0) {
+    // Vue 반응성을 위해 완전히 새로운 문자열로 교체
+    const newExplanation = explanation.value + explanationBuffer.value
+    explanation.value = newExplanation
+    explanationBuffer.value = ''
+    console.log('[ProblemResult] 버퍼 플러시 완료, 현재 길이:', explanation.value.length)
+  }
+  if (isLoadingExplanation.value) {
+    requestAnimationFrame(flushExplanationBuffer)
+  }
+}
 
 // 네비게이션 함수들
 const tryAgain = (): void => {
@@ -291,22 +339,88 @@ const goBack = (): void => {
   router.back();
 };
 
-// 해설 토글 및 더미 생성 로직 (백엔드 연동 전 임시)
+// AI 해설 토글 및 API 호출
 const toggleExplanation = (): void => {
   showExplanation.value = !showExplanation.value;
-  if (showExplanation.value && explanation.value.length === 0) {
-    isLoadingExplanation.value = true;
-    // 임시 지연 후 예시 해설 세팅
-    setTimeout(() => {
-      explanation.value = [
-        '입력 파싱 단계에서 공백 분리 후 형변환이 제대로 수행되는지 확인하세요.',
-        '테스트케이스 2에서 예상 출력이 7인데 5가 출력되었습니다. 덧셈 연산 전에 문자열 상태로 더해졌을 가능성이 있습니다.',
-        '에지 케이스: 음수, 큰 수 입력 시 오버플로우/형변환 오류가 없는지 점검하세요.',
-        '시간 복잡도는 본 문제에서 핵심 이슈가 아니지만, 반복 입력 처리 시 불필요한 I/O 호출을 줄이면 안정성이 높아집니다.'
-      ];
-      isLoadingExplanation.value = false;
-    }, 800);
+
+  // 해설을 닫는 경우
+  if (!showExplanation.value) {
+    // 진행 중인 스트리밍이 있으면 중단
+    if (explanationStreamController.value) {
+      explanationStreamController.value.abort();
+      explanationStreamController.value = null;
+    }
+    // 버퍼와 로딩 상태 정리
+    isLoadingExplanation.value = false;
+    explanationBuffer.value = '';
+    return;
   }
+
+  // 이미 해설이 로드되어 있으면 다시 요청하지 않음
+  if (explanation.value.length > 0) {
+    return;
+  }
+
+  // 필요한 데이터 확인
+  if (!token.value) {
+    explanationError.value = '제출 토큰이 없습니다. 다시 시도해주세요.';
+    return;
+  }
+
+  const problemId = parseInt(route.params.problemId as string);
+  if (!problemId) {
+    explanationError.value = '문제 ID를 찾을 수 없습니다.';
+    return;
+  }
+
+  // AI 해설 요청
+  explanationError.value = '';
+  explanation.value = ''; // 기존 해설 초기화
+  explanationBuffer.value = ''; // 버퍼 초기화
+  isLoadingExplanation.value = true; // 이것을 먼저 설정!
+
+  // 주기적 업데이트 시작
+  flushExplanationBuffer();
+
+  // fetchEventSource를 사용한 SSE 스트리밍 (POST 지원, 버퍼링 방식)
+  const controller = aiAssistantAPI.fetchExplanationWithPost(
+    {
+      grading_token: token.value,
+      problem_id: problemId
+    },
+    // onChunk: 메시지 수신 시마다 버퍼에 누적
+    (chunk: string) => {
+      console.log('[ProblemResult] 청크 받음:', chunk, '버퍼 길이:', explanationBuffer.value.length);
+      // 각 청크를 버퍼에 누적 (실시간 렌더링은 flushExplanationBuffer에서 처리)
+      explanationBuffer.value += chunk;
+      console.log('[ProblemResult] 버퍼 누적 후 길이:', explanationBuffer.value.length);
+    },
+    // onComplete: 스트리밍 완료 시
+    () => {
+      isLoadingExplanation.value = false;
+      // 남은 버퍼 flush
+      if (explanationBuffer.value.length > 0) {
+        explanation.value = explanation.value + explanationBuffer.value;
+        explanationBuffer.value = '';
+      }
+      console.log('[ProblemResult] AI 해설 로드 완료:', explanation.value.length, '글자');
+
+      // 해설이 비어있는 경우 안내 메시지
+      if (!explanation.value.trim()) {
+        explanation.value = 'AI 해설을 생성할 수 없습니다. 잠시 후 다시 시도해주세요.';
+      }
+    },
+    // onError: 에러 발생 시
+    (error: Error) => {
+      console.error('[ProblemResult] AI 해설 로드 실패:', error);
+      isLoadingExplanation.value = false;
+      explanationError.value = error.message || 'AI 해설을 불러오는 중 오류가 발생했습니다.';
+      explanation.value = explanationError.value;
+      explanationBuffer.value = ''; // 에러 시 버퍼 정리
+    }
+  );
+
+  explanationStreamController.value = controller;
 };
 
 // 히스토리 코드 불러오기 - 에디터 설정 재생성
@@ -698,12 +812,22 @@ onMounted(async () => {
 
 // 컴포넌트 정리
 onUnmounted(() => {
-  // SSE 연결 정리
+  // 채점 SSE 연결 정리
   if (eventSource.value) {
     eventSource.value.close();
     eventSource.value = null;
   }
   isConnected.value = false;
+
+  // AI 해설 스트리밍 연결 정리
+  if (explanationStreamController.value) {
+    explanationStreamController.value.abort();
+    explanationStreamController.value = null;
+  }
+
+  // 버퍼 정리
+  explanationBuffer.value = '';
+  isUpdatingExplanation.value = false;
 });
 </script>
 

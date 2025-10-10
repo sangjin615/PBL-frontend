@@ -28,11 +28,12 @@ export const judge0Config = {
 
 // 백엔드 API 설정 (추후 확장 가능)
 export const backendConfig = {
-  baseUrl: import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080',
+  baseUrl: getApiBaseUrl(),
   endpoints: {
     lectures: '/api/lectures',
     problems: '/api/problems',
-    submissions: '/api/submissions'
+    submissions: '/api/submissions',
+    aiGrading: '/chat/grading'
   }
 };
 
