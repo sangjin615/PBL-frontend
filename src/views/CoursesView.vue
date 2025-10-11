@@ -189,8 +189,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { enrollmentApiService } from '@/services/enrollmentApi';
+import type { EnrollmentResponse } from '@/types/enrollment';
+import { EnrollmentStatus } from '@/types/enrollment';
+import { apiConfig } from '@/config/api';
 
 const router = useRouter();
 
@@ -201,102 +205,24 @@ const sortBy = ref('recent');
 // 탭 옵션
 const tabs = ref([
   { id: 'all', name: '전체' },
-  { id: 'curriculum', name: '커리큘럼' },
-  { id: 'course', name: '강의물' }
+  { id: 'in_progress', name: '진행 중' },
+  { id: 'completed', name: '완료' }
 ]);
 
 // 수강 중인 강의 데이터
-const enrolledCourses = ref([
-  {
-    id: 'course_1',
-    title: 'Introduction To Algorithms',
-    instructor: '김유희',
-    category: '알고리즘',
-    type: 'curriculum',
-    progress: 75,
-    rating: 5.0,
-    enrolledAt: '2025-01-15'
-  },
-  {
-    id: 'course_2',
-    title: '웹 기초: HTML/CSS',
-    instructor: '이서준',
-    category: '웹',
-    type: 'curriculum',
-    progress: 45,
-    rating: 4.7,
-    enrolledAt: '2025-01-10'
-  },
-  {
-    id: 'course_3',
-    title: 'Python 자료구조',
-    instructor: '박가은',
-    category: '개발·프로그래밍',
-    type: 'curriculum',
-    progress: 90,
-    rating: 4.9,
-    enrolledAt: '2025-01-05'
-  },
-  {
-    id: 'course_4',
-    title: '게임 개발 입문 with Unity',
-    instructor: '최민수',
-    category: '게임 개발',
-    type: 'curriculum',
-    progress: 30,
-    rating: 4.6,
-    enrolledAt: '2025-01-20'
-  },
-  {
-    id: 'course_5',
-    title: 'SQL로 하는 데이터 질의',
-    instructor: '정은지',
-    category: '데이터베이스',
-    type: 'curriculum',
-    progress: 100,
-    rating: 4.8,
-    enrolledAt: '2025-01-01'
-  },
-  {
-    id: 'course_6',
-    title: '인공지능 개요',
-    instructor: '오지후',
-    category: '인공지능',
-    type: 'curriculum',
-    progress: 60,
-    rating: 4.5,
-    enrolledAt: '2025-01-12'
-  },
-  {
-    id: 'course_7',
-    title: 'React 기초 강의',
-    instructor: '김민수',
-    category: '웹',
-    type: 'course',
-    progress: 85,
-    rating: 4.8,
-    enrolledAt: '2025-01-08'
-  },
-  {
-    id: 'course_8',
-    title: 'Node.js 서버 개발',
-    instructor: '이지은',
-    category: '개발·프로그래밍',
-    type: 'course',
-    progress: 40,
-    rating: 4.7,
-    enrolledAt: '2025-01-18'
-  }
-]);
+const enrolledCourses = ref<any[]>([]);
+const isLoading = ref(false);
 
 // 완료한 강의
-const completedCourses = computed(() => 
-  enrolledCourses.value.filter(course => course.progress === 100)
+const completedCourses = computed(() =>
+  enrolledCourses.value.filter(course => course.status === EnrollmentStatus.COMPLETED)
 );
 
 // 진행 중인 강의
-const inProgressCourses = computed(() => 
-  enrolledCourses.value.filter(course => course.progress > 0 && course.progress < 100)
+const inProgressCourses = computed(() =>
+  enrolledCourses.value.filter(course =>
+    course.status === EnrollmentStatus.IN_PROGRESS || course.status === EnrollmentStatus.ENROLLED
+  )
 );
 
 // 평균 진행률
@@ -311,8 +237,10 @@ const filteredCourses = computed(() => {
   let filtered = enrolledCourses.value;
 
   // 탭별 필터링
-  if (activeTab.value !== 'all') {
-    filtered = filtered.filter(course => course.type === activeTab.value);
+  if (activeTab.value === 'in_progress') {
+    filtered = inProgressCourses.value;
+  } else if (activeTab.value === 'completed') {
+    filtered = completedCourses.value;
   }
 
   // 정렬
@@ -327,7 +255,7 @@ const filteredCourses = computed(() => {
       filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
       break;
     case 'recommended':
-      filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+      filtered = [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
       break;
   }
 
@@ -337,16 +265,53 @@ const filteredCourses = computed(() => {
 // 강의로 이동 (이미 수강신청된 상태이므로 바로 학습 페이지로)
 function goToCourse(courseId: string) {
   const course = enrolledCourses.value.find(c => c.id === courseId);
-  if (course?.type === 'curriculum') {
-    // 커리큘럼인 경우 커리큘럼 상세 페이지로 이동
-    router.push({ name: 'curriculum-detail', params: { id: courseId } });
-  } else {
-    // 개별 강의인 경우 학습 페이지로 이동
-    router.push({ name: 'learning', params: { lessonId: courseId } });
-  }
+  // 커리큘럼 상세 페이지로 이동 (수강 중인 커리큘럼)
+  router.push({ name: 'curriculum-detail', params: { id: course.curriculumId } });
 }
 
 function goMySubmissions() {
   router.push({ name: 'my-submissions' });
 }
+
+// Enrollment API로 수강 목록 로드
+const loadEnrollments = async () => {
+  isLoading.value = true;
+  try {
+    const userId = apiConfig.auth.defaultUserId;
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+
+    // Enrollment 데이터를 UI에 맞게 변환
+    enrolledCourses.value = enrollments.map((enrollment: EnrollmentResponse) => ({
+      id: String(enrollment.id),
+      curriculumId: enrollment.curriculumId,
+      title: enrollment.curriculumTitle,
+      instructor: enrollment.username || '알 수 없음',
+      category: '커리큘럼',
+      type: 'curriculum',
+      progress: enrollment.progressPercentage || 0,
+      status: enrollment.status,
+      rating: 4.5, // 기본값 (리뷰 시스템 구현 시 수정)
+      enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
+    }));
+  } catch (error) {
+    console.error('수강 목록 로드 실패:', error);
+    alert('수강 목록을 불러오는데 실패했습니다.');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 날짜 포맷 헬퍼 함수
+const formatEnrolledDate = (date: number[] | string): string => {
+  if (Array.isArray(date)) {
+    // [2025, 1, 15, 14, 30, 0] 형태
+    return `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}`;
+  }
+  return new Date(date).toISOString().split('T')[0];
+};
+
+// 컴포넌트 마운트 시 데이터 로드
+onMounted(() => {
+  loadEnrollments();
+});
 </script>
