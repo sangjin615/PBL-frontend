@@ -36,12 +36,12 @@ export const useSearchStore = defineStore('search', () => {
     persist();
   }
 
-  function getSuggestions(query: string): Suggestion[] {
+  function getSuggestions(query: string, coursesData: Course[] = courses): Suggestion[] {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     const set = new Set<string>();
     const out: Suggestion[] = [];
-    for (const c of courses) {
+    for (const c of coursesData) {
       if (c.title.toLowerCase().includes(q) && !set.has(c.title)) {
         set.add(c.title);
         out.push({ type: 'title', value: c.title });
@@ -61,10 +61,10 @@ export const useSearchStore = defineStore('search', () => {
     return out.slice(0, 8);
   }
 
-  function searchCourses(query: string): Course[] {
+  function searchCourses(query: string, coursesData: Course[] = courses): Course[] {
     const q = query.trim().toLowerCase();
-    if (!q) return courses;
-    return courses.filter((c) => {
+    if (!q) return coursesData;
+    return coursesData.filter((c) => {
       if (c.title.toLowerCase().includes(q)) return true;
       if (c.instructor.toLowerCase().includes(q)) return true;
       if ((c.tags ?? []).some((t) => t.toLowerCase().includes(q))) return true;

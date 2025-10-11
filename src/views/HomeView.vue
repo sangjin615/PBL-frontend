@@ -1,46 +1,65 @@
 <template>
   <section class="px-6 py-6">
     <div class="max-w-7xl mx-auto">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-4 overflow-x-auto">
-          <button
-            v-for="cat in categories"
-            :key="cat"
-            class="px-3 py-2 text-sm rounded-md border"
-            :class="activeTab === cat ? 'bg-gray-100 border-gray-300' : 'border-transparent hover:bg-gray-50'"
-            @click="setTab(cat)"
-          >
-            {{ cat }}
-          </button>
-        </div>
-        <div class="flex items-center gap-3 text-sm">
-          <select v-model="sortBy" class="h-9 rounded-md border px-2">
-            <option value="popular">인기순</option>
-            <option value="latest">최신순</option>
-            <option value="rating">평점순</option>
-            <option value="reviews">리뷰순</option>
-          </select>
-        </div>
+      <!-- 로딩 상태 -->
+      <div v-if="loading" class="flex justify-center items-center py-12">
+        <div class="text-gray-600">데이터를 불러오는 중...</div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <CourseCard v-for="c in visibleCourses" :key="c.id" :course="c" />
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="flex justify-center items-center py-12">
+        <div class="text-red-600">{{ error }}</div>
       </div>
 
-      <div v-if="remainingCount > 0" class="flex justify-center mt-8">
-        <button class="px-4 py-2 rounded-md border hover:bg-gray-50" @click="loadMore">더보기 ({{ remainingCount }})</button>
-      </div>
+      <!-- 정상 상태 -->
+      <template v-else>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-4 overflow-x-auto">
+            <button
+              v-for="cat in categories"
+              :key="cat"
+              class="px-3 py-2 text-sm rounded-md border"
+              :class="activeTab === cat ? 'bg-gray-100 border-gray-300' : 'border-transparent hover:bg-gray-50'"
+              @click="setTab(cat)"
+            >
+              {{ cat }}
+            </button>
+          </div>
+          <div class="flex items-center gap-3 text-sm">
+            <select v-model="sortBy" class="h-9 rounded-md border px-2">
+              <option value="popular">인기순</option>
+              <option value="latest">최신순</option>
+              <option value="rating">평점순</option>
+              <option value="reviews">리뷰순</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <CourseCard v-for="c in visibleCourses" :key="c.id" :course="c" />
+        </div>
+
+        <div v-if="remainingCount > 0" class="flex justify-center mt-8">
+          <button class="px-4 py-2 rounded-md border hover:bg-gray-50" @click="loadMore">더보기 ({{ remainingCount }})</button>
+        </div>
+
+        <!-- 결과 없음 메시지 -->
+        <div v-if="visibleCourses.length === 0" class="flex justify-center items-center py-12">
+          <div class="text-gray-500">검색 결과가 없습니다.</div>
+        </div>
+      </template>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import CourseCard from '../components/course/CourseCard.vue';
-import { courses } from '../mock/courses';
 import type { Course } from '../types/course';
 import { useSearchStore } from '../stores/search';
 import { useUiStore } from '../stores/ui';
+import { curriculumApiService } from '../services/curriculumApi';
+import { curriculumsToCourses } from '../services/courseAdapter';
 
 const searchStore = useSearchStore();
 const ui = useUiStore();
@@ -50,12 +69,39 @@ const activeTab = ref<string>('전체');
 const sortBy = ref<'popular'|'latest'|'rating'|'reviews'>('popular');
 const maxVisible = ref<number>(12);
 
+// API 연동 상태 관리
+const courses = ref<Course[]>([]);
+const loading = ref<boolean>(true);
+const error = ref<string | null>(null);
+
+// 컴포넌트 마운트 시 데이터 로드
+onMounted(async () => {
+  await loadCourses();
+});
+
+// 백엔드에서 커리큘럼 데이터 로드
+async function loadCourses() {
+  try {
+    loading.value = true;
+    error.value = null;
+
+    const curriculums = await curriculumApiService.getPublicCurriculums();
+    courses.value = curriculumsToCourses(curriculums);
+  } catch (err) {
+    console.error('커리큘럼 로드 실패:', err);
+    error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
+    courses.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
 function setTab(cat: string) {
   activeTab.value = cat;
 }
 
 const filteredByTab = computed<Course[]>(() => {
-  const list = courses.slice();
+  const list = courses.value.slice();
   if (activeTab.value !== '전체') {
     return list.filter((c) => c.category === activeTab.value);
   }
@@ -63,7 +109,7 @@ const filteredByTab = computed<Course[]>(() => {
 });
 
 const filteredBySearch = computed<Course[]>(() => {
-  return searchStore.searchCourses(ui.searchQuery).filter((c) => filteredByTab.value.includes(c));
+  return searchStore.searchCourses(ui.searchQuery, courses.value).filter((c) => filteredByTab.value.includes(c));
 });
 
 const sortedCourses = computed<Course[]>(() => {
