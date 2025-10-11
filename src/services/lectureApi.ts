@@ -67,7 +67,7 @@ class LectureApiService {
    * GET /api/lectures
    */
   async getAllLectures(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/lectures");
+    return this.request<Lecture[]>("/api/lectures");
   }
 
   /**
@@ -75,7 +75,7 @@ class LectureApiService {
    * GET /api/lectures/{id}
    */
   async getLecture(id: number): Promise<Lecture> {
-    return this.request<Lecture>(`/lectures/${id}`);
+    return this.request<Lecture>(`/api/lectures/${id}`);
   }
 
   /**
@@ -83,7 +83,7 @@ class LectureApiService {
    * POST /api/lectures
    */
   async createLecture(lectureData: CreateLectureRequest): Promise<Lecture> {
-    return this.request<Lecture>("/lectures", {
+    return this.request<Lecture>("/api/lectures", {
       method: "POST",
       body: JSON.stringify(lectureData),
     });
@@ -97,7 +97,7 @@ class LectureApiService {
     id: number,
     lectureData: CreateLectureRequest
   ): Promise<Lecture> {
-    return this.request<Lecture>(`/lectures/${id}`, {
+    return this.request<Lecture>(`/api/lectures/${id}`, {
       method: "PUT",
       body: JSON.stringify(lectureData),
     });
@@ -108,7 +108,7 @@ class LectureApiService {
    * DELETE /api/lectures/{id}
    */
   async deleteLecture(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/lectures/${id}`, {
+    return this.request<{ message: string }>(`/api/lectures/${id}`, {
       method: "DELETE",
     });
   }
@@ -132,8 +132,8 @@ class LectureApiService {
 
     const queryString = searchParams.toString();
     const endpoint = queryString
-      ? `/lectures/search?${queryString}`
-      : "/lectures/search";
+      ? `/api/lectures/search?${queryString}`
+      : "/api/lectures/search";
 
     try {
       return this.request<LectureSearchResponse>(endpoint);
@@ -157,7 +157,7 @@ class LectureApiService {
    * GET /api/lectures/type/{type}
    */
   async getLecturesByType(type: LectureType): Promise<Lecture[]> {
-    return this.request<Lecture[]>(`/lectures/type/${type}`);
+    return this.request<Lecture[]>(`/api/lectures/type/${type}`);
   }
 
   /**
@@ -165,7 +165,7 @@ class LectureApiService {
    * GET /api/lectures/recent
    */
   async getRecentLectures(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/lectures/recent");
+    return this.request<Lecture[]>("/api/lectures/recent");
   }
 
   // === 테스트케이스 관리 API ===
@@ -175,7 +175,7 @@ class LectureApiService {
    * POST /api/lectures/{id}/testcases
    */
   async addTestCase(lectureId: number, testCase: TestCase): Promise<Lecture> {
-    return this.request<Lecture>(`/lectures/${lectureId}/testcases`, {
+    return this.request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
       method: "POST",
       body: JSON.stringify({
         input: testCase.input,
@@ -189,7 +189,7 @@ class LectureApiService {
    * DELETE /api/lectures/{id}/testcases
    */
   async clearTestCases(lectureId: number): Promise<Lecture> {
-    return this.request<Lecture>(`/lectures/${lectureId}/testcases`, {
+    return this.request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
       method: "DELETE",
     });
   }
@@ -201,7 +201,7 @@ class LectureApiService {
    * GET /api/lectures/stats
    */
   async getLectureStats(): Promise<LectureStats> {
-    return this.request<LectureStats>("/lectures/stats");
+    return this.request<LectureStats>("/api/lectures/stats");
   }
 
   // === 편의 메서드 ===
@@ -236,6 +236,80 @@ class LectureApiService {
     return this.searchLectures({ difficulty }).then(
       (response) => response.lectures
     );
+  }
+
+  // === 공개/비공개 API ===
+
+  /**
+   * 강의 공개
+   * PUT /api/lectures/{id}/publish
+   */
+  async publishLecture(id: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/lectures/${id}/publish`, {
+      method: "PUT",
+    });
+  }
+
+  /**
+   * 강의 비공개
+   * PUT /api/lectures/{id}/unpublish
+   */
+  async unpublishLecture(id: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/lectures/${id}/unpublish`, {
+      method: "PUT",
+    });
+  }
+
+  /**
+   * 공개 강의 조회
+   * GET /api/lectures/public
+   */
+  async getPublicLectures(): Promise<Lecture[]> {
+    return this.request<Lecture[]>("/api/lectures/public");
+  }
+
+  /**
+   * 공개 강의 검색
+   * GET /api/lectures/public/search
+   */
+  async searchPublicLectures(params: {
+    title?: string;
+    category?: string;
+    difficulty?: string;
+    type?: LectureType;
+  }): Promise<Lecture[]> {
+    const searchParams = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString
+      ? `/api/lectures/public/search?${queryString}`
+      : "/api/lectures/public/search";
+
+    return this.request<Lecture[]>(endpoint);
+  }
+
+  // === 사용자별 강의 관리 API ===
+
+  /**
+   * 사용자별 강의 목록 조회
+   * GET /api/lectures/user/{userId}
+   */
+  async getUserLectures(userId: number): Promise<Lecture[]> {
+    return this.request<Lecture[]>(`/api/lectures/user/${userId}`);
+  }
+
+  /**
+   * 사용자별 공개 강의 목록 조회
+   * GET /api/lectures/user/{userId}/public
+   */
+  async getUserPublicLectures(userId: number): Promise<Lecture[]> {
+    return this.request<Lecture[]>(`/api/lectures/user/${userId}/public`);
   }
 }
 

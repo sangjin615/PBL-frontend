@@ -47,14 +47,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/CurriculumDetailView.vue'),
   },
   {
-    path: '/learn/:lessonId',
-    name: 'learning',
-    component: () => import('../views/LearningView.vue'),
-  },
-  {
-    path: '/problem/:problemId',
-    name: 'problem',
-    component: () => import('../views/ProblemView.vue'),
+    path: '/learn/:lectureId',
+    name: 'lecture',
+    component: () => import('../views/LectureView.vue'),
   },
   {
     path: '/problem-result/:problemId',
@@ -62,7 +57,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/ProblemResultView.vue'),
   },
   {
-    path: '/editor/popout/:lessonId',
+    path: '/editor/popout/:lectureId',
     name: 'editor-popout',
     component: () => import('../views/EditorPopoutView.vue'),
   },

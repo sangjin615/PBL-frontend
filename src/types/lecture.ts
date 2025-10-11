@@ -13,6 +13,12 @@ export interface TestCase {
   orderIndex?: number;
 }
 
+export interface AuthorInfo {
+  id: number;
+  username: string;
+  loginId: string;
+}
+
 export interface Lecture {
   id: number;
   title: string;
@@ -26,6 +32,7 @@ export interface Lecture {
   testCases?: TestCase[];
   createdAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
   updatedAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
+  author?: AuthorInfo;
 }
 
 export interface CreateLectureRequest {
