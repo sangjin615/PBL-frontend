@@ -428,7 +428,7 @@ async function enrollCurriculum() {
 
 // 강의로 이동
 function goToLecture(lectureId: number) {
-  router.push({ name: 'learning', params: { lessonId: lectureId } });
+  router.push({ name: 'lecture', params: { lectureId } });
 }
 
 onMounted(() => {

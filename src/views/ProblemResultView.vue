@@ -325,13 +325,7 @@ const goNext = (): void => {
 
 const goToNextLesson = (): void => {
   if (!nextLesson.value) return;
-  
-  const routeName = nextLesson.value.format === '문제' ? 'problem' : 'learning';
-  const params = nextLesson.value.format === '문제' 
-    ? { problemId: nextLesson.value.id }
-    : { lessonId: nextLesson.value.id };
-  
-  router.push({ name: routeName, params });
+  router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
 };
 
 const goBack = (): void => {

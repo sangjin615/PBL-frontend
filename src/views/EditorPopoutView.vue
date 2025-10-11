@@ -4,7 +4,7 @@
     <div class="bg-white border-b px-4 py-3 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <h1 class="text-lg font-semibold">팝아웃 에디터</h1>
-        <span class="text-sm text-gray-500">레슨 ID: {{ lessonId }}</span>
+        <span class="text-sm text-gray-500">강의 ID: {{ lectureId }}</span>
       </div>
       <div class="flex items-center space-x-2">
         <select
@@ -49,7 +49,7 @@ import { languageApiService } from '../services/languageApi'
 import type { MonacoEditorConfig } from '../services/extendedClient'
 
 const route = useRoute()
-const lessonId = route.params.lessonId as string
+const lectureId = route.params.lectureId as string
 
 const monacoEditorRef = ref<any>(null)
 const isEditorReady = ref(false)

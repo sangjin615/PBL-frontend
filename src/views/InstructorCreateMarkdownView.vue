@@ -336,8 +336,8 @@ function previewCourse() {
   
   // 학습자 화면으로 이동
   router.push({ 
-    name: 'learning', 
-    params: { lessonId: tempLessonId },
+    name: 'lecture', 
+    params: { lectureId: tempLessonId },
     query: { preview: 'true' }
   })
 }

@@ -298,13 +298,7 @@ function goBack() {
 // 다음 강의로 이동
 function goToNextLesson() {
   if (nextLesson.value) {
-    if (nextLesson.value.format === '문제') {
-      // 문제 형식인 경우 문제 페이지로 이동
-      router.push({ name: 'problem', params: { problemId: nextLesson.value.id } });
-    } else {
-      // 마크다운 형식인 경우 학습 페이지로 이동
-      router.push({ name: 'learning', params: { lessonId: nextLesson.value.id } });
-    }
+    router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
   }
 }
 
@@ -315,7 +309,7 @@ function copyCode(codeText: string) {
 }
 
 function openEditorPopout() {
-  const lessonId = route.params.lessonId as string;
+  const lectureId = route.params.lectureId as string;
   const features = [
     'popup=yes',
     'width=1200',
@@ -323,7 +317,7 @@ function openEditorPopout() {
     'resizable=yes',
     'scrollbars=yes'
   ].join(',');
-  const url = router.resolve({ name: 'editor-popout', params: { lessonId } }).href;
+  const url = router.resolve({ name: 'editor-popout', params: { lectureId } }).href;
   window.open(url, '_blank', features);
 }
 
@@ -440,9 +434,9 @@ onMounted(async () => {
   await fetchSupportedLanguages();
   
   // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
-  const currentLessonId = parseInt(route.params.lessonId as string);
+  const currentLectureId = parseInt(route.params.lectureId as string);
   nextLesson.value = {
-    id: currentLessonId + 1,
+    id: currentLectureId + 1,
     title: 'Introduction To Algorithms - 2강: 선택 정렬',
     format: '마크다운'
   };

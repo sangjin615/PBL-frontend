@@ -404,13 +404,7 @@ const goBack = (): void => {
 
 const goToNextLesson = (): void => {
   if (!nextLesson.value) return;
-  
-  const routeName = nextLesson.value.format === '문제' ? 'problem' : 'learning';
-  const params = nextLesson.value.format === '문제' 
-    ? { problemId: nextLesson.value.id }
-    : { lessonId: nextLesson.value.id };
-  
-  router.push({ name: routeName, params });
+  router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
 };
 
 // API에서 지원하는 언어 목록을 가져오는 함수
