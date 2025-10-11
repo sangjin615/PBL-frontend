@@ -5,12 +5,22 @@
       <nav class="text-sm text-gray-600">
         <span>전체</span>
         <span class="mx-2">></span>
-        <span>프로그램/모바일 앱 개발</span>
+        <span>{{ curriculum?.category || '프로그램/모바일 앱 개발' }}</span>
       </nav>
     </div>
 
+    <!-- 로딩 상태 -->
+    <div v-if="loading" class="flex justify-center items-center py-12">
+      <div class="text-gray-600">데이터를 불러오는 중...</div>
+    </div>
+
+    <!-- 에러 상태 -->
+    <div v-else-if="error" class="flex justify-center items-center py-12">
+      <div class="text-red-600">{{ error }}</div>
+    </div>
+
     <!-- 메인 컨텐츠 -->
-    <div class="px-6 pb-8">
+    <div v-else class="px-6 pb-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- 왼쪽: 메인 컨텐츠 -->
         <div class="lg:col-span-2">
@@ -109,38 +119,40 @@
               <div v-else-if="activeTab === 'curriculum'">
                 <h3 class="text-lg font-semibold mb-4" style="color: rgb(var(--figma-color-2))">커리큘럼</h3>
                 
-                <div v-if="curriculum" class="space-y-4">
+                <div v-if="lectures.length > 0" class="space-y-4">
+                  <!-- API에서 받은 강의 목록을 챕터로 그룹화 -->
                   <div 
-                    v-for="chapter in curriculum.chapters" 
-                    :key="chapter.id"
+                    v-for="(chapter, chapterIndex) in groupedLectures" 
+                    :key="chapterIndex"
                     class="border rounded-lg" 
                     style="border-color: rgb(var(--figma-color-4))"
                   >
                     <button 
-                      @click="toggleChapter(chapter.id)"
+                      @click="toggleChapter(chapterIndex)"
                       class="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
                       <div class="flex items-center space-x-3">
                         <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
                           {{ chapter.isExpanded ? '∨' : '∧' }} {{ chapter.title }}
                         </span>
-                        <span class="text-sm" style="color: rgb(var(--figma-color-5))">{{ chapter.lessons.length }}개 레슨</span>
+                        <span class="text-sm" style="color: rgb(var(--figma-color-5))">{{ chapter.lectures.length }}개 레슨</span>
                       </div>
                     </button>
                     
                     <div v-if="chapter.isExpanded" class="px-4 pb-4 border-t" style="border-color: rgb(var(--figma-color-4))">
                       <div class="pt-4 space-y-3">
                         <div 
-                          v-for="lesson in chapter.lessons" 
-                          :key="lesson.id"
+                          v-for="(lecture, lectureIndex) in chapter.lectures" 
+                          :key="lecture.lectureId"
                           class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          @click="goToLecture(lecture.lectureId)"
                         >
                           <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white" style="background-color: rgb(var(--figma-color-6))">
-                            {{ lesson.id }}
+                            {{ lecture.orderIndex }}
                           </div>
                           <div class="flex-1">
-                            <span class="text-sm" style="color: rgb(var(--figma-color-2))">{{ lesson.title }}</span>
-                            <span v-if="lesson.duration" class="text-xs ml-2" style="color: rgb(var(--figma-color-5))">{{ lesson.duration }}</span>
+                            <span class="text-sm" style="color: rgb(var(--figma-color-2))">{{ lecture.lectureTitle }}</span>
+                            <span v-if="lecture.isRequired" class="ml-2 text-xs px-2 py-1 bg-red-100 text-red-600 rounded">필수</span>
                           </div>
                         </div>
                       </div>
@@ -184,7 +196,7 @@
             <!-- 리뷰 그리드 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div 
-                v-for="review in reviews" 
+                v-for="review in hardcodedData.reviews" 
                 :key="review.id"
                 class="p-4 border rounded-lg" 
                 style="border-color: rgb(var(--figma-color-4))"
@@ -210,35 +222,15 @@
           <div class="bg-figma-1 rounded-lg border p-6 sticky top-6" style="border-color: rgb(var(--figma-color-4))">
             <div class="space-y-4">
               <button 
-                @click="isInstructorMode ? editCurriculum() : toggleEnrollment()"
-                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors" 
-                :style="isInstructorMode ? 'background-color: rgb(var(--figma-color-6))' : (isEnrolled ? 'background-color: rgb(var(--figma-color-17))' : 'background-color: rgb(var(--figma-color-6))')"
-              >
-                {{ isInstructorMode ? '수정하기' : (isEnrolled ? '수강 취소하기' : '수강신청하기') }}
-              </button>
-              
-              <!-- 강의자 모드에서만 삭제 버튼 표시 -->
-              <button 
-                v-if="isInstructorMode"
-                @click="deleteCurriculum"
-                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors mt-3" 
-                style="background-color: #dc2626"
-              >
-                삭제하기
-              </button>
-              
-              <!-- 학습하기 버튼 (수강 신청 후에만 표시) -->
-              <button 
-                v-if="isEnrolled"
-                @click="goToLearning"
-                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors" 
+                @click="enrollCurriculum"
+                :disabled="isEnrolling"
+                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors disabled:opacity-50" 
                 style="background-color: rgb(var(--figma-color-6))"
               >
-                학습하기
+                {{ isEnrolling ? '처리 중...' : '수강신청하기' }}
               </button>
               
               <button 
-                v-if="!isEnrolled"
                 class="w-full px-4 py-3 border rounded-lg font-medium hover:bg-gray-50 transition-colors" 
                 style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))"
               >
@@ -257,15 +249,15 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">강의 시간</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.totalDuration }}</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ hardcodedData.totalDuration }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">난이도</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.difficulty }}</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ hardcodedData.difficulty }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">수강생 수</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.students.toLocaleString() }}명</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ enrollmentCount }}명</span>
               </div>
             </div>
           </div>
@@ -278,19 +270,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { courses } from '../mock/courses';
+import { curriculumApiService } from '@/services/curriculumApi';
+import { enrollmentApiService } from '@/services/enrollmentApi';
+import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
 
 const router = useRouter();
 const route = useRoute();
 
-// 강의자 모드 확인
-const isInstructorMode = computed(() => route.query.mode === 'instructor');
+// 상태 관리
+const curriculum = ref<any>(null);
+const lectures = ref<CurriculumLectureResponse[]>([]);
+const enrollmentCount = ref(0);
+const loading = ref(true);
+const error = ref<string | null>(null);
+const isEnrolling = ref(false);
 
 // 탭 상태
 const activeTab = ref('intro');
 
-// 수강 신청 상태
-const isEnrolled = ref(false);
+// 챕터 상태
+const expandedChapters = ref<Set<number>>(new Set([0])); // 첫 번째 챕터는 기본적으로 열림
 
 // 탭 옵션
 const tabs = ref([
@@ -300,417 +299,139 @@ const tabs = ref([
   { id: 'learning', name: '나의 학습' }
 ]);
 
-// 현재 커리큘럼 데이터
-const currentCurriculum = ref(null);
-
-// 커리큘럼 데이터 매핑
-const curriculumData = {
-  'course_1': {
-    title: 'Introduction To Algorithms',
-    instructor: '김유희',
-    category: '알고리즘',
-    description: '알고리즘 기초 개념을 예제로 익히고 실습 문제로 다집니다. 정렬, 그래프, 동적계획법 등 핵심 알고리즘을 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 5.0,
-    reviewsCount: 999,
-    totalDuration: '32시간',
-    difficulty: '초급',
-    students: 12450,
-    tags: ['#알고리즘', '#정렬', '#그래프', '#동적계획법', '#Python', '#Java'],
-    learningGoals: [
-      '알고리즘의 기본 개념과 복잡도 분석',
-      '정렬 알고리즘의 원리와 구현',
-      '그래프 알고리즘과 최단경로 문제',
-      '동적계획법을 활용한 문제 해결',
-      '실제 코딩테스트 문제 풀이 능력 향상'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. 알고리즘 기초',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: '알고리즘이란?', duration: '30분' },
-          { id: 102, title: '시간복잡도와 공간복잡도', duration: '45분' },
-          { id: 103, title: 'Big O 표기법', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. 정렬 알고리즘',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: '버블 정렬과 선택 정렬', duration: '40분' },
-          { id: 202, title: '삽입 정렬과 병합 정렬', duration: '50분' },
-          { id: 203, title: '퀵 정렬과 힙 정렬', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 그래프 알고리즘',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: '그래프의 표현과 탐색', duration: '60분' },
-          { id: 302, title: 'DFS와 BFS', duration: '55분' },
-          { id: 303, title: '최단경로 알고리즘', duration: '70분' },
-        ],
-      },
-      {
-        id: 4,
-        title: '챕터 4. 동적계획법',
-        isExpanded: true,
-        lessons: [
-          { id: 401, title: 'DP의 기본 원리', duration: '80분' },
-          { id: 402, title: '메모이제이션과 타뷸레이션', duration: '90분' },
-          { id: 403, title: '실전 DP 문제 풀이', duration: '75분' },
-        ],
-      },
-    ]
-  },
-  'course_2': {
-    title: '웹 기초: HTML/CSS',
-    instructor: '이서준',
-    category: '웹',
-    description: 'HTML과 CSS로 반응형 레이아웃을 구현합니다. 웹 개발의 기초부터 실전 프로젝트까지 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 4.7,
-    reviewsCount: 312,
-    totalDuration: '24시간',
-    difficulty: '입문',
-    students: 5670,
-    tags: ['#HTML', '#CSS', '#웹개발', '#반응형', '#레이아웃'],
-    learningGoals: [
-      'HTML5의 기본 구조와 시맨틱 태그',
-      'CSS3의 고급 기능과 애니메이션',
-      '반응형 웹 디자인과 미디어 쿼리',
-      'Flexbox와 Grid 레이아웃',
-      '실제 웹사이트 제작 프로젝트'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. HTML 기초',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: 'HTML 기본 구조', duration: '30분' },
-          { id: 102, title: '시맨틱 태그', duration: '45분' },
-          { id: 103, title: '폼과 입력 요소', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. CSS 기초',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: 'CSS 선택자와 속성', duration: '40분' },
-          { id: 202, title: '박스 모델과 포지셔닝', duration: '50분' },
-          { id: 203, title: '색상과 타이포그래피', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 레이아웃',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: 'Flexbox 레이아웃', duration: '60분' },
-          { id: 302, title: 'Grid 레이아웃', duration: '55분' },
-          { id: 303, title: '반응형 디자인', duration: '70분' },
-        ],
-      },
-    ]
-  },
-  'course_3': {
-    title: 'Python 자료구조',
-    instructor: '박가은',
-    category: '개발·프로그래밍',
-    description: '파이썬 핵심 자료구조와 알고리즘 기본. 파이썬의 내장 자료구조부터 고급 자료구조까지 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 4.9,
-    reviewsCount: 587,
-    totalDuration: '28시간',
-    difficulty: '초급',
-    students: 8930,
-    tags: ['#Python', '#자료구조', '#알고리즘', '#리스트', '#딕셔너리'],
-    learningGoals: [
-      '파이썬의 기본 자료구조 이해',
-      '리스트, 딕셔너리, 세트의 활용',
-      '스택과 큐 구현',
-      '트리와 그래프 자료구조',
-      '실전 문제 해결 능력 향상'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. 기본 자료구조',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: '리스트와 튜플', duration: '30분' },
-          { id: 102, title: '딕셔너리와 세트', duration: '45분' },
-          { id: 103, title: '문자열 처리', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. 선형 자료구조',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: '스택 구현', duration: '40분' },
-          { id: 202, title: '큐 구현', duration: '50분' },
-          { id: 203, title: '연결 리스트', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 비선형 자료구조',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: '트리 구조', duration: '60분' },
-          { id: 302, title: '그래프 구조', duration: '55분' },
-          { id: 303, title: '해시 테이블', duration: '70분' },
-        ],
-      },
-    ]
-  },
-  'course_4': {
-    title: '게임 개발 입문 with Unity',
-    instructor: '최민수',
-    category: '게임 개발',
-    description: 'Unity로 간단한 게임을 만들며 핵심 개념을 배웁니다. 게임 개발의 기초부터 실제 게임 제작까지 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 4.6,
-    reviewsCount: 201,
-    totalDuration: '36시간',
-    difficulty: '입문',
-    students: 3450,
-    tags: ['#Unity', '#게임개발', '#C#', '#씬', '#프리팹'],
-    learningGoals: [
-      'Unity 엔진의 기본 사용법',
-      'C# 스크립팅 기초',
-      '게임 오브젝트와 컴포넌트',
-      '씬 관리와 프리팹 활용',
-      '실제 게임 프로젝트 완성'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. Unity 기초',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: 'Unity 인터페이스', duration: '30분' },
-          { id: 102, title: '씬과 게임 오브젝트', duration: '45분' },
-          { id: 103, title: 'Transform과 컴포넌트', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. C# 스크립팅',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: 'C# 기본 문법', duration: '40분' },
-          { id: 202, title: 'MonoBehaviour 클래스', duration: '50분' },
-          { id: 203, title: '이벤트와 코루틴', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 게임 제작',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: '플레이어 컨트롤', duration: '60분' },
-          { id: 302, title: '물리 시스템', duration: '55분' },
-          { id: 303, title: 'UI 시스템', duration: '70분' },
-        ],
-      },
-    ]
-  },
-  'course_5': {
-    title: 'SQL로 하는 데이터 질의',
-    instructor: '정은지',
-    category: '데이터베이스',
-    description: '실무 예제로 익히는 SQL 쿼리 작성. 데이터베이스의 기초부터 고급 쿼리까지 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 4.8,
-    reviewsCount: 421,
-    totalDuration: '20시간',
-    difficulty: '초급',
-    students: 6780,
-    tags: ['#SQL', '#데이터베이스', '#JOIN', '#인덱스', '#쿼리'],
-    learningGoals: [
-      'SQL 기본 문법과 데이터 타입',
-      'SELECT, INSERT, UPDATE, DELETE',
-      'JOIN과 서브쿼리 활용',
-      '인덱스와 성능 최적화',
-      '실무 데이터 분석 쿼리 작성'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. SQL 기초',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: '데이터베이스 개념', duration: '30분' },
-          { id: 102, title: 'SELECT 문 기초', duration: '45분' },
-          { id: 103, title: 'WHERE 절과 조건문', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. 고급 쿼리',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: 'JOIN과 관계형 데이터', duration: '40분' },
-          { id: 202, title: '서브쿼리와 CTE', duration: '50분' },
-          { id: 203, title: '집계 함수와 GROUP BY', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 성능 최적화',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: '인덱스 설계', duration: '60분' },
-          { id: 302, title: '쿼리 성능 분석', duration: '55분' },
-          { id: 303, title: '실무 최적화 기법', duration: '70분' },
-        ],
-      },
-    ]
-  },
-  'course_6': {
-    title: '인공지능 개요',
-    instructor: '오지후',
-    category: '인공지능',
-    description: 'AI 기본 개념과 사례 소개. 머신러닝과 딥러닝의 기초부터 실제 응용까지 체계적으로 학습할 수 있는 강의입니다.',
-    rating: 4.5,
-    reviewsCount: 198,
-    totalDuration: '16시간',
-    difficulty: '입문',
-    students: 2340,
-    tags: ['#AI', '#머신러닝', '#딥러닝', '#Python', '#데이터사이언스'],
-    learningGoals: [
-      '인공지능의 기본 개념과 역사',
-      '머신러닝 알고리즘 이해',
-      '딥러닝과 신경망 기초',
-      '실제 AI 프로젝트 경험',
-      'AI 윤리와 미래 전망'
-    ],
-    chapters: [
-      {
-        id: 1,
-        title: '챕터 1. AI 기초',
-        isExpanded: true,
-        lessons: [
-          { id: 101, title: 'AI의 정의와 역사', duration: '30분' },
-          { id: 102, title: '머신러닝 개요', duration: '45분' },
-          { id: 103, title: '데이터 전처리', duration: '60분' },
-        ],
-      },
-      {
-        id: 2,
-        title: '챕터 2. 머신러닝',
-        isExpanded: false,
-        lessons: [
-          { id: 201, title: '지도학습과 비지도학습', duration: '40분' },
-          { id: 202, title: '회귀와 분류', duration: '50분' },
-          { id: 203, title: '모델 평가와 검증', duration: '70분' },
-        ],
-      },
-      {
-        id: 3,
-        title: '챕터 3. 딥러닝',
-        isExpanded: false,
-        lessons: [
-          { id: 301, title: '신경망 기초', duration: '60분' },
-          { id: 302, title: 'CNN과 RNN', duration: '55분' },
-          { id: 303, title: '실전 프로젝트', duration: '70분' },
-        ],
-      },
-    ]
-  }
+// 하드코딩된 데이터 (백엔드 미구현 항목)
+const hardcodedData = {
+  rating: 5.0,
+  totalDuration: '24시간',
+  difficulty: '초급',
+  reviews: [
+    {
+      id: 1,
+      name: '김준성',
+      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+    },
+    {
+      id: 2,
+      name: '김준성',
+      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+    },
+    {
+      id: 3,
+      name: '김준성',
+      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+    },
+    {
+      id: 4,
+      name: '김준성',
+      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+    }
+  ]
 };
 
-// 리뷰 데이터
-const reviews = ref([
-  {
-    id: 1,
-    name: '김준성',
-    content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
-  },
-  {
-    id: 2,
-    name: '김준성',
-    content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
-  },
-  {
-    id: 3,
-    name: '김준성',
-    content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
-  },
-  {
-    id: 4,
-    name: '김준성',
-    content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+// 강의를 챕터별로 그룹화 (5개씩)
+const groupedLectures = computed(() => {
+  const groups = [];
+  const lecturesPerChapter = 5;
+  
+  for (let i = 0; i < lectures.value.length; i += lecturesPerChapter) {
+    const chapterLectures = lectures.value.slice(i, i + lecturesPerChapter);
+    groups.push({
+      title: `챕터 ${Math.floor(i / lecturesPerChapter) + 1}. ${getChapterTitle(Math.floor(i / lecturesPerChapter))}`,
+      lectures: chapterLectures,
+      isExpanded: expandedChapters.value.has(Math.floor(i / lecturesPerChapter))
+    });
   }
-]);
-
-// 현재 커리큘럼 정보
-const curriculum = computed(() => {
-  if (!currentCurriculum.value) return null;
-  return currentCurriculum.value;
+  
+  return groups;
 });
 
+// 챕터 제목 생성
+function getChapterTitle(chapterIndex: number): string {
+  const titles = ['기초 개념', '핵심 이론', '실전 적용', '고급 기법', '프로젝트'];
+  return titles[chapterIndex] || `추가 학습 ${chapterIndex + 1}`;
+}
+
 // 챕터 토글
-function toggleChapter(chapterId: number) {
-  if (!currentCurriculum.value) return;
-  const chapter = currentCurriculum.value.chapters.find(c => c.id === chapterId);
-  if (chapter) {
-    chapter.isExpanded = !chapter.isExpanded;
+function toggleChapter(chapterIndex: number) {
+  if (expandedChapters.value.has(chapterIndex)) {
+    expandedChapters.value.delete(chapterIndex);
+  } else {
+    expandedChapters.value.add(chapterIndex);
   }
 }
 
-// 수강 신청 토글
-function toggleEnrollment() {
-  isEnrolled.value = !isEnrolled.value;
-  console.log('수강 신청 상태 변경:', isEnrolled.value);
-}
+// 커리큘럼 상세 정보 로드
+async function loadCurriculumDetail() {
+  try {
+    loading.value = true;
+    error.value = null;
 
-// 학습하기 페이지로 이동
-function goToLearning() {
-  const curriculumId = route.params.id;
-  console.log('학습하기 버튼 클릭됨, 커리큘럼 ID:', curriculumId);
-  console.log('이동할 라우트:', { name: 'curriculum-detail', params: { id: curriculumId } });
-  
-  // 절대 경로로 시도
-  const path = `/curriculum/${curriculumId}/learn`;
-  console.log('절대 경로로 이동:', path);
-  router.push(path);
-}
+    const curriculumId = Number(route.params.id);
+    const data: CurriculumDetailResponse = await curriculumApiService.getCurriculumById(curriculumId);
 
-// 커리큘럼 수정하기 (강의자 모드)
-function editCurriculum() {
-  console.log('커리큘럼 수정하기 클릭됨');
-  // TODO: 커리큘럼 수정 페이지로 이동
-  alert('커리큘럼 수정 기능은 구현 예정입니다.');
-}
+    curriculum.value = {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      instructor: data.author?.username || '알 수 없음',
+      category: extractCategory(data.title),
+      rating: hardcodedData.rating
+    };
 
-// 커리큘럼 삭제하기 (강의자 모드)
-function deleteCurriculum() {
-  console.log('커리큘럼 삭제하기 클릭됨');
-  
-  if (confirm('정말로 이 커리큘럼을 삭제하시겠습니까?\n삭제된 커리큘럼은 복구할 수 없습니다.')) {
-    // localStorage에서 커리큘럼 삭제
-    const curriculumId = route.params.id as string;
-    console.log('삭제할 커리큘럼 ID:', curriculumId);
-    
-    // 현재는 하드코딩된 데이터이므로 실제로는 백엔드 API 호출
-    // TODO: 실제 삭제 API 호출
-    console.log('커리큘럼 삭제 확인됨');
-    alert('커리큘럼이 삭제되었습니다.');
-    
-    // 대시보드로 이동
-    router.push('/dashboard');
+    lectures.value = (data.lectures || []).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+    // 수강자 수 조회
+    try {
+      const countData = await enrollmentApiService.getCurriculumEnrollmentCount(curriculumId);
+      enrollmentCount.value = countData.enrollmentCount;
+    } catch (err) {
+      console.warn('수강자 수 조회 실패:', err);
+      enrollmentCount.value = 0;
+    }
+
+  } catch (err) {
+    console.error('커리큘럼 로드 실패:', err);
+    error.value = '커리큘럼 정보를 불러오는 중 오류가 발생했습니다.';
+  } finally {
+    loading.value = false;
   }
 }
 
-// 페이지 로드 시 커리큘럼 데이터 설정
+// 카테고리 추출
+function extractCategory(title: string): string {
+  const text = title.toLowerCase();
+  if (text.includes('algorithm')) return '알고리즘';
+  if (text.includes('web') || text.includes('html')) return '웹';
+  if (text.includes('python')) return 'Python';
+  if (text.includes('unity') || text.includes('game')) return '게임 개발';
+  if (text.includes('sql') || text.includes('database')) return '데이터베이스';
+  if (text.includes('ai') || text.includes('인공지능')) return '인공지능';
+  return '개발·프로그래밍';
+}
+
+// 수강 신청
+async function enrollCurriculum() {
+  if (!curriculum.value) return;
+
+  try {
+    isEnrolling.value = true;
+    await enrollmentApiService.enrollCurriculum(curriculum.value.id);
+    alert('수강 신청이 완료되었습니다!');
+    router.push({ name: 'curriculum-detail', params: { id: curriculum.value.id } });
+  } catch (err: any) {
+    console.error('수강 신청 실패:', err);
+    alert(err.message || '수강 신청에 실패했습니다.');
+  } finally {
+    isEnrolling.value = false;
+  }
+}
+
+// 강의로 이동
+function goToLecture(lectureId: number) {
+  router.push({ name: 'learning', params: { lessonId: lectureId } });
+}
+
 onMounted(() => {
-  const curriculumId = route.params.id as string;
-  if (curriculumData[curriculumId]) {
-    currentCurriculum.value = curriculumData[curriculumId];
-  }
+  loadCurriculumDetail();
 });
 </script>

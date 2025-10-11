@@ -336,6 +336,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import curriculumApiService from '@/services/curriculumApi'
+import type { Lecture } from '@/types/lecture'
 
 const router = useRouter()
 
@@ -448,24 +450,36 @@ const moveDown = (index: number) => {
   }
 }
 
-const loadAvailableMaterials = () => {
-  // localStorage에서 강의물 목록 가져오기
-  const instructorCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-  const instructorProblems = JSON.parse(localStorage.getItem('instructorProblems') || '[]')
-  
-  // 강의물을 통합하여 availableMaterials에 추가
-  availableMaterials.value = [
-    ...instructorCourses.map((course: any) => ({
-      ...course,
-      type: 'markdown',
-      duration: course.duration || '30분'
-    })),
-    ...instructorProblems.map((problem: any) => ({
-      ...problem,
-      type: 'problem',
-      duration: '15분'
+const loadAvailableMaterials = async () => {
+  try {
+    // API로 공개 강의 목록 가져오기
+    const lectures = await curriculumApiService.getPublicLecturesForCurriculum()
+
+    // 강의 데이터를 UI에 맞게 변환
+    availableMaterials.value = lectures.map((lecture: Lecture) => ({
+      id: lecture.id,
+      title: lecture.title,
+      description: lecture.description,
+      type: lecture.type.toLowerCase(), // MARKDOWN -> markdown, PROBLEM -> problem
+      category: lecture.category || '미분류',
+      difficulty: lecture.difficulty || '중급',
+      duration: lecture.type === 'PROBLEM' ? '15분' : '30분',
+      createdDate: formatDate(lecture.createdAt),
+      testCaseCount: lecture.testCaseCount
     }))
-  ]
+  } catch (error) {
+    console.error('강의 목록 로드 실패:', error)
+    alert('강의 목록을 불러오는데 실패했습니다.')
+  }
+}
+
+// 날짜 포맷 헬퍼 함수
+const formatDate = (date: number[] | string): string => {
+  if (Array.isArray(date)) {
+    // [2025, 1, 15, 14, 30, 0] 형태
+    return `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}`
+  }
+  return new Date(date).toISOString().split('T')[0]
 }
 
 const previewCurriculum = () => {
@@ -479,32 +493,41 @@ const previewCurriculum = () => {
   router.push({ name: 'curriculum-overview', params: { id: 'preview' }, query: { preview: 'true' } })
 }
 
-const saveCurriculum = () => {
+const saveCurriculum = async () => {
   if (!curriculum.value.title.trim()) {
     alert('커리큘럼 제목을 입력해주세요.')
     return
   }
-  
+
   if (curriculum.value.lessons.length === 0) {
     alert('커리큘럼에 강의물을 추가해주세요.')
     return
   }
 
-  // 커리큘럼 저장 로직
-  const curriculumData = {
-    ...curriculum.value,
-    id: Date.now(),
-    createdDate: new Date().toISOString(),
-    status: 'published'
+  try {
+    // 1. 커리큘럼 생성
+    const curriculumResponse = await curriculumApiService.createCurriculum({
+      title: curriculum.value.title,
+      description: curriculum.value.description,
+      isPublic: true // 기본값으로 공개
+    })
+
+    // 2. 강의 추가
+    for (const lesson of curriculum.value.lessons) {
+      await curriculumApiService.addLectureToCurriculum(curriculumResponse.id, {
+        lectureId: lesson.id,
+        isRequired: false, // 기본값
+        originalAuthor: undefined,
+        sourceInfo: undefined
+      })
+    }
+
+    alert('커리큘럼이 성공적으로 저장되었습니다!')
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('커리큘럼 저장 실패:', error)
+    alert('커리큘럼 저장 중 오류가 발생했습니다.')
   }
-
-  // localStorage에 저장
-  const existingCurricula = JSON.parse(localStorage.getItem('instructorCurricula') || '[]')
-  existingCurricula.push(curriculumData)
-  localStorage.setItem('instructorCurricula', JSON.stringify(existingCurricula))
-
-  alert('커리큘럼이 성공적으로 저장되었습니다!')
-  router.push({ name: 'dashboard' })
 }
 
 // 컴포넌트 초기화
