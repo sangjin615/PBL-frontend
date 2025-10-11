@@ -42,3 +42,4 @@ export interface UserInfoResponse {
   success: boolean;
   user: User;
 }
+

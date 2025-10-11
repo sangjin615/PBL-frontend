@@ -96,3 +96,4 @@ class UserApiService {
 
 // 싱글톤 인스턴스 생성
 export const userApiService = new UserApiService();
+
