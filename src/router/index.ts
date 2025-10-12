@@ -22,6 +22,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/QnAView.vue'),
   },
   {
+    path: '/qna/:id',
+    name: 'qna-detail',
+    component: () => import('../views/QnADetailView.vue'),
+  },
+  {
     path: '/subscriptions',
     name: 'subscriptions',
     component: () => import('../views/SubscriptionsView.vue'),

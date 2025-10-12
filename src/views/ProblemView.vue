@@ -16,16 +16,18 @@
         </div>
         <div class="flex items-center space-x-4">
           <!-- 다음 강의 버튼 -->
-          <button 
+          <Button 
             v-if="nextLesson"
             @click="goToNextLesson"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            variant="success"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-            <span>다음 강의</span>
-          </button>
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </template>
+            다음 강의
+          </Button>
           <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
         </div>
       </div>
@@ -148,13 +150,14 @@
             </select>
           </div>
             <div class="flex space-x-2">
-              <button 
+              <Button 
                 @click="submitCode"
-                :disabled="isRunning"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                :loading="isRunning"
+                loading-text="채점 중..."
+                variant="success"
               >
-                {{ isRunning ? '채점 중...' : '제출하기' }}
-              </button>
+                제출하기
+              </Button>
             </div>
         </div>
 
@@ -211,6 +214,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
+import { Button, LoadingSpinner, ErrorMessage } from '@/components/common'
 import { languageApiService } from '../services/languageApi'
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI'

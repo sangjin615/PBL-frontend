@@ -4,24 +4,43 @@
       <h1 class="text-2xl font-bold text-gray-900 mb-6">회원가입</h1>
 
       <form @submit.prevent="handleSignup" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">닉네임</label>
-          <input v-model="nickname" type="text" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="닉네임 입력" />
-        </div>
+        <FormInput
+          v-model="nickname"
+          label="닉네임"
+          placeholder="닉네임을 입력하세요"
+          :error="nicknameError"
+          required
+        />
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">아이디</label>
-          <input v-model="userId" type="text" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="아이디 입력" />
-        </div>
+        <FormInput
+          v-model="userId"
+          label="아이디"
+          placeholder="아이디를 입력하세요"
+          :error="userIdError"
+          required
+        />
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-          <input v-model="password" type="password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring" placeholder="비밀번호 입력" />
-        </div>
+        <FormInput
+          v-model="password"
+          label="비밀번호"
+          type="password"
+          placeholder="비밀번호를 입력하세요"
+          :error="passwordError"
+          required
+        />
 
-        <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+        <ErrorMessage v-if="error" :message="error" />
 
-        <button type="submit" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">가입하기</button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          :loading="isLoading"
+          loading-text="가입 중..."
+          full-width
+        >
+          가입하기
+        </Button>
       </form>
 
       <div class="mt-6 text-sm text-gray-600 text-center">
@@ -33,8 +52,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { userApiService } from '@/services/userApi'
+import { FormInput, ErrorMessage, Button } from '@/components/common'
+import { validateUsername, validateLoginId, validatePassword, handleApiError, MESSAGES } from '@/utils'
 
 const router = useRouter()
 
@@ -42,6 +64,12 @@ const nickname = ref('')
 const userId = ref('')
 const password = ref('')
 const error = ref('')
+const isLoading = ref(false)
+
+// 유효성 검사
+const nicknameError = computed(() => validateUsername(nickname.value))
+const userIdError = computed(() => validateLoginId(userId.value))
+const passwordError = computed(() => validatePassword(password.value))
 
 function loadUsers(): Array<{ nickname: string; userId: string; password: string }> {
   try {
@@ -65,17 +93,35 @@ function validate(): string | null {
   return null
 }
 
-function handleSignup() {
-  const validationError = validate()
-  if (validationError) {
-    error.value = validationError
+async function handleSignup() {
+  error.value = ''
+  
+  // 유효성 검사
+  const nicknameValidation = validateUsername(nickname.value)
+  const userIdValidation = validateLoginId(userId.value)
+  const passwordValidation = validatePassword(password.value)
+  
+  if (nicknameValidation || userIdValidation || passwordValidation) {
     return
   }
-  const users = loadUsers()
-  users.push({ nickname: nickname.value.trim(), userId: userId.value.trim(), password: password.value })
-  saveUsers(users)
-  alert('회원가입이 완료되었습니다. 로그인 해주세요.')
-  router.push({ name: 'login' })
+
+  isLoading.value = true
+  
+  try {
+    const response = await userApiService.signUp({
+      username: nickname.value.trim(),
+      loginId: userId.value.trim(),
+      password: password.value
+    })
+    
+    alert(MESSAGES.SUCCESS.SIGNUP)
+    router.push({ name: 'login' })
+  } catch (err: any) {
+    console.error('회원가입 실패:', err)
+    error.value = handleApiError(err)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 

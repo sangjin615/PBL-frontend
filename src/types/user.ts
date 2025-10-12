@@ -22,15 +22,17 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  success: boolean;
-  message: string;
-  user: User | null;
+  id: number;
+  username: string;
+  loginId: string;
+  createdAt: string;
 }
 
 export interface SignUpResponse {
-  success: boolean;
-  message: string;
-  user: User;
+  id: number;
+  username: string;
+  loginId: string;
+  createdAt: string;
 }
 
 export interface CheckAvailabilityResponse {
@@ -39,7 +41,9 @@ export interface CheckAvailabilityResponse {
 }
 
 export interface UserInfoResponse {
-  success: boolean;
-  user: User;
+  id: number;
+  username: string;
+  loginId: string;
+  createdAt: string;
 }
 

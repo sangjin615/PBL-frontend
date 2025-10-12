@@ -15,31 +15,32 @@
           </div>
         </div>
         <div class="flex items-center space-x-3">
-          <button 
+          <Button 
             @click="previewCourse"
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            variant="ghost"
           >
             미리보기
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="saveDraft"
-            class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            variant="secondary"
           >
             임시저장
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="publishCourse"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            :loading="isPublishing"
+            loading-text="발행 중..."
           >
             {{ isEditMode ? '수정 완료' : '강의 발행' }}
-          </button>
-          <button 
+          </Button>
+          <Button 
             v-if="isEditMode"
             @click="deleteCourse"
-            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            variant="danger"
           >
             삭제하기
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -236,6 +237,9 @@ import 'md-editor-v3/lib/style.css'
 import '../styles/md-editor-korean.css'
 import koKR from '../locales/ko-KR'
 import { lectureApiService } from '@/services/lectureApi'
+import { Button, FormInput, FormTextarea, FormSelect, ErrorMessage, SuccessMessage, ConfirmDialog } from '@/components/common'
+import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS, MESSAGES } from '@/constants'
+import { validateTitle, validateDescription, handleApiError } from '@/utils'
 import { LectureType } from '@/types/lecture'
 
 const router = useRouter()

@@ -29,16 +29,18 @@
           </div>
           
           <!-- 다음 강의 버튼 -->
-          <button 
+          <Button 
             v-if="nextLesson"
             @click="goToNextLesson"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            variant="success"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-            <span>다음 강의</span>
-          </button>
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </template>
+            다음 강의
+          </Button>
         </div>
       </div>
     </div>
@@ -192,6 +194,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
+import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
 import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 import type { MonacoEditorConfig } from '../services/extendedClient';

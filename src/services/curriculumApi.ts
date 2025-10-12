@@ -33,6 +33,7 @@ class CurriculumApiService {
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
+        "X-User-Id": String(apiConfig.auth.defaultUserId),
         ...options.headers,
       },
       ...options,
@@ -164,13 +165,13 @@ class CurriculumApiService {
    */
   async reorderLectures(
     curriculumId: number,
-    lectureIds: number[]
+    lectureOrders: Array<{ lectureId: number; order: number }>
   ): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       `/api/curriculums/${curriculumId}/lectures/reorder`,
       {
         method: "PUT",
-        body: JSON.stringify({ lectureIds }),
+        body: JSON.stringify({ lectureOrders }),
       }
     );
   }

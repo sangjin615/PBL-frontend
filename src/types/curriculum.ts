@@ -18,17 +18,9 @@ export interface AuthorInfo {
  */
 export interface CurriculumLecture {
   id: number;
-  lectureId: number;
-  lectureTitle: string;
-  lectureDescription: string;
-  lectureType: string;
-  lectureCategory: string;
-  lectureDifficulty: string;
-  orderIndex: number;
+  lecture: Lecture;
   isRequired: boolean;
-  createdAt: number[] | string;
-  originalAuthor?: string;
-  sourceInfo?: string;
+  order: number;
 }
 
 /**
@@ -42,9 +34,9 @@ export interface CurriculumResponse {
   totalLectureCount: number;
   requiredLectureCount: number;
   optionalLectureCount: number;
-  createdAt: number[] | string;
-  updatedAt: number[] | string;
-  author?: AuthorInfo;
+  createdAt: string;
+  updatedAt: string;
+  author: AuthorInfo;
 }
 
 /**
@@ -59,9 +51,9 @@ export interface CurriculumDetailResponse {
   totalLectureCount: number;
   requiredLectureCount: number;
   optionalLectureCount: number;
-  createdAt: number[] | string;
-  updatedAt: number[] | string;
-  author?: AuthorInfo;
+  createdAt: string;
+  updatedAt: string;
+  author: AuthorInfo;
 }
 
 /**
@@ -88,15 +80,17 @@ export interface UpdateCurriculumRequest {
 export interface AddLectureRequest {
   lectureId: number;
   isRequired: boolean;
-  originalAuthor?: string;
-  sourceInfo?: string;
+  order: number;
 }
 
 /**
  * 강의 순서 변경 요청
  */
 export interface ReorderLecturesRequest {
-  lectureIds: number[];
+  lectureOrders: Array<{
+    lectureId: number;
+    order: number;
+  }>;
 }
 
 /**

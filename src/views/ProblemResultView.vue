@@ -16,16 +16,18 @@
         </div>
         <div class="flex items-center space-x-4">
           <!-- 다음 강의 버튼 -->
-          <button 
+          <Button 
             v-if="nextLesson"
             @click="goToNextLesson"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            variant="success"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-            <span>다음 강의</span>
-          </button>
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </template>
+            다음 강의
+          </Button>
           <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
         </div>
       </div>
@@ -161,24 +163,27 @@
 
         <!-- 액션 버튼들 -->
         <div v-if="!isGrading" class="flex justify-center space-x-4">
-          <button 
+          <Button 
             @click="tryAgain"
-            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            variant="primary"
+            size="lg"
           >
             돌아가기
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="goNext"
-            class="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+            variant="ghost"
+            size="lg"
           >
             넘어가기
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="toggleExplanation"
-            class="px-6 py-3 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium"
+            variant="ghost"
+            size="lg"
           >
             {{ showExplanation ? '해설 닫기' : '해설보기' }}
-          </button>
+          </Button>
         </div>
 
         <!-- AI 해설 패널 -->
@@ -236,6 +241,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
+import { Button, LoadingSpinner, ErrorMessage } from '@/components/common'
 import { languageApiService } from '../services/languageApi'
 import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
 import type { MonacoEditorConfig } from '../services/extendedClient'

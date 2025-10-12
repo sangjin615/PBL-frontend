@@ -8,6 +8,7 @@ export enum LectureType {
 }
 
 export interface TestCase {
+  id?: number;
   input: string;
   expectedOutput: string;
   orderIndex?: number;
@@ -28,11 +29,12 @@ export interface Lecture {
   difficulty: string;
   timeLimit?: number;
   memoryLimit?: number;
+  isPublic: boolean;
   testCaseCount: number;
   testCases?: TestCase[];
-  createdAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
-  updatedAt: number[] | string; // 백엔드에서 배열 형태로 오거나 ISO string
-  author?: AuthorInfo;
+  createdAt: string;
+  updatedAt: string;
+  author: AuthorInfo;
 }
 
 export interface CreateLectureRequest {

@@ -93,22 +93,24 @@
               </svg>
             </button>
 
-            <!-- API 테스트 버튼 -->
-            <button
-              @click="testApi"
-              :disabled="apiTest.isLoading.value"
-              class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
+            <!-- 데이터 새로고침 버튼 -->
+            <Button
+              @click="refreshLectures"
+              :loading="isLoading"
+              loading-text="새로고침 중..."
+              size="sm"
             >
-              {{ apiTest.isLoading.value ? "테스트 중..." : "API 테스트" }}
-            </button>
+              새로고침
+            </Button>
 
             <!-- 로그아웃 버튼 -->
-            <button
+            <Button
               @click="handleLogout"
-              class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              variant="danger"
+              size="sm"
             >
               로그아웃
-            </button>
+            </Button>
 
             <!-- 만들기 버튼 -->
             <div class="relative">
@@ -226,56 +228,20 @@
     <!-- 강의 카드 그리드 -->
     <div class="px-8 py-8">
       <!-- 로딩 상태 (데이터가 전혀 없을 때만 표시) -->
-      <div
-        v-if="
-          (lecturesStore.loading || curriculumsStore.loading) &&
-          displayedItems.length === 0
-        "
-        class="flex justify-center items-center py-12"
-      >
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"
-        ></div>
-        <span class="ml-3 text-gray-600">강의 데이터를 불러오는 중...</span>
-      </div>
+      <LoadingSpinner
+        v-if="isLoading && displayedItems.length === 0"
+        size="lg"
+        message="강의 데이터를 불러오는 중..."
+      />
 
       <!-- 에러 상태 (경고 형태로 변경, 데이터는 계속 표시) -->
-      <div
-        v-if="
-          (lecturesStore.error || curriculumsStore.error) &&
-          !lecturesStore.loading &&
-          !curriculumsStore.loading
-        "
-        class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"
-      >
-        <div class="flex items-center">
-          <svg
-            class="w-5 h-5 text-yellow-600 mr-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-            ></path>
-          </svg>
-          <div class="flex-1">
-            <h3 class="text-yellow-800 font-medium text-sm">API 연결 문제</h3>
-            <p class="text-yellow-700 text-xs mt-1">
-              {{ lecturesStore.error || curriculumsStore.error }}
-            </p>
-          </div>
-          <button
-            @click="refreshLectures"
-            class="ml-auto px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700 transition-colors"
-          >
-            재시도
-          </button>
-        </div>
-      </div>
+      <WarningMessage
+        v-if="error && !isLoading"
+        title="API 연결 문제"
+        :message="error"
+        :show-retry="true"
+        @retry="loadApiData"
+      />
 
       <!-- 강의 카드 그리드 (항상 표시) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -416,7 +382,7 @@
 
       <!-- 빈 상태 -->
       <div
-        v-if="allSortedItems.length === 0 && !lecturesStore.loading"
+        v-if="allSortedItems.length === 0 && !isLoading"
         class="text-center py-12"
       >
         <div
@@ -469,17 +435,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { useLecturesStore } from "@/stores/lectures";
-import { useCurriculumsStore } from "@/stores/curriculums";
-import { useApiTest } from "@/composables/useApiTest";
+import { lectureApiService } from "@/services/lectureApi";
+import { curriculumApiService } from "@/services/curriculumApi";
 import { useAuth } from "@/composables/useAuth";
+import { LoadingSpinner, WarningMessage, Button } from "@/components/common";
+import { getThumbnailColor } from "@/utils";
+import { MESSAGES } from "@/constants";
 import type { DashboardItem } from "@/types/lecture";
 import { LectureType } from "@/types/lecture";
+import type { Lecture } from "@/types/lecture";
+import type { CurriculumResponse } from "@/types/curriculum";
 
 const router = useRouter();
-const lecturesStore = useLecturesStore();
-const curriculumsStore = useCurriculumsStore();
-const apiTest = useApiTest();
 const { currentUser, logout } = useAuth();
 
 // 사용자 정보 (동적)
@@ -507,6 +474,12 @@ const isLoadingMore = ref(false);
 // 발행된 강의 데이터 (localStorage에서 불러옴 - 기존 로직 유지)
 const publishedCourses = ref<DashboardItem[]>([]);
 
+// API 데이터
+const lectures = ref<Lecture[]>([]);
+const curricula = ref<CurriculumResponse[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
 // localStorage에서 발행된 강의 불러오기 (기존 로직 유지)
 function loadPublishedCourses() {
   const storedCourses = JSON.parse(
@@ -528,10 +501,65 @@ function loadPublishedCourses() {
   }
 }
 
+// API에서 데이터 로딩
+async function loadApiData() {
+  if (!currentUser.value?.id) return;
+  
+  isLoading.value = true;
+  error.value = null;
+  
+  try {
+    // 사용자별 강의와 커리큘럼 조회
+    const [userLectures, userCurricula] = await Promise.all([
+      lectureApiService.getUserLectures(currentUser.value.id),
+      curriculumApiService.getUserCurriculums(currentUser.value.id)
+    ]);
+    
+    lectures.value = userLectures;
+    curricula.value = userCurricula;
+    
+    console.log('API 데이터 로딩 완료:', { lectures: userLectures.length, curricula: userCurricula.length });
+  } catch (err) {
+    console.error('API 데이터 로딩 실패:', err);
+    error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
 // API에서 가져온 강의 데이터와 기존 데이터 통합
 const filteredItems = computed(() => {
-  const apiLectures = lecturesStore.dashboardItems; // API에서 가져온 강의들
-  const apiCurriculums = curriculumsStore.dashboardItems; // API에서 가져온 커리큘럼들
+  // API에서 가져온 강의들을 DashboardItem 형태로 변환
+  const apiLectures: DashboardItem[] = lectures.value.map(lecture => ({
+    id: lecture.id,
+    title: lecture.title,
+    createdDate: new Date(lecture.createdAt).toLocaleDateString("ko-KR"),
+    privacy: lecture.isPublic ? "공개" : "비공개",
+    thumbnailColor: getThumbnailColor(lecture.type),
+    type: "lecture" as const,
+    duration: "미정",
+    tags: [lecture.category, lecture.type],
+    format: lecture.type,
+    lectureType: lecture.type,
+    category: lecture.category,
+    difficulty: lecture.difficulty,
+    testCaseCount: lecture.testCaseCount,
+    status: lecture.isPublic ? "발행됨" : "초안"
+  }));
+
+  // API에서 가져온 커리큘럼들을 DashboardItem 형태로 변환
+  const apiCurriculums: DashboardItem[] = curricula.value.map(curriculum => ({
+    id: curriculum.id,
+    title: curriculum.title,
+    createdDate: new Date(curriculum.createdAt).toLocaleDateString("ko-KR"),
+    privacy: curriculum.isPublic ? "공개" : "비공개",
+    thumbnailColor: getThumbnailColor('curriculum'),
+    type: "curriculum" as const,
+    duration: "미정",
+    tags: ["커리큘럼"],
+    courseCount: curriculum.totalLectureCount,
+    status: curriculum.isPublic ? "발행됨" : "초안"
+  }));
   const localCourses = publishedCourses.value; // localStorage의 강의들
 
   switch (activeTab.value) {
@@ -676,39 +704,14 @@ function handleScroll() {
 
 // 새로고침 함수
 async function refreshLectures() {
-  await Promise.all([
-    lecturesStore.fetchAllLectures(),
-    curriculumsStore.fetchUserCurriculums(),
-  ]);
+  await loadApiData();
   loadPublishedCourses(); // localStorage 데이터도 다시 로드
   displayLimit.value = 8; // 표시 제한 초기화
 }
 
-// API 테스트 함수
-async function testApi() {
-  try {
-    const success = await apiTest.testApiConnection();
-
-    // 테스트 결과를 콘솔에 출력
-    console.log("=== API 테스트 결과 ===");
-    apiTest.testResults.value.forEach((result) => console.log(result));
-
-    // 테스트 성공 시 데이터 새로고침
-    if (success) {
-      await refreshLectures();
-      alert("✅ API 연결 성공! 데이터를 새로고침했습니다.");
-    } else {
-      alert("❌ API 연결 실패. 콘솔을 확인해주세요.");
-    }
-  } catch (error) {
-    console.error("API 테스트 중 오류:", error);
-    alert("❌ API 테스트 중 오류가 발생했습니다.");
-  }
-}
-
 // 로그아웃 처리
 function handleLogout() {
-  if (confirm("정말 로그아웃하시겠습니까?")) {
+  if (confirm(MESSAGES.CONFIRM.LOGOUT)) {
     logout();
   }
 }
@@ -734,18 +737,8 @@ onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
   loadPublishedCourses();
 
-  // API에서 강의 및 커리큘럼 데이터 가져오기 (백그라운드에서 실행, 실패해도 기존 데이터 유지)
-  try {
-    await Promise.all([
-      lecturesStore.fetchAllLectures(),
-      curriculumsStore.fetchUserCurriculums(),
-    ]);
-  } catch (error) {
-    console.warn("API 호출 실패, 기존 데이터로 계속 진행:", error);
-    // API 실패 시에도 에러를 초기화하여 기존 데이터를 표시
-    lecturesStore.clearError();
-    curriculumsStore.clearError();
-  }
+  // API에서 강의 및 커리큘럼 데이터 가져오기
+  await loadApiData();
 
   // 무한 스크롤을 위한 스크롤 이벤트 리스너 등록
   window.addEventListener("scroll", handleScroll);

@@ -8,7 +8,7 @@
           <p class="text-sm text-gray-600">최근 제출 기록을 확인하세요</p>
         </div>
         <div class="flex items-center gap-2">
-          <button @click="refresh" class="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">새로고침</button>
+          <Button @click="refresh" variant="ghost" size="sm">새로고침</Button>
         </div>
       </div>
     </div>
@@ -16,21 +16,11 @@
     <!-- 필터 바 -->
     <div class="bg-white border-b px-6 py-4">
       <div class="flex flex-wrap gap-3 items-center">
-        <input v-model="filters.problemId" type="text" placeholder="문제 번호" class="px-3 py-2 border rounded-lg text-sm" />
-        <input v-model="filters.userId" type="text" placeholder="아이디" class="px-3 py-2 border rounded-lg text-sm" />
-        <select v-model="filters.result" class="px-3 py-2 border rounded-lg text-sm">
-          <option value="">모든 결과</option>
-          <option value="AC">맞았습니다!!</option>
-          <option value="WA">틀렸습니다</option>
-          <option value="RE">런타임 에러</option>
-          <option value="CE">컴파일 에러</option>
-          <option value="TLE">시간 초과</option>
-        </select>
-        <select v-model="filters.language" class="px-3 py-2 border rounded-lg text-sm">
-          <option value="">모든 언어</option>
-          <option v-for="lang in languages" :key="lang.id" :value="lang.name">{{ lang.name }}</option>
-        </select>
-        <button @click="applyFilters" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">검색</button>
+        <FormInput v-model="filters.problemId" placeholder="문제 번호" class="w-32" />
+        <FormInput v-model="filters.userId" placeholder="아이디" class="w-32" />
+        <FormSelect v-model="filters.result" :options="resultOptions" class="w-36" />
+        <FormSelect v-model="filters.language" :options="languageOptions" class="w-36" />
+        <Button @click="applyFilters" variant="primary" size="sm">검색</Button>
       </div>
     </div>
 
@@ -79,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Button, FormInput, FormSelect } from '@/components/common'
 
 type Submission = {
   id: string
@@ -97,6 +88,20 @@ const languages = ref([
   { id: 62, name: 'Java (OpenJDK 13.0.1)' },
   { id: 54, name: 'C++ (GCC 9.2.0)' },
   { id: 48, name: 'C (GCC 7.4.0)' },
+]);
+
+const resultOptions = [
+  { value: '', label: '모든 결과' },
+  { value: 'AC', label: '맞았습니다!!' },
+  { value: 'WA', label: '틀렸습니다' },
+  { value: 'RE', label: '런타임 에러' },
+  { value: 'CE', label: '컴파일 에러' },
+  { value: 'TLE', label: '시간 초과' }
+];
+
+const languageOptions = computed(() => [
+  { value: '', label: '모든 언어' },
+  ...languages.value.map(lang => ({ value: lang.name, label: lang.name }))
 ]);
 
 const filters = ref({

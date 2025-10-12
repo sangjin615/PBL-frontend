@@ -4,7 +4,7 @@
  */
 
 const PROTOCOL = 'http://';
-export const URL_PREFIX = 'localhost';
+export const URL_PREFIX = '114.201.56.70';
 export const URL_PORT = 2358;
 
 // 환경변수에서 API URL 가져오기, 없으면 기본값 사용
@@ -30,11 +30,10 @@ export const judge0Config = {
 export const backendConfig = {
   baseUrl: getApiBaseUrl(),
   endpoints: {
+    auth: '/api/auth',
     lectures: '/api/lectures',
     curriculums: '/api/curriculums',
-    problems: '/api/problems',
-    submissions: '/api/submissions',
-    aiGrading: '/chat/grading'
+    s3: '/api/s3'
   }
 };
 

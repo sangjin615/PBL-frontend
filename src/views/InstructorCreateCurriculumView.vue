@@ -15,24 +15,31 @@
           </div>
         </div>
         <div class="flex items-center space-x-4">
-          <button 
+          <Button 
             @click="previewCurriculum"
-            class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            variant="secondary"
           >
             미리보기
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="saveCurriculum"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            variant="success"
+            :loading="isSaving"
+            loading-text="저장 중..."
           >
             저장하기
-          </button>
+          </Button>
         </div>
       </div>
     </div>
 
     <!-- 메인 콘텐츠 -->
     <div class="flex h-[calc(100vh-80px)]">
+      <!-- 에러/성공 메시지 -->
+      <div class="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
+        <ErrorMessage v-if="error" :message="error" />
+        <SuccessMessage v-if="success" :message="success" />
+      </div>
       <!-- 왼쪽 패널 - 커리큘럼 정보 -->
       <div class="w-1/3 bg-white border-r overflow-y-auto">
         <div class="p-6">
@@ -41,56 +48,38 @@
             <h2 class="text-xl font-bold text-gray-900 mb-4">커리큘럼 정보</h2>
             
             <!-- 제목 -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">제목 *</label>
-              <input
-                v-model="curriculum.title"
-                type="text"
-                placeholder="커리큘럼 제목을 입력하세요"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <FormInput
+              v-model="curriculum.title"
+              label="제목"
+              placeholder="커리큘럼 제목을 입력하세요"
+              :error="titleError"
+              required
+            />
 
             <!-- 설명 -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
-              <textarea
-                v-model="curriculum.description"
-                rows="4"
-                placeholder="커리큘럼에 대한 설명을 입력하세요"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              ></textarea>
-            </div>
+            <FormTextarea
+              v-model="curriculum.description"
+              label="설명"
+              placeholder="커리큘럼에 대한 설명을 입력하세요"
+              :error="descriptionError"
+              :rows="4"
+            />
 
             <!-- 카테고리 -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
-              <select
-                v-model="curriculum.category"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">카테고리를 선택하세요</option>
-                <option value="programming">프로그래밍</option>
-                <option value="design">디자인</option>
-                <option value="business">비즈니스</option>
-                <option value="language">언어</option>
-                <option value="other">기타</option>
-              </select>
-            </div>
+            <FormSelect
+              v-model="curriculum.category"
+              label="카테고리"
+              placeholder="카테고리를 선택하세요"
+              :options="categoryOptions"
+            />
 
             <!-- 난이도 -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">난이도</label>
-              <select
-                v-model="curriculum.difficulty"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">난이도를 선택하세요</option>
-                <option value="beginner">초급</option>
-                <option value="intermediate">중급</option>
-                <option value="advanced">고급</option>
-              </select>
-            </div>
+            <FormSelect
+              v-model="curriculum.difficulty"
+              label="난이도"
+              placeholder="난이도를 선택하세요"
+              :options="difficultyOptions"
+            />
 
             <!-- 태그 -->
             <div class="mb-6">
@@ -337,9 +326,34 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import curriculumApiService from '@/services/curriculumApi'
+import lectureApiService from '@/services/lectureApi'
+import { Button, FormInput, FormTextarea, FormSelect, ErrorMessage, SuccessMessage } from '@/components/common'
+import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS, MESSAGES } from '@/constants'
+import { validateTitle, validateDescription, handleApiError } from '@/utils'
 import type { Lecture } from '@/types/lecture'
+import type { CreateCurriculumRequest, AddLectureRequest } from '@/types/curriculum'
 
 const router = useRouter()
+
+// 상태 관리
+const isSaving = ref(false)
+const error = ref('')
+const success = ref('')
+
+// 유효성 검사
+const titleError = computed(() => validateTitle(curriculum.value.title))
+const descriptionError = computed(() => validateDescription(curriculum.value.description))
+
+// 옵션 데이터
+const categoryOptions = computed(() => [
+  { value: '', label: '카테고리를 선택하세요' },
+  ...LECTURE_CATEGORIES.map(cat => ({ value: cat.toLowerCase(), label: cat }))
+])
+
+const difficultyOptions = computed(() => [
+  { value: '', label: '난이도를 선택하세요' },
+  ...DIFFICULTY_LEVELS.map(level => ({ value: level.toLowerCase(), label: level }))
+])
 
 // 커리큘럼 데이터
 const curriculum = ref({
@@ -494,15 +508,23 @@ const previewCurriculum = () => {
 }
 
 const saveCurriculum = async () => {
-  if (!curriculum.value.title.trim()) {
-    alert('커리큘럼 제목을 입력해주세요.')
+  error.value = ''
+  success.value = ''
+  
+  // 유효성 검사
+  const titleValidation = validateTitle(curriculum.value.title)
+  const descriptionValidation = validateDescription(curriculum.value.description)
+  
+  if (titleValidation || descriptionValidation) {
     return
   }
 
   if (curriculum.value.lessons.length === 0) {
-    alert('커리큘럼에 강의물을 추가해주세요.')
+    error.value = '커리큘럼에 강의물을 추가해주세요.'
     return
   }
+
+  isSaving.value = true
 
   try {
     // 1. 커리큘럼 생성
@@ -513,20 +535,24 @@ const saveCurriculum = async () => {
     })
 
     // 2. 강의 추가
-    for (const lesson of curriculum.value.lessons) {
+    for (let i = 0; i < curriculum.value.lessons.length; i++) {
+      const lesson = curriculum.value.lessons[i]
       await curriculumApiService.addLectureToCurriculum(curriculumResponse.id, {
         lectureId: lesson.id,
         isRequired: false, // 기본값
-        originalAuthor: undefined,
-        sourceInfo: undefined
+        order: i + 1
       })
     }
 
-    alert('커리큘럼이 성공적으로 저장되었습니다!')
-    router.push({ name: 'dashboard' })
-  } catch (error) {
-    console.error('커리큘럼 저장 실패:', error)
-    alert('커리큘럼 저장 중 오류가 발생했습니다.')
+    success.value = MESSAGES.SUCCESS.CURRICULUM_CREATED
+    setTimeout(() => {
+      router.push({ name: 'dashboard' })
+    }, 1500)
+  } catch (err: any) {
+    console.error('커리큘럼 저장 실패:', err)
+    error.value = handleApiError(err)
+  } finally {
+    isSaving.value = false
   }
 }
 

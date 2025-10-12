@@ -13,7 +13,7 @@ class UserApiService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = apiConfig.baseUrl;
+    this.baseUrl = apiConfig.backend.baseUrl;
   }
 
   /**
@@ -29,6 +29,7 @@ class UserApiService {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'X-User-Id': String(apiConfig.auth.defaultUserId),
         ...options.headers,
       },
     });
@@ -45,7 +46,7 @@ class UserApiService {
    * 회원가입
    */
   async signUp(request: SignUpRequest): Promise<SignUpResponse> {
-    return this.request<SignUpResponse>('/api/auth/signup', {
+    return this.request<SignUpResponse>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(request),
     });

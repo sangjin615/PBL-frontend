@@ -8,17 +8,15 @@
           <p class="text-sm text-gray-600 mt-1">구독 중인 크리에이터를 한 눈에 확인하세요</p>
         </div>
         <div class="flex items-center gap-2">
-          <input
+          <FormInput
             v-model="searchQuery"
-            type="text"
             placeholder="크리에이터 검색..."
-            class="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring w-64"
+            class="w-64"
           />
-          <select v-model="sortBy" class="px-3 py-2 border rounded-lg text-sm">
-            <option value="recent">최근 구독순</option>
-            <option value="name">이름순</option>
-            <option value="subs">구독자 많은순</option>
-          </select>
+          <FormSelect
+            v-model="sortBy"
+            :options="sortOptions"
+          />
         </div>
       </div>
     </div>
@@ -58,18 +56,20 @@
           <p class="text-sm text-gray-600 mt-4 line-clamp-2">{{ creator.description }}</p>
 
           <div class="mt-5 flex items-center gap-2">
-            <button
-              class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-sm hover:bg-black"
+            <Button
               @click="viewCreator(creator)"
+              variant="secondary"
+              size="sm"
             >
               프로필 보기
-            </button>
-            <button
-              class="px-3 py-1.5 bg-white text-gray-700 border rounded-lg text-sm hover:bg-gray-50"
+            </Button>
+            <Button
               @click="toggleSubscribe(creator.id)"
+              variant="ghost"
+              size="sm"
             >
               구독 해지
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -80,6 +80,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Button, FormInput, FormSelect } from '@/components/common'
 
 const router = useRouter()
 
@@ -96,6 +97,12 @@ interface Creator {
 const creators = ref<Creator[]>([])
 const searchQuery = ref('')
 const sortBy = ref<'recent' | 'name' | 'subs'>('recent')
+
+const sortOptions = [
+  { value: 'recent', label: '최근 구독순' },
+  { value: 'name', label: '이름순' },
+  { value: 'subs', label: '구독자 많은순' }
+]
 
 function loadSubscriptions(): Creator[] {
   try {

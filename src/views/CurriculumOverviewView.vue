@@ -10,14 +10,19 @@
     </div>
 
     <!-- 로딩 상태 -->
-    <div v-if="loading" class="flex justify-center items-center py-12">
-      <div class="text-gray-600">데이터를 불러오는 중...</div>
-    </div>
+    <LoadingSpinner
+      v-if="loading"
+      size="lg"
+      message="데이터를 불러오는 중..."
+    />
 
     <!-- 에러 상태 -->
-    <div v-else-if="error" class="flex justify-center items-center py-12">
-      <div class="text-red-600">{{ error }}</div>
-    </div>
+    <ErrorMessage
+      v-else-if="error"
+      :message="error"
+      :show-retry="true"
+      @retry="loadCurriculum"
+    />
 
     <!-- 메인 컨텐츠 -->
     <div v-else class="px-6 pb-8">
@@ -228,21 +233,23 @@
           <!-- 수강신청 카드 -->
           <div class="bg-figma-1 rounded-lg border p-6 sticky top-6" style="border-color: rgb(var(--figma-color-4))">
             <div class="space-y-4">
-              <button 
+              <Button 
                 @click="enrollCurriculum"
-                :disabled="isEnrolling"
-                class="w-full px-4 py-3 text-white rounded-lg font-medium hover:opacity-90 transition-colors disabled:opacity-50" 
-                style="background-color: rgb(var(--figma-color-6))"
+                :loading="isEnrolling"
+                loading-text="처리 중..."
+                full-width
+                size="lg"
               >
-                {{ isEnrolling ? '처리 중...' : '수강신청하기' }}
-              </button>
+                수강신청하기
+              </Button>
               
-              <button 
-                class="w-full px-4 py-3 border rounded-lg font-medium hover:bg-gray-50 transition-colors" 
-                style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))"
+              <Button 
+                variant="ghost"
+                full-width
+                size="lg"
               >
                 장바구니 담기
-              </button>
+              </Button>
             </div>
             
             <div v-if="curriculum" class="mt-6 space-y-3">
@@ -279,6 +286,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { curriculumApiService } from '@/services/curriculumApi';
 import { enrollmentApiService } from '@/services/enrollmentApi';
+import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
 
 const router = useRouter();
