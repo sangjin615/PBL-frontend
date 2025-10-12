@@ -235,6 +235,8 @@ import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '../styles/md-editor-korean.css'
 import koKR from '../locales/ko-KR'
+import { lectureApiService } from '@/services/lectureApi'
+import { LectureType } from '@/types/lecture'
 
 const router = useRouter()
 const route = useRoute()
@@ -348,66 +350,57 @@ function saveDraft() {
   alert('임시저장되었습니다.')
 }
 
-function publishCourse() {
-  // 강의 발행/수정 기능 구현
-  console.log(isEditMode.value ? '강의 수정:' : '강의 발행:', courseData)
-  
-  if (isEditMode.value) {
-    // 수정 모드
-    alert('강의가 수정되었습니다!')
-  } else {
-    // 발행 모드
-    const newCourse = {
-      id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
-      title: courseData.title,
-      category: courseData.category,
-      status: 'published',
-      students: 0,
-      rating: 0,
-      format: '마크다운',
-      createdAt: new Date().toISOString()
-    }
-    
-    // localStorage에 저장 (실제로는 백엔드 API 호출)
-    const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-    existingCourses.push(newCourse)
-    localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
-    
-    alert('강의가 발행되었습니다.')
+async function publishCourse() {
+  if (!courseData.title.trim()) {
+    alert('강의 제목을 입력해주세요.')
+    return
   }
-  
-  // 일반 대시보드로 이동
-  router.push({ name: 'dashboard' })
+
+  if (!courseData.content.trim()) {
+    alert('강의 내용을 입력해주세요.')
+    return
+  }
+
+  try {
+    const lectureData = {
+      title: courseData.title,
+      description: courseData.description || courseData.content.substring(0, 200),
+      type: LectureType.MARKDOWN,
+      category: courseData.category || '기타',
+      difficulty: courseData.difficulty || '입문'
+    }
+
+    if (isEditMode.value) {
+      const lectureId = Number(route.query.edit)
+      await lectureApiService.updateLecture(lectureId, lectureData)
+      alert('강의가 수정되었습니다!')
+    } else {
+      const createdLecture = await lectureApiService.createLecture(lectureData)
+      console.log('강의 생성 완료:', createdLecture)
+      alert('강의가 발행되었습니다.')
+    }
+
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('강의 발행 실패:', error)
+    alert('강의 발행 중 오류가 발생했습니다.')
+  }
 }
 
 // 강의 삭제하기 (편집 모드에서만)
-function deleteCourse() {
-  console.log('강의 삭제하기 클릭됨');
-  
-  if (confirm('정말로 이 강의를 삭제하시겠습니까?\n삭제된 강의는 복구할 수 없습니다.')) {
-    // localStorage에서 강의 삭제
-    const courseId = route.query.edit;
-    console.log('삭제할 강의 ID:', courseId);
-    
-    if (courseId) {
-      // 기존 강의 목록 가져오기
-      const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
-      
-      // 해당 강의 제거
-      const updatedCourses = existingCourses.filter((course: any) => course.id.toString() !== courseId.toString());
-      
-      // localStorage 업데이트
-      localStorage.setItem('instructorCourses', JSON.stringify(updatedCourses));
-      
-      console.log('강의 삭제 완료:', courseId);
-      alert('강의가 삭제되었습니다.');
-    } else {
-      console.log('강의 ID를 찾을 수 없습니다.');
-      alert('강의 삭제에 실패했습니다.');
-    }
-    
-    // 대시보드로 이동
-    router.push('/dashboard');
+async function deleteCourse() {
+  if (!confirm('정말로 이 강의를 삭제하시겠습니까?\n삭제된 강의는 복구할 수 없습니다.')) {
+    return
+  }
+
+  try {
+    const lectureId = Number(route.query.edit)
+    await lectureApiService.deleteLecture(lectureId)
+    alert('강의가 삭제되었습니다.')
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('강의 삭제 실패:', error)
+    alert('강의 삭제 중 오류가 발생했습니다.')
   }
 }
 

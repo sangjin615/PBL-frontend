@@ -290,7 +290,7 @@ const loadEnrollments = async () => {
       type: 'curriculum',
       progress: enrollment.progressPercentage || 0,
       status: enrollment.status,
-      rating: 4.5, // 기본값 (리뷰 시스템 구현 시 수정)
+      rating: -99, // API 연결없음
       enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
     }));
   } catch (error) {

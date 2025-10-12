@@ -317,7 +317,7 @@ const nextLesson = ref<{id: number, title: string, format: string} | null>(null)
 const lessonData = ref({
   title: 'Introduction To Algorithms - 1강: 정렬 알고리즘',
   instructor: '김유희',
-  duration: '45분',
+  duration: 'API 연결없음(기본값 = "45분")',
   chapters: [
     {
       id: 1,
@@ -432,9 +432,9 @@ async function loadLectureData() {
     // API 데이터를 lessonData에 매핑
     lessonData.value.title = lecture.title;
     lessonData.value.instructor = lecture.author?.username || '알 수 없음';
-    
-    // 강의 시간과 난이도는 하드코딩 유지
-    lessonData.value.duration = '45분';
+
+    // 강의 시간은 하드코딩 유지
+    lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
 
     console.log('강의 데이터 로드 완료:', lecture);
 
@@ -445,7 +445,7 @@ async function loadLectureData() {
     // 에러 시 기본값 유지
     lessonData.value.title = 'Introduction To Algorithms - 1강: 정렬 알고리즘';
     lessonData.value.instructor = '김유희';
-    lessonData.value.duration = '45분';
+    lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
   } finally {
     loading.value = false;
   }

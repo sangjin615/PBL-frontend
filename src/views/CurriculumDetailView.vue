@@ -232,15 +232,11 @@ const tabs = ref([
 
 // 하드코딩된 데이터 (백엔드 미구현 항목)
 const hardcodedData = {
-  totalDuration: '32시간',
-  difficulty: '초급',
-  tags: ['#알고리즘', '#정렬', '#그래프', '#Python', '#Java'],
+  totalDuration: 'API 연결없음(기본값 = "32시간")',
+  difficulty: 'API 연결없음(기본값 = "초급")',
+  tags: ['API 연결없음'],
   learningGoals: [
-    '알고리즘의 기본 개념과 복잡도 분석',
-    '정렬 알고리즘의 원리와 구현',
-    '그래프 알고리즘과 최단경로 문제',
-    '동적계획법을 활용한 문제 해결',
-    '실제 코딩테스트 문제 풀이 능력 향상'
+    'API 연결없음(기본값 = "알고리즘의 기본 개념과 복잡도 분석")'
   ]
 };
 

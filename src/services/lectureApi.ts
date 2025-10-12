@@ -33,6 +33,7 @@ class LectureApiService {
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        'X-User-Id': String(apiConfig.auth.defaultUserId),
         ...options.headers,
       },
       ...options,

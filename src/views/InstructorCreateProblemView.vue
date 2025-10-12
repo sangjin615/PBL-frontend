@@ -330,6 +330,8 @@ import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '../styles/md-editor-korean.css'
 import koKR from '../locales/ko-KR'
+import { lectureApiService } from '@/services/lectureApi'
+import { LectureType } from '@/types/lecture'
 
 const router = useRouter()
 const route = useRoute()
@@ -503,67 +505,63 @@ function saveDraft() {
   alert('임시저장되었습니다.')
 }
 
-function publishProblem() {
-  // 문제 발행/수정 기능 구현
-  console.log(isEditMode.value ? '문제 수정:' : '문제 발행:', problemData)
-  
-  if (isEditMode.value) {
-    // 수정 모드
-    alert('문제가 수정되었습니다!')
-  } else {
-    // 발행 모드
-    const newCourse = {
-      id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
-      title: problemData.title,
-      category: problemData.category,
-      status: 'published',
-      students: 0,
-      rating: 0,
-      format: '문제',
-      difficulty: problemData.difficulty,
-      createdAt: new Date().toISOString()
-    }
-    
-    // localStorage에 저장 (실제로는 백엔드 API 호출)
-    const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-    existingCourses.push(newCourse)
-    localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
-    
-    alert('문제가 발행되었습니다.')
+async function publishProblem() {
+  if (!problemData.title.trim()) {
+    alert('문제 제목을 입력해주세요.')
+    return
   }
-  
-  // 일반 대시보드로 이동
-  router.push({ name: 'dashboard' })
+
+  if (!problemData.problemDescription.trim()) {
+    alert('문제 설명을 입력해주세요.')
+    return
+  }
+
+  try {
+    const lectureData = {
+      title: problemData.title,
+      description: problemData.problemDescription,
+      type: LectureType.PROBLEM,
+      category: problemData.category || '알고리즘',
+      difficulty: problemData.difficulty || '쉬움',
+      timeLimit: problemData.timeLimit || 1,
+      memoryLimit: problemData.memoryLimit || 128,
+      testCases: problemData.testCases.map(tc => ({
+        input: tc.input,
+        expectedOutput: tc.output
+      }))
+    }
+
+    if (isEditMode.value) {
+      const lectureId = Number(route.query.edit)
+      await lectureApiService.updateLecture(lectureId, lectureData)
+      alert('문제가 수정되었습니다!')
+    } else {
+      const createdLecture = await lectureApiService.createLecture(lectureData)
+      console.log('문제 생성 완료:', createdLecture)
+      alert('문제가 발행되었습니다.')
+    }
+
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('문제 발행 실패:', error)
+    alert('문제 발행 중 오류가 발생했습니다.')
+  }
 }
 
 // 문제 삭제하기 (편집 모드에서만)
-function deleteProblem() {
-  console.log('문제 삭제하기 클릭됨');
-  
-  if (confirm('정말로 이 문제를 삭제하시겠습니까?\n삭제된 문제는 복구할 수 없습니다.')) {
-    // localStorage에서 문제 삭제
-    const problemId = route.query.edit;
-    console.log('삭제할 문제 ID:', problemId);
-    
-    if (problemId) {
-      // 기존 강의 목록 가져오기
-      const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
-      
-      // 해당 문제 제거
-      const updatedCourses = existingCourses.filter((course: any) => course.id.toString() !== problemId.toString());
-      
-      // localStorage 업데이트
-      localStorage.setItem('instructorCourses', JSON.stringify(updatedCourses));
-      
-      console.log('문제 삭제 완료:', problemId);
-      alert('문제가 삭제되었습니다.');
-    } else {
-      console.log('문제 ID를 찾을 수 없습니다.');
-      alert('문제 삭제에 실패했습니다.');
-    }
-    
-    // 대시보드로 이동
-    router.push('/dashboard');
+async function deleteProblem() {
+  if (!confirm('정말로 이 문제를 삭제하시겠습니까?\n삭제된 문제는 복구할 수 없습니다.')) {
+    return
+  }
+
+  try {
+    const lectureId = Number(route.query.edit)
+    await lectureApiService.deleteLecture(lectureId)
+    alert('문제가 삭제되었습니다.')
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('문제 삭제 실패:', error)
+    alert('문제 삭제 중 오류가 발생했습니다.')
   }
 }
 

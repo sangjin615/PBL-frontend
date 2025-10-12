@@ -36,14 +36,21 @@
             
             <div class="flex items-center space-x-4">
               <div class="flex items-center space-x-2">
-                <div class="flex text-yellow-400">
+                <div v-if="curriculum.rating && curriculum.rating > 0" class="flex text-yellow-400">
                   <svg v-for="i in Math.floor(curriculum.rating)" :key="i" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                   </svg>
                 </div>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.rating }}점</span>
+                <div v-else class="flex text-gray-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
+                  {{ curriculum.rating && curriculum.rating > 0 ? curriculum.rating + '점' : 'API 연결안됨' }}
+                </span>
               </div>
-              <span class="text-sm" style="color: rgb(var(--figma-color-5))">{{ curriculum.instructor }}</span>
+              <span v-if="curriculum.instructor" class="text-sm" style="color: rgb(var(--figma-color-5))">{{ curriculum.instructor }}</span>
             </div>
           </div>
 
@@ -301,29 +308,29 @@ const tabs = ref([
 
 // 하드코딩된 데이터 (백엔드 미구현 항목)
 const hardcodedData = {
-  rating: 5.0,
-  totalDuration: '24시간',
-  difficulty: '초급',
+  rating: -99,
+  totalDuration: 'API 연결없음(기본값 = "24시간")',
+  difficulty: 'API 연결없음(기본값 = "초급")',
   reviews: [
     {
-      id: 1,
-      name: '김준성',
-      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+      id: -99,
+      name: 'API 연결없음(기본값 = "김준성")',
+      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
     },
     {
-      id: 2,
-      name: '김준성',
-      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+      id: -99,
+      name: 'API 연결없음(기본값 = "김준성")',
+      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
     },
     {
-      id: 3,
-      name: '김준성',
-      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+      id: -99,
+      name: 'API 연결없음(기본값 = "김준성")',
+      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
     },
     {
-      id: 4,
-      name: '김준성',
-      content: '예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ'
+      id: -99,
+      name: 'API 연결없음(기본값 = "김준성")',
+      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
     }
   ]
 };

@@ -102,6 +102,14 @@
               {{ apiTest.isLoading.value ? "테스트 중..." : "API 테스트" }}
             </button>
 
+            <!-- 로그아웃 버튼 -->
+            <button
+              @click="handleLogout"
+              class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+            >
+              로그아웃
+            </button>
+
             <!-- 만들기 버튼 -->
             <div class="relative">
               <button
@@ -219,7 +227,10 @@
     <div class="px-8 py-8">
       <!-- 로딩 상태 (데이터가 전혀 없을 때만 표시) -->
       <div
-        v-if="lecturesStore.loading && displayedItems.length === 0"
+        v-if="
+          (lecturesStore.loading || curriculumsStore.loading) &&
+          displayedItems.length === 0
+        "
         class="flex justify-center items-center py-12"
       >
         <div
@@ -230,7 +241,11 @@
 
       <!-- 에러 상태 (경고 형태로 변경, 데이터는 계속 표시) -->
       <div
-        v-if="lecturesStore.error && !lecturesStore.loading"
+        v-if="
+          (lecturesStore.error || curriculumsStore.error) &&
+          !lecturesStore.loading &&
+          !curriculumsStore.loading
+        "
         class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"
       >
         <div class="flex items-center">
@@ -250,7 +265,7 @@
           <div class="flex-1">
             <h3 class="text-yellow-800 font-medium text-sm">API 연결 문제</h3>
             <p class="text-yellow-700 text-xs mt-1">
-              {{ lecturesStore.error }}
+              {{ lecturesStore.error || curriculumsStore.error }}
             </p>
           </div>
           <button
@@ -455,20 +470,24 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useLecturesStore } from "@/stores/lectures";
+import { useCurriculumsStore } from "@/stores/curriculums";
 import { useApiTest } from "@/composables/useApiTest";
+import { useAuth } from "@/composables/useAuth";
 import type { DashboardItem } from "@/types/lecture";
 import { LectureType } from "@/types/lecture";
 
 const router = useRouter();
 const lecturesStore = useLecturesStore();
+const curriculumsStore = useCurriculumsStore();
 const apiTest = useApiTest();
+const { currentUser, logout } = useAuth();
 
-// 사용자 정보
-const userInfo = ref({
-  name: "김준성",
-  handle: "@대학원에 갈거에요",
-  subscribers: "8.71천명",
-});
+// 사용자 정보 (동적)
+const userInfo = computed(() => ({
+  name: currentUser.value?.username || "사용자",
+  handle: `@${currentUser.value?.loginId || "user"}`,
+  subscribers: currentUser.value?.subscribers || "0명",
+}));
 
 // 탭 데이터
 const tabs = ref([
@@ -484,32 +503,6 @@ const showCreateMenu = ref(false);
 // 무한 스크롤 관련 상태
 const displayLimit = ref(8); // 처음에 표시할 아이템 수
 const isLoadingMore = ref(false);
-
-// 하드코딩된 커리큘럼 데이터 (임시 유지 - 향후 커리큘럼 API 연결 시 제거)
-const curricula = ref([
-  {
-    id: 1,
-    title: "[2025] 웹 개발 완전정복",
-    createdDate: "2025.09.01",
-    privacy: "비공개",
-    thumbnailColor: "#FFE4E1",
-    type: "curriculum" as const,
-    courseCount: 12,
-    duration: "48시간",
-    tags: ["#웹개발", "#풀스택", "#프론트엔드", "#백엔드"],
-  },
-  {
-    id: 2,
-    title: "[2025] 데이터 사이언스 마스터",
-    createdDate: "2025.08.28",
-    privacy: "비공개",
-    thumbnailColor: "#FFE4B5",
-    type: "curriculum" as const,
-    courseCount: 8,
-    duration: "32시간",
-    tags: ["#데이터사이언스", "#파이썬", "#머신러닝", "#분석"],
-  },
-]);
 
 // 발행된 강의 데이터 (localStorage에서 불러옴 - 기존 로직 유지)
 const publishedCourses = ref<DashboardItem[]>([]);
@@ -538,11 +531,12 @@ function loadPublishedCourses() {
 // API에서 가져온 강의 데이터와 기존 데이터 통합
 const filteredItems = computed(() => {
   const apiLectures = lecturesStore.dashboardItems; // API에서 가져온 강의들
+  const apiCurriculums = curriculumsStore.dashboardItems; // API에서 가져온 커리큘럼들
   const localCourses = publishedCourses.value; // localStorage의 강의들
 
   switch (activeTab.value) {
     case "curriculum":
-      return curricula.value; // 임시로 하드코딩된 커리큘럼 반환
+      return apiCurriculums; // API에서 가져온 커리큘럼
     case "materials":
       // API 강의 + localStorage 강의 합치기 (중복 제거)
       const combinedMaterials = [...apiLectures];
@@ -560,7 +554,7 @@ const filteredItems = computed(() => {
     case "all":
     default:
       // 모든 데이터 합치기
-      const allItems = [...curricula.value, ...apiLectures];
+      const allItems = [...apiCurriculums, ...apiLectures];
       localCourses.forEach((localCourse: DashboardItem) => {
         if (
           !apiLectures.find(
@@ -682,7 +676,10 @@ function handleScroll() {
 
 // 새로고침 함수
 async function refreshLectures() {
-  await lecturesStore.fetchAllLectures();
+  await Promise.all([
+    lecturesStore.fetchAllLectures(),
+    curriculumsStore.fetchUserCurriculums(),
+  ]);
   loadPublishedCourses(); // localStorage 데이터도 다시 로드
   displayLimit.value = 8; // 표시 제한 초기화
 }
@@ -709,6 +706,13 @@ async function testApi() {
   }
 }
 
+// 로그아웃 처리
+function handleLogout() {
+  if (confirm("정말 로그아웃하시겠습니까?")) {
+    logout();
+  }
+}
+
 // 만들기 메뉴 네비게이션 함수들
 function goToCreateCurriculum() {
   showCreateMenu.value = false;
@@ -730,13 +734,17 @@ onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
   loadPublishedCourses();
 
-  // API에서 강의 데이터 가져오기 (백그라운드에서 실행, 실패해도 기존 데이터 유지)
+  // API에서 강의 및 커리큘럼 데이터 가져오기 (백그라운드에서 실행, 실패해도 기존 데이터 유지)
   try {
-    await lecturesStore.fetchAllLectures();
+    await Promise.all([
+      lecturesStore.fetchAllLectures(),
+      curriculumsStore.fetchUserCurriculums(),
+    ]);
   } catch (error) {
     console.warn("API 호출 실패, 기존 데이터로 계속 진행:", error);
     // API 실패 시에도 에러를 초기화하여 기존 데이터를 표시
     lecturesStore.clearError();
+    curriculumsStore.clearError();
   }
 
   // 무한 스크롤을 위한 스크롤 이벤트 리스너 등록
