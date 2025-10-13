@@ -21,7 +21,7 @@
       v-else-if="error"
       :message="error"
       :show-retry="true"
-      @retry="loadCurriculum"
+      @retry="loadCurriculumDetail"
     />
 
     <!-- 메인 컨텐츠 -->
@@ -153,9 +153,9 @@
                     
                     <div v-if="chapter.isExpanded" class="px-4 pb-4 border-t" style="border-color: rgb(var(--figma-color-4))">
                       <div class="pt-4 space-y-3">
-                        <div 
-                          v-for="(lecture, lectureIndex) in chapter.lectures" 
-                          :key="lecture.lectureId"
+                        <div
+                          v-for="lecture in chapter.lectures"
+                          :key="lecture.id"
                           class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                           @click="goToLecture(lecture.lectureId)"
                         >

@@ -2,8 +2,6 @@
  * 커리큘럼 타입 정의 - Spring Boot API 응답에 맞춘 TypeScript 인터페이스
  */
 
-import type { Lecture } from './lecture';
-
 /**
  * 작성자 정보
  */
@@ -18,9 +16,17 @@ export interface AuthorInfo {
  */
 export interface CurriculumLecture {
   id: number;
-  lecture: Lecture;
+  lectureId: number;
+  lectureTitle: string;
+  lectureDescription: string;
+  lectureType: string;
+  lectureCategory: string;
+  lectureDifficulty: string;
+  orderIndex: number;
   isRequired: boolean;
-  order: number;
+  originalAuthor?: string;
+  sourceInfo?: string;
+  createdAt: string;
 }
 
 /**

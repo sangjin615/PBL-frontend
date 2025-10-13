@@ -87,13 +87,10 @@
                 <h3 class="text-lg font-semibold mb-4" style="color: rgb(var(--figma-color-2))">이어서 학습하기</h3>
                 
                 <div v-if="lectures.length > 0" class="space-y-4">
-                  <div 
-                    v-for="(lecture, index) in lectures" 
-                    :key="lecture.lectureId"
-                    class="flex items-center justify-between p-4 rounded-lg border transition-colors cursor-pointer"
-                    :class="lecture.isActive 
-                      ? 'bg-gray-100 border-gray-300' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50'"
+                  <div
+                    v-for="(lecture, index) in lectures"
+                    :key="lecture.id"
+                    class="flex items-center justify-between p-4 rounded-lg border transition-colors cursor-pointer bg-white border-gray-200 hover:bg-gray-50"
                     style="border-color: rgb(var(--figma-color-4))"
                     @click="goToLecture(lecture.lectureId)"
                   >
@@ -106,8 +103,8 @@
                         <p class="text-sm" style="color: rgb(var(--figma-color-5))">형태: {{ lecture.lectureType }} • {{ formatDate(lecture.createdAt) }}</p>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
                       style="background-color: rgb(var(--figma-color-6))"
                       @click.stop="goToLecture(lecture.lectureId)"
