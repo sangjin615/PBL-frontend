@@ -7,6 +7,7 @@
         placeholder="검색..."
         v-model="query"
         @focus="open"
+        @blur="close"
       />
       <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
