@@ -234,6 +234,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { MdEditor, type Themes, type ToolbarNames } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 import { lectureApiService } from '@/services/lectureApi'
+import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { Button, FormInput, FormTextarea, FormSelect, ErrorMessage, SuccessMessage, ConfirmDialog } from '@/components/common'
 import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS, MESSAGES } from '@/constants'
 import { validateTitle, validateDescription, handleApiError } from '@/utils'
@@ -307,12 +308,47 @@ function removeTag(index: number) {
 }
 
 // 이미지 업로드
-function onUploadImg(files: File[], callback: (urls: string[]) => void) {
-  // 실제로는 서버에 업로드해야 함
-  console.log('이미지 업로드:', files)
-  // 임시로 더미 URL 반환
-  const urls = files.map(() => 'https://via.placeholder.com/300x200')
-  callback(urls)
+async function onUploadImg(files: File[], callback: (urls: string[]) => void) {
+  try {
+    console.log('이미지 업로드 시작:', files)
+
+    // 모든 파일을 병렬로 업로드
+    const uploadPromises = files.map(async (file) => {
+      // 파일 유효성 검사
+      const validation = S3ApiService.validateImageFile(file)
+      if (!validation.isValid) {
+        console.error('이미지 유효성 검사 실패:', validation.error)
+        alert(validation.error)
+        return null
+      }
+
+      try {
+        // S3에 이미지 업로드
+        const response = await s3ApiService.uploadImage(file, 'lectures')
+        console.log('이미지 업로드 성공:', response)
+        return response.imageUrl
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error)
+        alert(`이미지 업로드 실패: ${file.name}`)
+        return null
+      }
+    })
+
+    // 모든 업로드 완료 대기
+    const uploadedUrls = await Promise.all(uploadPromises)
+
+    // null이 아닌 URL만 필터링
+    const validUrls = uploadedUrls.filter((url): url is string => url !== null)
+
+    // 마크다운 에디터에 URL 전달
+    callback(validUrls)
+
+    console.log('모든 이미지 업로드 완료:', validUrls)
+  } catch (error) {
+    console.error('이미지 업로드 중 오류 발생:', error)
+    alert('이미지 업로드 중 오류가 발생했습니다.')
+    callback([])
+  }
 }
 
 // 액션 함수들

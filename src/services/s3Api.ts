@@ -24,7 +24,7 @@ export interface S3StatsResponse {
   imagesByUser: number;
 }
 
-class S3ApiService {
+export class S3ApiService {
   private readonly baseURL: string;
 
   constructor() {
