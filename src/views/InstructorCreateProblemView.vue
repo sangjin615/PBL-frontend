@@ -523,7 +523,8 @@ async function publishProblem() {
       testCases: problemData.testCases.map(tc => ({
         input: tc.input,
         expectedOutput: tc.output
-      }))
+      })),
+      isPublic: problemData.isPublic
     }
 
     if (isEditMode.value) {

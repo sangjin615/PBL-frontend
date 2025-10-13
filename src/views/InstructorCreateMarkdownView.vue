@@ -406,7 +406,8 @@ async function publishCourse() {
       description: courseData.description || courseData.content.substring(0, 200),
       type: LectureType.MARKDOWN,
       category: courseData.category || '기타',
-      difficulty: courseData.difficulty || '입문'
+      difficulty: courseData.difficulty || '입문',
+      isPublic: courseData.isPublic
     }
 
     if (isEditMode.value) {
