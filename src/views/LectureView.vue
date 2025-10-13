@@ -266,14 +266,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
 import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 import type { MonacoEditorConfig } from '../services/extendedClient';
 import { lectureApiService } from '../services/lectureApi';
 import type { Lecture } from '../types/lecture';
+import { curriculumApiService } from '../services/curriculumApi';
 import { MdPreview } from 'md-editor-v3-ko';
 import 'md-editor-v3-ko/lib/style.css';
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI';
@@ -310,9 +311,9 @@ const problemData = ref({
 // 사용자 임의 입력 실행 기능
 const customInput = ref('');
 
-// Monaco Editor 통합 설정
+// Monaco Editor 통합 설정 (기본 소스코드 없음)
 const editorConfig = ref<MonacoEditorConfig>(
-  languageApiService.createEditorConfig(71, '')
+  languageApiService.createEditorConfig(71, '') // 빈 문자열로 시작
 )
 
 // 에디터 준비 상태
@@ -428,7 +429,7 @@ async function loadLectureData() {
 
     // 강의 타입 설정
     lectureType.value = lecture.type;
-    
+
     if (lecture.type === 'MARKDOWN') {
       // 마크다운 강의
       markdownContent.value = lecture.description || '# 강의 내용이 없습니다.\n\n이 강의에는 아직 내용이 추가되지 않았습니다.';
@@ -444,18 +445,65 @@ async function loadLectureData() {
     // 강의 시간은 하드코딩 유지
     lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
 
-    console.log('강의 데이터 로드 완료:', lecture);
 
   } catch (err) {
     console.error('강의 데이터 로드 실패:', err);
     error.value = '강의 정보를 불러오는 중 오류가 발생했습니다.';
-    
+
     // 에러 시 기본값 유지
     lessonData.value.title = 'Introduction To Algorithms - 1강: 정렬 알고리즘';
     lessonData.value.instructor = '김유희';
     lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
   } finally {
     loading.value = false;
+  }
+}
+
+// 다음 강의 정보 로드
+async function loadNextLecture() {
+  try {
+    const currentLectureId = Number(route.params.lectureId);
+    const curriculumId = route.query.curriculumId ? Number(route.query.curriculumId) : null;
+
+    if (!curriculumId) {
+      nextLesson.value = null;
+      return;
+    }
+
+    // 커리큘럼 상세 정보 가져오기 (강의 목록 포함)
+    const curriculum = await curriculumApiService.getCurriculumById(curriculumId);
+
+    if (!curriculum.lectures || curriculum.lectures.length === 0) {
+      nextLesson.value = null;
+      return;
+    }
+
+    // orderIndex로 정렬
+    const sortedLectures = [...curriculum.lectures].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    // 현재 강의의 인덱스 찾기 (URL의 lectureId는 실제로는 CurriculumLecture.id)
+    const currentIndex = sortedLectures.findIndex(lecture => lecture.id === currentLectureId);
+
+    if (currentIndex === -1) {
+      nextLesson.value = null;
+      return;
+    }
+
+    // 다음 강의 찾기
+    if (currentIndex < sortedLectures.length - 1) {
+      const nextLecture = sortedLectures[currentIndex + 1];
+      nextLesson.value = {
+        id: nextLecture.id,
+        title: nextLecture.lectureTitle,
+        format: nextLecture.lectureType === 'MARKDOWN' ? '마크다운' : '문제'
+      };
+    } else {
+      nextLesson.value = null;
+    }
+
+  } catch (err) {
+    console.error('다음 강의 로드 실패:', err);
+    nextLesson.value = null;
   }
 }
 
@@ -467,8 +515,10 @@ function goBack() {
 // 다음 강의로 이동
 function goToNextLesson() {
   if (nextLesson.value) {
-    // 통합된 라우트로 이동
-    router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
+    const curriculumId = route.query.curriculumId;
+    // 페이지를 완전히 새로 로드하여 컴포넌트를 재마운트
+    const url = `/learn/${nextLesson.value.id}${curriculumId ? `?curriculumId=${curriculumId}` : ''}`;
+    window.location.href = url;
   }
 }
 
@@ -726,9 +776,39 @@ const stopDragET = () => {
   window.removeEventListener('mouseup', stopDragET);
 };
 
+// 코드 존재 여부 확인 함수
+function hasUnsavedCode(): boolean {
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  return currentCode.trim().length > 0;
+}
+
+// 페이지 이탈 시 경고 (브라우저 새로고침, 뒤로가기 등)
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (hasUnsavedCode()) {
+    e.preventDefault();
+    e.returnValue = ''; // Chrome에서 필요
+    return '';
+  }
+}
+
+// Vue Router navigation guard (페이지 내 라우팅)
+onBeforeRouteLeave((to, from, next) => {
+  if (hasUnsavedCode()) {
+    const answer = window.confirm('작성 중인 코드가 있습니다. 정말 나가시겠습니까?');
+    if (answer) {
+      next();
+    } else {
+      next(false);
+    }
+  } else {
+    next();
+  }
+});
+
 // 초기화
 onMounted(async () => {
-  console.log('LectureView onMounted 시작');
+  // beforeunload 이벤트 리스너 등록
+  window.addEventListener('beforeunload', handleBeforeUnload);
 
   // 1. 언어 목록 먼저 가져오기
   await fetchSupportedLanguages();
@@ -737,7 +817,6 @@ onMounted(async () => {
   const tokenParam = route.query.token as string;
   if (tokenParam) {
     try {
-      console.log('토큰으로 정보 가져오기:', tokenParam);
       const result = await gradingAPI.getGradingResult(tokenParam, false);
 
       // 에디터 설정 업데이트 (언어 + 소스코드)
@@ -747,7 +826,6 @@ onMounted(async () => {
           result.language_id,
           result.source_code
         );
-        console.log('에디터 설정 완료:', result.language_id, result.source_code.length);
       }
     } catch (error) {
       console.error('토큰으로 정보 가져오기 실패:', error);
@@ -756,18 +834,17 @@ onMounted(async () => {
 
   // 3. 강의 데이터 로드 (API에서)
   await loadLectureData();
-  
+
   // 4. 에디터 렌더링 허용
   isEditorReady.value = true;
-  console.log('에디터 렌더링 시작');
 
-  // 5. 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
-  const currentLectureId = parseInt(route.params.lectureId as string);
-  nextLesson.value = {
-    id: currentLectureId + 1,
-    title: 'Introduction To Algorithms - 2강: 선택 정렬',
-    format: '마크다운'
-  };
+  // 5. 다음 강의 정보 설정
+  await loadNextLecture();
+});
+
+// 컴포넌트 언마운트 시 이벤트 리스너 제거
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 </script>
 

@@ -44,7 +44,7 @@ onMounted(async () => {
     sourceCodeLength: props.config.sourceCode.length
   });
 
-  const codeToUse = props.config.sourceCode || `print("소스코드 초기화 안됨")`;
+  const codeToUse = props.config.sourceCode || '';
   const editorInstance = await runExtendedClient(props.config.lspConfig, codeToUse);
   currentEditor = editorInstance.editorApp;
   currentLcWrapper = editorInstance.lcWrapper;

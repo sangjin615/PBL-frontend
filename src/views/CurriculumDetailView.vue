@@ -315,7 +315,12 @@ function formatDate(dateValue: string | number[]): string {
 
 // 강의로 이동
 function goToLecture(lectureId: number) {
-  router.push({ name: 'lecture', params: { lectureId } });
+  const curriculumId = route.params.id;
+  router.push({
+    name: 'lecture',
+    params: { lectureId },
+    query: { curriculumId }
+  });
 }
 
 onMounted(() => {
