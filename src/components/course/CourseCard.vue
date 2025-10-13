@@ -25,10 +25,16 @@
       <h3 class="text-base font-semibold leading-snug line-clamp-2">{{ course.title }}</h3>
       <p class="text-sm text-gray-600 line-clamp-3">{{ course.description }}</p>
       <div class="text-sm text-gray-700">난이도: <strong>{{ course.difficulty ?? '정보 없음' }}</strong></div>
-      <div class="mt-auto flex items-center justify-between">
+      <div class="mt-auto">
+        <!-- 북마크 기능 (추후 사용 가능)
         <button type="button" class="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border hover:bg-gray-50" @click.stop="toggleBookmark">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4" :class="bookmarked ? 'text-primary' : 'text-gray-500'"><path d="M6 2a2 2 0 00-2 2v18l8-4 8 4V4a2 2 0 00-2-2H6z"/></svg>
           <span>{{ bookmarked ? '북마크 취소' : '북마크' }}</span>
+        </button>
+        -->
+        <button type="button" class="w-full inline-flex items-center justify-center gap-1 text-sm px-4 py-2 rounded-md bg-primary text-white hover:opacity-90" @click="onClick">
+          <span>자세히 보기</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>
     </div>
@@ -36,29 +42,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue';
+// import { ref, watchEffect } from 'vue'; // 북마크 기능 사용 시 필요
 import type { Course } from '../../types/course';
 import { useRouter } from 'vue-router';
 
 const props = defineProps<{ course: Course }>();
 const router = useRouter();
 
-const bookmarked = ref<boolean>(false);
-const key = `bookmark_${props.course.id}`;
-
-watchEffect(() => {
-  try {
-    bookmarked.value = localStorage.getItem(key) === '1';
-  } catch {}
-});
-
-function toggleBookmark() {
-  bookmarked.value = !bookmarked.value;
-  try {
-    if (bookmarked.value) localStorage.setItem(key, '1');
-    else localStorage.removeItem(key);
-  } catch {}
-}
+// 북마크 기능 (추후 사용 가능)
+// const bookmarked = ref<boolean>(false);
+// const key = `bookmark_${props.course.id}`;
+//
+// watchEffect(() => {
+//   try {
+//     bookmarked.value = localStorage.getItem(key) === '1';
+//   } catch {}
+// });
+//
+// function toggleBookmark() {
+//   bookmarked.value = !bookmarked.value;
+//   try {
+//     if (bookmarked.value) localStorage.setItem(key, '1');
+//     else localStorage.removeItem(key);
+//   } catch {}
+// }
 
 function onClick() {
   // 커리큘럼인지 강의인지 구분하여 라우팅
