@@ -362,7 +362,20 @@
 
         <!-- 비디오 강의 - 비디오 업로드 탭 -->
         <div v-if="activeTab === 'video-content'" class="max-w-6xl">
-          <h2 class="text-xl font-semibold mb-6">비디오 업로드</h2>
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-semibold">비디오 업로드</h2>
+            <div class="flex items-center space-x-3">
+              <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                비디오 강의
+              </span>
+              <button
+                @click="changeCourseType"
+                class="text-sm text-gray-600 hover:text-gray-800"
+              >
+                강의 유형 변경
+              </button>
+            </div>
+          </div>
           <div class="text-center py-12">
             <p class="text-gray-600">비디오 강의는 준비 중입니다.</p>
           </div>
