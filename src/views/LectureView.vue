@@ -59,9 +59,8 @@
           
           <!-- MARKDOWN 타입: 마크다운 뷰어 -->
           <div v-else-if="lectureType === 'MARKDOWN'" class="markdown-content">
-            <MdPreview 
+            <MdPreview
               :modelValue="markdownContent"
-              language="ko-KR"
               :theme="'light'"
               :editorId="'learning-markdown-preview'"
             />
@@ -265,9 +264,8 @@ import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
 import type { MonacoEditorConfig } from '../services/extendedClient';
 import { lectureApiService } from '../services/lectureApi';
 import type { Lecture } from '../types/lecture';
-import { MdPreview } from 'md-editor-v3';
-import 'md-editor-v3/lib/style.css';
-import '../styles/md-editor-korean.css';
+import { MdPreview } from 'md-editor-v3-ko';
+import 'md-editor-v3-ko/lib/style.css';
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI';
 
 const route = useRoute();

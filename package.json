@@ -37,7 +37,7 @@
     "@codingame/monaco-vscode-workbench-service-override": "~21.3.2",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@xterm/xterm": "^5.5.0",
-    "md-editor-v3": "^6.0.1",
+    "md-editor-v3-ko": "^1.0.0",
     "monaco-editor": "^0.52.2",
     "monaco-languageclient": "~10.1.0",
     "pinia": "^2.2.4",

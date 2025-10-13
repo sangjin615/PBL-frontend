@@ -215,7 +215,6 @@
                     :modelValue="explanation"
                     :theme="'light'"
                     :showCodeRowNumber="true"
-                    language="ko-KR"
                   />
                 </div>
               </div>
@@ -246,8 +245,8 @@ import { languageApiService } from '../services/languageApi'
 import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
 import type { MonacoEditorConfig } from '../services/extendedClient'
 import { aiAssistantAPI } from '../services/aiAssistantAPI'
-import { MdPreview } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
+import { MdPreview } from 'md-editor-v3-ko'
+import 'md-editor-v3-ko/lib/style.css'
 
 const route = useRoute()
 const router = useRouter()
