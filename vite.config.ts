@@ -1,10 +1,14 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import importMetaUrlPlugin from '@codingame/esbuild-import-meta-url-plugin';
+import vsixPlugin from '@codingame/monaco-vscode-rollup-vsix-plugin';
 import { resolve } from "path";
 
 export default defineConfig({
-  plugins: [vue()],
+  build: {
+    target: 'ES2022'
+  },
+  plugins: [vsixPlugin(), vue()],
   server: {
     port: 5173,
     open: true,
@@ -45,4 +49,7 @@ export default defineConfig({
       'vscode-textmate'
   ]
   },
+  worker: {
+    format: 'es'
+  }
 });
