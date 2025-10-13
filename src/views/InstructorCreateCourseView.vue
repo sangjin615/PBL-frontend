@@ -124,12 +124,47 @@
             <!-- 썸네일 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
-              <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+
+              <!-- 썸네일 미리보기 -->
+              <div v-if="thumbnailPreview" class="mb-3 relative inline-block">
+                <img :src="thumbnailPreview" alt="썸네일 미리보기" class="w-48 h-32 object-cover rounded-lg border border-gray-300" />
+                <button
+                  @click="removeThumbnail"
+                  type="button"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 업로드 영역 -->
+              <div
+                v-show="!thumbnailPreview"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleThumbnailDrop"
+                @click="thumbnailInput?.click()"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400',
+                  isUploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+              >
                 <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                   <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                <p class="mt-2 text-sm text-gray-600">이미지를 드래그하거나 클릭하여 업로드</p>
-                <input type="file" class="hidden" accept="image/*" />
+                <p class="mt-2 text-sm text-gray-600">
+                  {{ isUploadingThumbnail ? '업로드 중...' : '이미지를 드래그하거나 클릭하여 업로드' }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (최대 5MB)</p>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleThumbnailSelect"
+                  :disabled="isUploadingThumbnail"
+                />
               </div>
             </div>
           </div>
@@ -452,6 +487,7 @@ import MarkdownEditor from '../components/editor/MarkdownEditor.vue'
 import ProblemEditor from '../components/editor/ProblemEditor.vue'
 import { lectureApiService } from '@/services/lectureApi'
 import { languageApiService } from '@/services/languageApi'
+import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { LectureType } from '@/types/lecture'
 import type { Language } from '@/types/language'
 
@@ -512,8 +548,15 @@ const courseData = reactive({
   difficulty: '',
   isPublic: true,
   tags: [] as string[],
-  language: null as number | null  // 단일 언어 ID
+  language: null as number | null,  // 단일 언어 ID
+  thumbnailUrl: null as string | null  // 썸네일 URL
 })
+
+// 썸네일 관련
+const thumbnailPreview = ref<string | null>(null)
+const isUploadingThumbnail = ref(false)
+const isDragging = ref(false)
+const thumbnailInput = ref<HTMLInputElement | null>(null)
 
 // 마크다운 콘텐츠
 const markdownContent = ref(`# 강의 제목
@@ -607,6 +650,55 @@ function removeTag(tag: string) {
   courseData.tags = courseData.tags.filter(t => t !== tag)
 }
 
+// 썸네일 업로드
+async function uploadThumbnail(file: File) {
+  // 파일 유효성 검사
+  const validation = S3ApiService.validateImageFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+
+  isUploadingThumbnail.value = true
+  try {
+    // S3에 업로드
+    const response = await s3ApiService.uploadImage(file, 'thumbnails')
+    courseData.thumbnailUrl = response.imageUrl
+    thumbnailPreview.value = response.imageUrl
+    console.log('썸네일 업로드 완료:', response.imageUrl)
+  } catch (error) {
+    console.error('썸네일 업로드 실패:', error)
+    alert('썸네일 업로드 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingThumbnail.value = false
+    isDragging.value = false
+  }
+}
+
+// 파일 선택
+function handleThumbnailSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 드래그 앤 드롭
+function handleThumbnailDrop(event: DragEvent) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 썸네일 제거
+function removeThumbnail() {
+  thumbnailPreview.value = null
+  courseData.thumbnailUrl = null
+}
+
 // 액션 함수들
 function goBack() {
   router.back()
@@ -670,7 +762,8 @@ async function publishCourse() {
         : problemData.problemDescription.substring(0, 200)),
       category: courseData.category || '기타',
       difficulty: courseData.difficulty || '입문',
-      isPublic: courseData.isPublic
+      isPublic: courseData.isPublic,
+      thumbnailUrl: courseData.thumbnailUrl
     }
 
     console.log('baseLectureData:', baseLectureData)
