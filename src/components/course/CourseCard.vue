@@ -10,7 +10,8 @@
       <div class="text-xs text-muted">{{ course.category }}</div>
       <h3 class="text-base font-semibold leading-snug line-clamp-2">{{ course.title }}</h3>
       <div class="flex flex-wrap gap-1">
-        <span v-for="t in course.tags?.slice(0, 3)" :key="t" class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">#{{ t }}</span>
+        <span v-if="!course.tags || course.tags.length === 0" class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">API 연결 없음</span>
+        <span v-else v-for="t in course.tags.slice(0, 3)" :key="t" class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">#{{ t }}</span>
       </div>
       <div class="flex items-center justify-between text-sm">
         <span class="text-gray-700">{{ course.instructor }}</span>

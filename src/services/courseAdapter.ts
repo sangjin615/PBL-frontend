@@ -31,7 +31,7 @@ export function curriculumToCourse(curriculum: CurriculumResponse): Course {
     badges: extractBadges(curriculum),
     problemsCount: curriculum.totalLectureCount || 0,
     languages: extractLanguages(curriculum.title, curriculum.description),
-    tags: extractTags(curriculum.title, curriculum.description),
+    tags: [], // TODO: 백엔드에서 tags 필드 추가 필요
     difficulty: curriculum.difficulty ? convertDifficulty(curriculum.difficulty) : extractDifficulty(curriculum.title, curriculum.description),
     description: curriculum.description,
     createdAt: createdAtString,
