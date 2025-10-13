@@ -37,6 +37,10 @@ export interface CurriculumResponse {
   title: string;
   description: string;
   isPublic: boolean;
+  difficulty?: string;
+  summary?: string;
+  averageRating?: number;
+  studentCount?: number;
   totalLectureCount: number;
   requiredLectureCount: number;
   optionalLectureCount: number;
@@ -53,6 +57,10 @@ export interface CurriculumDetailResponse {
   title: string;
   description: string;
   isPublic: boolean;
+  difficulty?: string;
+  summary?: string;
+  averageRating?: number;
+  studentCount?: number;
   lectures: CurriculumLecture[];
   totalLectureCount: number;
   requiredLectureCount: number;
@@ -69,15 +77,19 @@ export interface CreateCurriculumRequest {
   title: string;
   description: string;
   isPublic: boolean;
+  difficulty?: string;
+  summary?: string;
 }
 
 /**
  * 커리큘럼 수정 요청
  */
 export interface UpdateCurriculumRequest {
-  title: string;
-  description: string;
-  isPublic: boolean;
+  title?: string;
+  description?: string;
+  isPublic?: boolean;
+  difficulty?: string;
+  summary?: string;
 }
 
 /**

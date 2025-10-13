@@ -81,6 +81,15 @@
               :options="difficultyOptions"
             />
 
+            <!-- 간단 소개 (요약) -->
+            <FormTextarea
+              v-model="curriculum.summary"
+              label="간단 소개"
+              placeholder="커리큘럼에 대한 간단한 소개를 입력하세요 (최대 500자)"
+              :maxlength="500"
+              :rows="3"
+            />
+
             <!-- 태그 -->
             <div class="mb-6">
               <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
@@ -361,6 +370,7 @@ const curriculum = ref({
   description: '',
   category: '',
   difficulty: '',
+  summary: '',
   tags: [] as string[],
   lessons: [] as any[]
 })
@@ -531,7 +541,9 @@ const saveCurriculum = async () => {
     const curriculumResponse = await curriculumApiService.createCurriculum({
       title: curriculum.value.title,
       description: curriculum.value.description,
-      isPublic: true // 기본값으로 공개
+      isPublic: true, // 기본값으로 공개
+      difficulty: curriculum.value.difficulty,
+      summary: curriculum.value.summary
     })
 
     // 2. 강의 추가

@@ -25,14 +25,14 @@ export function curriculumToCourse(curriculum: CurriculumResponse): Course {
     title: curriculum.title,
     instructor: curriculum.author?.username || '알 수 없음',
     category: extractCategory(curriculum.title, curriculum.description),
-    rating: 5.0, // 기본값 (추후 리뷰 시스템 구현 시 변경)
-    reviewsCount: 0, // 기본값 (추후 리뷰 시스템 구현 시 변경)
+    rating: curriculum.averageRating || 0, // 백엔드에서 받은 평균 별점 사용
+    reviewsCount: 0, // 리뷰 API 없음 (추후 구현 시 변경)
     price: 0,
     badges: extractBadges(curriculum),
     problemsCount: curriculum.totalLectureCount || 0,
     languages: extractLanguages(curriculum.title, curriculum.description),
     tags: extractTags(curriculum.title, curriculum.description),
-    difficulty: extractDifficulty(curriculum.title, curriculum.description),
+    difficulty: curriculum.difficulty ? convertDifficulty(curriculum.difficulty) : extractDifficulty(curriculum.title, curriculum.description),
     description: curriculum.description,
     createdAt: createdAtString,
     type: 'curriculum',
@@ -140,6 +140,20 @@ function extractTags(title: string, description: string): string[] {
   if (text.includes('딥러닝')) tags.push('딥러닝');
 
   return tags.length > 0 ? tags : ['기초'];
+}
+
+/**
+ * 백엔드 난이도 문자열을 프론트엔드 형식으로 변환
+ */
+function convertDifficulty(difficulty: string): '입문' | '초급' | '중급' | '고급' {
+  const normalized = difficulty.toLowerCase();
+
+  if (normalized.includes('기초') || normalized.includes('입문') || normalized.includes('beginner')) return '입문';
+  if (normalized.includes('초급') || normalized.includes('basic')) return '초급';
+  if (normalized.includes('중급') || normalized.includes('intermediate')) return '중급';
+  if (normalized.includes('고급') || normalized.includes('advanced')) return '고급';
+
+  return '초급'; // 기본값
 }
 
 /**

@@ -158,11 +158,15 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">난이도</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ hardcodedData.difficulty }}</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
+                  {{ curriculum.difficulty || '미정' }}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">수강생 수</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ enrollmentCount }}명</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
+                  {{ curriculum.studentCount || enrollmentCount }}명
+                </span>
               </div>
             </div>
           </div>
@@ -228,10 +232,13 @@ const tabs = ref([
 ]);
 
 // 하드코딩된 데이터 (백엔드 미구현 항목)
+// TODO: 아직 구현되지 않은 기능들
 const hardcodedData = {
+  // totalDuration: 강의 시간 합계 계산 로직 필요
   totalDuration: 'API 연결없음(기본값 = "32시간")',
-  difficulty: 'API 연결없음(기본값 = "초급")',
+  // tags: 태그 API 미구현
   tags: ['API 연결없음'],
+  // learningGoals: 학습 목표 API 미구현
   learningGoals: [
     'API 연결없음(기본값 = "알고리즘의 기본 개념과 복잡도 분석")'
   ]
@@ -255,7 +262,12 @@ async function loadCurriculumDetail() {
       category: extractCategory(data.title),
       totalLectureCount: data.totalLectureCount || 0,
       requiredLectureCount: data.requiredLectureCount || 0,
-      optionalLectureCount: data.optionalLectureCount || 0
+      optionalLectureCount: data.optionalLectureCount || 0,
+      // 새로운 필드들 추가
+      difficulty: data.difficulty,
+      summary: data.summary,
+      averageRating: data.averageRating,
+      studentCount: data.studentCount
     };
 
     // 강의 목록 정렬 (orderIndex 순)

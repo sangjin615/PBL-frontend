@@ -16,7 +16,7 @@
         <span class="text-gray-700">{{ course.instructor }}</span>
         <span class="flex items-center gap-1 text-gray-700">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-yellow-500"><path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.401 8.168L12 18.896l-7.335 3.869 1.401-8.168L.132 9.21l8.2-1.192z"/></svg>
-          {{ course.rating.toFixed(1) }}<span class="text-xs text-gray-500">({{ course.reviewsCount }})</span>
+          {{ course.rating.toFixed(1) }}<span class="text-xs text-gray-500">({{ course.reviewsCount > 0 ? course.reviewsCount : 'API 연결 없음' }})</span>
         </span>
       </div>
     </div>
