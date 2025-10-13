@@ -191,7 +191,17 @@
           </div>
           
           <div class="flex space-x-2">
-            <button 
+            <!-- MARKDOWN 타입: 코드 실행 버튼 -->
+            <button
+              v-if="lectureType === 'MARKDOWN'"
+              @click="runCode"
+              :disabled="isRunning"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {{ isRunning ? '실행 중...' : '코드 실행' }}
+            </button>
+            <!-- PROBLEM 타입: 제출 버튼 -->
+            <button
               v-if="lectureType === 'PROBLEM'"
               @click="submitCode"
               :disabled="isRunning"
