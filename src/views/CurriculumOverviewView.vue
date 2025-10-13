@@ -233,23 +233,46 @@
           <!-- 수강신청 카드 -->
           <div class="bg-figma-1 rounded-lg border p-6 sticky top-6" style="border-color: rgb(var(--figma-color-4))">
             <div class="space-y-4">
-              <Button 
-                @click="enrollCurriculum"
-                :loading="isEnrolling"
-                loading-text="처리 중..."
-                full-width
-                size="lg"
-              >
-                수강신청하기
-              </Button>
-              
-              <Button 
-                variant="ghost"
-                full-width
-                size="lg"
-              >
-                장바구니 담기
-              </Button>
+              <!-- 수강 중이 아닐 때: 수강신청 버튼 -->
+              <template v-if="!isEnrolled">
+                <Button
+                  @click="enrollCurriculum"
+                  :loading="isEnrolling"
+                  loading-text="처리 중..."
+                  full-width
+                  size="lg"
+                >
+                  수강신청하기
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  full-width
+                  size="lg"
+                >
+                  장바구니 담기
+                </Button>
+              </template>
+
+              <!-- 수강 중일 때: 이어 수강하기 + 수강 취소 버튼 -->
+              <template v-else>
+                <Button
+                  @click="continueLearning"
+                  full-width
+                  size="lg"
+                  variant="primary"
+                >
+                  이어 수강하기
+                </Button>
+
+                <button
+                  @click="cancelEnrollment"
+                  :disabled="isCanceling"
+                  class="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  {{ isCanceling ? '취소 중...' : '수강 취소' }}
+                </button>
+              </template>
             </div>
             
             <div v-if="curriculum" class="mt-6 space-y-3">
@@ -299,6 +322,9 @@ const enrollmentCount = ref(0);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const isEnrolling = ref(false);
+const isCanceling = ref(false);
+const isEnrolled = ref(false);
+const enrollmentId = ref<number | null>(null);
 
 // 탭 상태
 const activeTab = ref('intro');
@@ -424,14 +450,57 @@ function extractCategory(title: string): string {
   return '개발·프로그래밍';
 }
 
+// 수강 상태 확인
+async function checkEnrollmentStatus() {
+  if (!curriculum.value) {
+    console.log('[수강 상태 확인] curriculum이 없습니다.');
+    return;
+  }
+
+  try {
+    const userId = 1; // TODO: 실제 로그인한 사용자 ID로 변경
+    console.log('[수강 상태 확인] userId:', userId, 'curriculumId:', curriculum.value.id);
+
+    // 사용자의 전체 수강 목록 조회
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+    console.log('[수강 상태 확인] 수강 목록:', enrollments);
+
+    // 현재 커리큘럼이 수강 목록에 있는지 확인 (ENROLLED 상태 체크)
+    const enrollment = enrollments.find(e =>
+      e.curriculumId === curriculum.value.id && e.status === 'ENROLLED'
+    );
+    console.log('[수강 상태 확인] 현재 커리큘럼 수강 정보:', enrollment);
+
+    if (enrollment) {
+      isEnrolled.value = true;
+      enrollmentId.value = enrollment.id;
+      console.log('[수강 상태 확인] ✅ 수강 중 - enrollmentId:', enrollment.id);
+    } else {
+      isEnrolled.value = false;
+      enrollmentId.value = null;
+      console.log('[수강 상태 확인] ❌ 미수강');
+    }
+  } catch (err) {
+    console.error('수강 상태 확인 실패:', err);
+    isEnrolled.value = false;
+    enrollmentId.value = null;
+  }
+}
+
 // 수강 신청
 async function enrollCurriculum() {
   if (!curriculum.value) return;
 
   try {
     isEnrolling.value = true;
-    await enrollmentApiService.enrollCurriculum(curriculum.value.id);
+    const response = await enrollmentApiService.enrollCurriculum(curriculum.value.id);
     alert('수강 신청이 완료되었습니다!');
+
+    // 수강 상태 업데이트
+    isEnrolled.value = true;
+    enrollmentId.value = response.id;
+
+    // 학습 페이지로 이동
     router.push({ name: 'curriculum-detail', params: { id: curriculum.value.id } });
   } catch (err: any) {
     console.error('수강 신청 실패:', err);
@@ -441,12 +510,42 @@ async function enrollCurriculum() {
   }
 }
 
+// 이어 수강하기
+function continueLearning() {
+  if (!curriculum.value) return;
+  router.push({ name: 'curriculum-detail', params: { id: curriculum.value.id } });
+}
+
+// 수강 취소
+async function cancelEnrollment() {
+  if (!enrollmentId.value || !curriculum.value) return;
+
+  const confirmed = confirm('정말로 수강을 취소하시겠습니까?');
+  if (!confirmed) return;
+
+  try {
+    isCanceling.value = true;
+    await enrollmentApiService.cancelEnrollment(enrollmentId.value);
+    alert('수강이 취소되었습니다.');
+
+    // 수강 상태 업데이트
+    isEnrolled.value = false;
+    enrollmentId.value = null;
+  } catch (err: any) {
+    console.error('수강 취소 실패:', err);
+    alert(err.message || '수강 취소에 실패했습니다.');
+  } finally {
+    isCanceling.value = false;
+  }
+}
+
 // 강의로 이동
 function goToLecture(lectureId: number) {
   router.push({ name: 'lecture', params: { lectureId } });
 }
 
-onMounted(() => {
-  loadCurriculumDetail();
+onMounted(async () => {
+  await loadCurriculumDetail();
+  await checkEnrollmentStatus();
 });
 </script>
