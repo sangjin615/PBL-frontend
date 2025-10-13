@@ -2,7 +2,7 @@
   <div class="relative" @keydown.escape="close">
     <form class="relative" @submit.prevent="onSubmit">
       <input
-        type="search"
+        type="text"
         class="w-full h-10 rounded-md border border-gray-300 pr-10 pl-10 focus:outline-none focus:ring-2 focus:ring-primary/40"
         placeholder="검색..."
         v-model="query"
