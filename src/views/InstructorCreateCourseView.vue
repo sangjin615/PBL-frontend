@@ -491,8 +491,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { MdEditor, type ToolbarNames } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 import CourseTypeModal from '../components/modal/CourseTypeModal.vue'
@@ -505,6 +505,10 @@ import { LectureType } from '@/types/lecture'
 import type { Language } from '@/types/language'
 
 const router = useRouter()
+
+// 미저장 변경사항 추적
+const hasUnsavedChanges = ref(false)
+const initialDataSnapshot = ref<string>('')
 
 // 모달 관리
 const showModal = ref(false)
@@ -650,6 +654,64 @@ onMounted(async () => {
   } finally {
     isLoadingLanguages.value = false
   }
+
+  // 초기 데이터 스냅샷 저장 (약간의 지연 후 - 초기 렌더링 완료 대기)
+  setTimeout(() => {
+    initialDataSnapshot.value = getCurrentDataSnapshot()
+  }, 500)
+})
+
+// 데이터 변경 감지
+watch(
+  [courseData, markdownContent, problemData, selectedCourseType],
+  () => {
+    const currentSnapshot = getCurrentDataSnapshot()
+    hasUnsavedChanges.value = currentSnapshot !== initialDataSnapshot.value
+  },
+  { deep: true }
+)
+
+// 현재 데이터 스냅샷 생성
+function getCurrentDataSnapshot(): string {
+  return JSON.stringify({
+    courseData: courseData,
+    markdownContent: markdownContent.value,
+    problemData: problemData,
+    selectedCourseType: selectedCourseType.value
+  })
+}
+
+// 브라우저 새로고침/닫기 경고
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    event.preventDefault()
+    event.returnValue = ''
+    return ''
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// Vue Router 네비게이션 가드
+onBeforeRouteLeave((to, from, next) => {
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      next()
+    } else {
+      next(false)
+    }
+  } else {
+    next()
+  }
 })
 
 function addTag() {
@@ -714,7 +776,16 @@ function removeThumbnail() {
 
 // 액션 함수들
 function goBack() {
-  router.back()
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      router.back()
+    }
+  } else {
+    router.back()
+  }
 }
 
 function previewCourse() {
@@ -726,6 +797,10 @@ function saveDraft() {
   // 임시저장 기능 구현
   console.log('임시저장:', courseData)
   alert('임시저장되었습니다.')
+
+  // 임시저장 후 변경사항 플래그 초기화
+  hasUnsavedChanges.value = false
+  initialDataSnapshot.value = getCurrentDataSnapshot()
 }
 
 async function publishCourse() {
@@ -810,6 +885,9 @@ async function publishCourse() {
 
     const createdLecture = await lectureApiService.createLecture(lectureData)
     console.log('강의 생성 완료:', createdLecture)
+
+    // 발행 성공 시 변경사항 플래그 초기화
+    hasUnsavedChanges.value = false
 
     alert('강의가 발행되었습니다.')
     router.push({ name: 'dashboard' })
