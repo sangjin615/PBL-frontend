@@ -840,42 +840,37 @@ async function publishCourse() {
 
   isPublishing.value = true
   try {
-    // 공통 강의 데이터
     console.log('courseData.isPublic 값:', courseData.isPublic, '타입:', typeof courseData.isPublic)
-
-    const baseLectureData = {
-      title: courseData.title,
-      description: courseData.description || (selectedCourseType.value === 'markdown'
-        ? markdownContent.value.substring(0, 200)
-        : problemData.problemDescription.substring(0, 200)),
-      category: courseData.category || '기타',
-      difficulty: courseData.difficulty || '입문',
-      isPublic: courseData.isPublic,
-      thumbnailUrl: courseData.thumbnailUrl
-    }
-
-    console.log('baseLectureData:', baseLectureData)
 
     let lectureData: any
 
     // 강의 유형별 데이터 구성
     if (selectedCourseType.value === 'markdown') {
       lectureData = {
-        ...baseLectureData,
+        title: courseData.title,
+        description: markdownContent.value, // 마크다운 내용 전체를 description으로
         type: LectureType.MARKDOWN,
-        content: markdownContent.value,
+        category: courseData.category || '기타',
+        difficulty: courseData.difficulty || '입문',
+        isPublic: courseData.isPublic,
+        thumbnailUrl: courseData.thumbnailUrl,
         language: courseData.language
       }
     } else if (selectedCourseType.value === 'problem') {
       lectureData = {
-        ...baseLectureData,
+        title: courseData.title,
+        description: problemData.problemDescription, // 문제 설명 전체를 description으로
         type: LectureType.PROBLEM,
+        category: courseData.category || '기타',
+        difficulty: courseData.difficulty || '입문',
         timeLimit: problemData.timeLimit || 1,
         memoryLimit: problemData.memoryLimit || 128,
         testCases: problemData.testCases.map(tc => ({
           input: tc.input,
           expectedOutput: tc.output
         })),
+        isPublic: courseData.isPublic,
+        thumbnailUrl: courseData.thumbnailUrl,
         language: courseData.language
       }
     }
@@ -885,6 +880,17 @@ async function publishCourse() {
 
     const createdLecture = await lectureApiService.createLecture(lectureData)
     console.log('강의 생성 완료:', createdLecture)
+
+    // isPublic이 true인 경우 공개 전환 API 호출 (임시 조치 - 백엔드 수정 필요)
+    if (lectureData.isPublic) {
+      try {
+        await lectureApiService.publishLecture(createdLecture.id)
+        console.log('강의 공개 전환 완료')
+      } catch (error) {
+        console.error('공개 전환 실패:', error)
+        // 강의는 생성되었으므로 계속 진행
+      }
+    }
 
     // 발행 성공 시 변경사항 플래그 초기화
     hasUnsavedChanges.value = false

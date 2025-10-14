@@ -67,11 +67,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/EditorPopoutView.vue'),
   },
   {
-    path: '/instructor/create-course',
-    name: 'instructor-create-course',
-    component: () => import('../views/InstructorCreateCourseView.vue'),
-  },
-  {
     path: '/instructor/create-markdown',
     name: 'instructor-create-markdown',
     component: () => import('../views/InstructorCreateMarkdownView.vue'),

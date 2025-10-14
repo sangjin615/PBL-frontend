@@ -22,12 +22,12 @@
         </button>
         
         <!-- 드롭다운 메뉴 -->
-        <div 
+        <div
           v-if="showCreateMenu"
           class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
         >
-          <button 
-            @click="createCourse"
+          <button
+            @click="showLectureTypeModal"
             class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
           >
             <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +35,7 @@
             </svg>
             강의 만들기
           </button>
-          <button 
+          <button
             @click="createCurriculum"
             class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
           >
@@ -44,7 +44,7 @@
             </svg>
             커리큘럼 만들기
           </button>
-          <button 
+          <button
             @click="openAiAssistant"
             class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
           >
@@ -56,6 +56,13 @@
         </div>
       </div>
     </div>
+
+    <!-- 강의 유형 선택 모달 -->
+    <CourseTypeModal
+      :isOpen="showTypeModal"
+      @close="closeTypeModal"
+      @select="handleLectureTypeSelect"
+    />
   </header>
 </template>
 
@@ -64,10 +71,12 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUiStore } from '../../stores/ui';
 import AppSearchBar from '../common/AppSearchBar.vue';
+import CourseTypeModal from '../modal/CourseTypeModal.vue';
 
 const router = useRouter();
 const ui = useUiStore();
 const showCreateMenu = ref(false);
+const showTypeModal = ref(false);
 
 const search = computed({
   get: () => ui.searchQuery,
@@ -86,9 +95,27 @@ function toggleCreateMenu() {
   showCreateMenu.value = !showCreateMenu.value;
 }
 
-function createCourse() {
+function showLectureTypeModal() {
   showCreateMenu.value = false;
-  router.push({ name: 'instructor-create-course' });
+  showTypeModal.value = true;
+}
+
+function closeTypeModal() {
+  showTypeModal.value = false;
+}
+
+function handleLectureTypeSelect(type: 'markdown' | 'problem' | 'video') {
+  switch (type) {
+    case 'markdown':
+      router.push({ name: 'instructor-create-markdown' });
+      break;
+    case 'problem':
+      router.push({ name: 'instructor-create-problem' });
+      break;
+    case 'video':
+      router.push({ name: 'instructor-create-video' });
+      break;
+  }
 }
 
 function createCurriculum() {

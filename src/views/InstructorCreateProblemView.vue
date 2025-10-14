@@ -85,12 +85,12 @@
 
             <!-- 문제 설명 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">문제 설명 *</label>
-              <textarea 
+              <label class="block text-sm font-medium text-gray-700 mb-2">문제 설명</label>
+              <textarea
                 v-model="problemData.description"
                 rows="4"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="문제에 대한 간단한 설명을 입력하세요"
+                placeholder="API 연결없음 (선택사항)"
               ></textarea>
             </div>
 
@@ -143,13 +143,60 @@
             <!-- 메모리 제한 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">메모리 제한 (MB) *</label>
-              <input 
+              <input
                 v-model.number="problemData.memoryLimit"
-                type="number" 
+                type="number"
                 min="1"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="256"
               />
+            </div>
+
+            <!-- 썸네일 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
+
+              <!-- 썸네일 미리보기 -->
+              <div v-if="thumbnailPreview" class="mb-3 relative inline-block">
+                <img :src="thumbnailPreview" alt="썸네일 미리보기" class="w-48 h-32 object-cover rounded-lg border border-gray-300" />
+                <button
+                  @click="removeThumbnail"
+                  type="button"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 업로드 영역 -->
+              <div
+                v-show="!thumbnailPreview"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleThumbnailDrop"
+                @click="thumbnailInput?.click()"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  isDragging ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400',
+                  isUploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+              >
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">
+                  {{ isUploadingThumbnail ? '업로드 중...' : '이미지를 드래그하거나 클릭하여 업로드' }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (최대 5MB)</p>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleThumbnailSelect"
+                  :disabled="isUploadingThumbnail"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -284,35 +331,41 @@
               </div>
             </div>
 
-            <!-- 지원 언어 -->
+            <!-- 태그 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">지원 언어 *</label>
-              <select 
-                v-model="problemData.language"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option :value="null">언어를 선택하세요</option>
-                <option 
-                  v-for="language in availableLanguages" 
-                  :key="language.id"
-                  :value="language.id"
+              <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <span
+                  v-for="(tag, index) in problemData.tags"
+                  :key="index"
+                  class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
                 >
-                  {{ language.name }}
-                </option>
-              </select>
+                  {{ tag }}
+                  <button
+                    @click="removeTag(index)"
+                    class="ml-2 text-green-600 hover:text-green-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <div class="flex space-x-2">
+                <input
+                  v-model="newTag"
+                  type="text"
+                  placeholder="태그 입력"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  @keyup.enter="addTag"
+                />
+                <button
+                  @click="addTag"
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  추가
+                </button>
+              </div>
             </div>
 
-            <!-- 에디터 테마 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">에디터 테마</label>
-              <select 
-                v-model="editorTheme"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option value="light">라이트</option>
-                <option value="dark">다크</option>
-              </select>
-            </div>
           </div>
         </div>
       </div>
@@ -321,18 +374,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { MdEditor, type Themes, type ToolbarNames } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 import { lectureApiService } from '@/services/lectureApi'
+import { languageApiService } from '@/services/languageApi'
+import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { LectureType } from '@/types/lecture'
+import type { Language } from '@/types/language'
 
 const router = useRouter()
 const route = useRoute()
 
+// 미저장 변경사항 추적
+const hasUnsavedChanges = ref(false)
+const initialDataSnapshot = ref<string>('')
+
 // 편집 모드 확인
-const isEditMode = computed(() => route.query.mode === 'edit')
+const isEditMode = computed(() => !!route.query.edit)
+const editLectureId = computed(() => route.query.edit ? Number(route.query.edit) : null)
+
+// 원본 공개 상태 저장 (수정 시 변경사항 감지용)
+const originalIsPublic = ref<boolean>(true)
 
 // 탭 관리
 const tabs = [
@@ -386,62 +450,20 @@ const problemData = reactive({
     }
   ],
   isPublic: true,
-  language: null as number | null
+  tags: [] as string[],
+  language: null as number | null,
+  thumbnailUrl: null as string | null
 })
+
+// 썸네일 관련
+const thumbnailPreview = ref<string | null>(null)
+const isUploadingThumbnail = ref(false)
+const isDragging = ref(false)
+const thumbnailInput = ref<HTMLInputElement | null>(null)
 
 // 에디터 설정
 const editorTheme = ref<Themes>('light')
-
-// 백엔드에서 제공된 언어 데이터
-const availableLanguages = [
-  { id: 45, name: "Assembly (NASM 2.14.02)" },
-  { id: 46, name: "Bash (5.0.0)" },
-  { id: 47, name: "Basic (FBC 1.07.1)" },
-  { id: 75, name: "C (Clang 7.0.1)" },
-  { id: 48, name: "C (GCC 7.4.0)" },
-  { id: 49, name: "C (GCC 8.3.0)" },
-  { id: 50, name: "C (GCC 9.2.0)" },
-  { id: 51, name: "C# (Mono 6.6.0.161)" },
-  { id: 76, name: "C++ (Clang 7.0.1)" },
-  { id: 52, name: "C++ (GCC 7.4.0)" },
-  { id: 53, name: "C++ (GCC 8.3.0)" },
-  { id: 54, name: "C++ (GCC 9.2.0)" },
-  { id: 77, name: "COBOL (GnuCOBOL 2.2)" },
-  { id: 86, name: "Clojure (1.10.1)" },
-  { id: 55, name: "Common Lisp (SBCL 2.0.0)" },
-  { id: 56, name: "D (DMD 2.089.1)" },
-  { id: 57, name: "Elixir (1.9.4)" },
-  { id: 58, name: "Erlang (OTP 22.2)" },
-  { id: 44, name: "Executable" },
-  { id: 87, name: "F# (.NET Core SDK 3.1.202)" },
-  { id: 59, name: "Fortran (GFortran 9.2.0)" },
-  { id: 60, name: "Go (1.13.5)" },
-  { id: 88, name: "Groovy (3.0.3)" },
-  { id: 61, name: "Haskell (GHC 8.8.1)" },
-  { id: 62, name: "Java (OpenJDK 13.0.1)" },
-  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
-  { id: 78, name: "Kotlin (1.3.70)" },
-  { id: 64, name: "Lua (5.3.5)" },
-  { id: 89, name: "Multi-file program" },
-  { id: 65, name: "OCaml (4.09.0)" },
-  { id: 79, name: "Objective-C (Clang 7.0.1)" },
-  { id: 66, name: "Octave (5.1.0)" },
-  { id: 68, name: "PHP (7.4.1)" },
-  { id: 67, name: "Pascal (FPC 3.0.4)" },
-  { id: 85, name: "Perl (5.28.1)" },
-  { id: 43, name: "Plain Text" },
-  { id: 69, name: "Prolog (GNU Prolog 1.4.5)" },
-  { id: 70, name: "Python (2.7.17)" },
-  { id: 71, name: "Python (3.8.1)" },
-  { id: 80, name: "R (4.0.0)" },
-  { id: 72, name: "Ruby (2.7.0)" },
-  { id: 73, name: "Rust (1.40.0)" },
-  { id: 82, name: "SQL (SQLite 3.27.2)" },
-  { id: 81, name: "Scala (2.13.2)" },
-  { id: 83, name: "Swift (5.2.3)" },
-  { id: 74, name: "TypeScript (3.7.4)" },
-  { id: 84, name: "Visual Basic.Net (vbnc 0.0.0.5943)" }
-]
+const newTag = ref('')
 
 // 툴바 설정
 const toolbars: ToolbarNames[] = [
@@ -449,6 +471,67 @@ const toolbars: ToolbarNames[] = [
   'quote', 'unorderedList', 'orderedList', 'task',
   'codeRow', 'code', 'link', 'table'
 ]
+
+// 태그 관리
+function addTag() {
+  if (newTag.value.trim() && !problemData.tags.includes(newTag.value.trim())) {
+    problemData.tags.push(newTag.value.trim())
+    newTag.value = ''
+  }
+}
+
+function removeTag(index: number) {
+  problemData.tags.splice(index, 1)
+}
+
+// 썸네일 업로드
+async function uploadThumbnail(file: File) {
+  // 파일 유효성 검사
+  const validation = S3ApiService.validateImageFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+
+  isUploadingThumbnail.value = true
+  try {
+    // S3에 업로드
+    const response = await s3ApiService.uploadImage(file, 'thumbnails')
+    problemData.thumbnailUrl = response.imageUrl
+    thumbnailPreview.value = response.imageUrl
+    console.log('썸네일 업로드 완료:', response.imageUrl)
+  } catch (error) {
+    console.error('썸네일 업로드 실패:', error)
+    alert('썸네일 업로드 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingThumbnail.value = false
+    isDragging.value = false
+  }
+}
+
+// 파일 선택
+function handleThumbnailSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 드래그 앤 드롭
+function handleThumbnailDrop(event: DragEvent) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 썸네일 제거
+function removeThumbnail() {
+  thumbnailPreview.value = null
+  problemData.thumbnailUrl = null
+}
 
 // 테스트 케이스 관리
 function addTestCase() {
@@ -459,9 +542,129 @@ function removeTestCase(index: number) {
   problemData.testCases.splice(index, 1)
 }
 
+// 문제 데이터 로드
+async function loadLectureData() {
+  if (!editLectureId.value) return
+
+  try {
+    const lecture = await lectureApiService.getLecture(editLectureId.value)
+    console.log('문제 데이터 로드:', lecture)
+
+    // 기본 정보
+    problemData.title = lecture.title || ''
+    problemData.description = '' // API 연결 없음
+    problemData.category = lecture.category || ''
+    problemData.difficulty = lecture.difficulty || ''
+    problemData.timeLimit = lecture.timeLimit || 1
+    problemData.memoryLimit = lecture.memoryLimit || 256
+    problemData.isPublic = lecture.isPublic ?? true
+    problemData.tags = lecture.tags || []
+    problemData.language = lecture.language || null
+    problemData.thumbnailUrl = lecture.thumbnailUrl || null
+
+    // 원본 공개 상태 저장 (변경사항 감지용)
+    originalIsPublic.value = lecture.isPublic ?? true
+
+    // 문제 내용 - description에서 로드
+    problemData.problemDescription = lecture.description || ''
+    problemData.inputDescription = lecture.inputDescription || ''
+    problemData.outputDescription = lecture.outputDescription || ''
+
+    // 테스트 케이스
+    if (lecture.testCases && lecture.testCases.length > 0) {
+      problemData.testCases = lecture.testCases.map((tc: any) => ({
+        input: tc.input || '',
+        output: tc.expectedOutput || tc.output || ''
+      }))
+    }
+
+    // 썸네일 미리보기
+    if (lecture.thumbnailUrl) {
+      thumbnailPreview.value = lecture.thumbnailUrl
+    }
+
+    console.log('문제 데이터 로드 완료')
+  } catch (error) {
+    console.error('문제 데이터 로드 실패:', error)
+    alert('문제 데이터를 불러오는데 실패했습니다.')
+  }
+}
+
+// 초기화
+onMounted(async () => {
+  // 편집 모드인 경우 문제 데이터 로드
+  if (isEditMode.value) {
+    await loadLectureData()
+  }
+
+  // 초기 데이터 스냅샷 저장 (약간의 지연 후 - 초기 렌더링 완료 대기)
+  setTimeout(() => {
+    initialDataSnapshot.value = getCurrentDataSnapshot()
+  }, 500)
+
+  // 브라우저 새로고침/닫기 경고
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 데이터 변경 감지
+watch(
+  [problemData, editorTheme],
+  () => {
+    const currentSnapshot = getCurrentDataSnapshot()
+    hasUnsavedChanges.value = currentSnapshot !== initialDataSnapshot.value
+  },
+  { deep: true }
+)
+
+// 현재 데이터 스냅샷 생성
+function getCurrentDataSnapshot(): string {
+  return JSON.stringify({
+    problemData: problemData,
+    editorTheme: editorTheme.value
+  })
+}
+
+// 브라우저 새로고침/닫기 경고
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    event.preventDefault()
+    event.returnValue = ''
+    return ''
+  }
+}
+
+// Vue Router 네비게이션 가드
+onBeforeRouteLeave((to, from, next) => {
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      next()
+    } else {
+      next(false)
+    }
+  } else {
+    next()
+  }
+})
+
 // 액션 함수들
 function goBack() {
-  router.back()
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      router.back()
+    }
+  } else {
+    router.back()
+  }
 }
 
 function previewProblem() {
@@ -498,23 +701,37 @@ function saveDraft() {
   // 임시저장 기능 구현
   console.log('임시저장:', problemData)
   alert('임시저장되었습니다.')
+
+  // 임시저장 후 변경사항 플래그 초기화
+  hasUnsavedChanges.value = false
+  initialDataSnapshot.value = getCurrentDataSnapshot()
 }
 
 async function publishProblem() {
-  if (!problemData.title.trim()) {
+  console.log('발행 시도 - problemData:', problemData)
+
+  if (!problemData.title || !problemData.title.trim()) {
     alert('문제 제목을 입력해주세요.')
+    activeTab.value = 'basic'
     return
   }
 
-  if (!problemData.problemDescription.trim()) {
+  if (!problemData.problemDescription || !problemData.problemDescription.trim()) {
     alert('문제 설명을 입력해주세요.')
+    activeTab.value = 'content'
+    return
+  }
+
+  if (!problemData.testCases || problemData.testCases.length === 0) {
+    alert('최소 1개의 테스트 케이스가 필요합니다.')
+    activeTab.value = 'testcases'
     return
   }
 
   try {
     const lectureData = {
       title: problemData.title,
-      description: problemData.problemDescription,
+      description: problemData.problemDescription, // 문제 설명 전체를 description으로 전송
       type: LectureType.PROBLEM,
       category: problemData.category || '알고리즘',
       difficulty: problemData.difficulty || '쉬움',
@@ -524,18 +741,47 @@ async function publishProblem() {
         input: tc.input,
         expectedOutput: tc.output
       })),
-      isPublic: problemData.isPublic
+      isPublic: problemData.isPublic,
+      language: problemData.language,
+      thumbnailUrl: problemData.thumbnailUrl
     }
 
-    if (isEditMode.value) {
-      const lectureId = Number(route.query.edit)
-      await lectureApiService.updateLecture(lectureId, lectureData)
+    if (isEditMode.value && editLectureId.value) {
+      await lectureApiService.updateLecture(editLectureId.value, lectureData)
+
+      // 현재 isPublic 상태에 따라 공개/비공개 API 호출 (임시 조치 - 백엔드 수정 필요)
+      try {
+        if (lectureData.isPublic) {
+          await lectureApiService.publishLecture(editLectureId.value)
+          console.log('문제 공개 전환 완료')
+        } else {
+          await lectureApiService.unpublishLecture(editLectureId.value)
+          console.log('문제 비공개 전환 완료')
+        }
+      } catch (error) {
+        console.error('공개/비공개 전환 실패:', error)
+      }
+
       alert('문제가 수정되었습니다!')
     } else {
       const createdLecture = await lectureApiService.createLecture(lectureData)
       console.log('문제 생성 완료:', createdLecture)
+
+      // isPublic이 true인 경우 공개 전환 API 호출 (임시 조치 - 백엔드 수정 필요)
+      if (lectureData.isPublic) {
+        try {
+          await lectureApiService.publishLecture(createdLecture.id)
+          console.log('문제 공개 전환 완료')
+        } catch (error) {
+          console.error('공개 전환 실패:', error)
+        }
+      }
+
       alert('문제가 발행되었습니다.')
     }
+
+    // 발행 성공 시 변경사항 플래그 초기화
+    hasUnsavedChanges.value = false
 
     router.push({ name: 'dashboard' })
   } catch (error) {
@@ -550,10 +796,18 @@ async function deleteProblem() {
     return
   }
 
+  if (!editLectureId.value) {
+    alert('삭제할 문제를 찾을 수 없습니다.')
+    return
+  }
+
   try {
-    const lectureId = Number(route.query.edit)
-    await lectureApiService.deleteLecture(lectureId)
+    await lectureApiService.deleteLecture(editLectureId.value)
     alert('문제가 삭제되었습니다.')
+
+    // 삭제 성공 시 변경사항 플래그 초기화 (경고 없이 페이지 이동)
+    hasUnsavedChanges.value = false
+
     router.push({ name: 'dashboard' })
   } catch (error) {
     console.error('문제 삭제 실패:', error)

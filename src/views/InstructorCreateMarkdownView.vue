@@ -86,12 +86,12 @@
 
             <!-- 강의 설명 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">강의 설명 *</label>
-              <textarea 
+              <label class="block text-sm font-medium text-gray-700 mb-2">강의 설명</label>
+              <textarea
                 v-model="courseData.description"
                 rows="4"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="강의에 대한 간단한 설명을 입력하세요"
+                placeholder="API 연결없음 (선택사항)"
               ></textarea>
             </div>
 
@@ -115,7 +115,7 @@
             <!-- 난이도 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">난이도 *</label>
-              <select 
+              <select
                 v-model="courseData.difficulty"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -125,6 +125,53 @@
                 <option value="중급">중급</option>
                 <option value="고급">고급</option>
               </select>
+            </div>
+
+            <!-- 썸네일 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
+
+              <!-- 썸네일 미리보기 -->
+              <div v-if="thumbnailPreview" class="mb-3 relative inline-block">
+                <img :src="thumbnailPreview" alt="썸네일 미리보기" class="w-48 h-32 object-cover rounded-lg border border-gray-300" />
+                <button
+                  @click="removeThumbnail"
+                  type="button"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 업로드 영역 -->
+              <div
+                v-show="!thumbnailPreview"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleThumbnailDrop"
+                @click="thumbnailInput?.click()"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400',
+                  isUploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+              >
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">
+                  {{ isUploadingThumbnail ? '업로드 중...' : '이미지를 드래그하거나 클릭하여 업로드' }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (최대 5MB)</p>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleThumbnailSelect"
+                  :disabled="isUploadingThumbnail"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -210,15 +257,27 @@
               </div>
             </div>
 
-            <!-- 에디터 테마 -->
+            <!-- 언어 설정 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">에디터 테마</label>
-              <select 
-                v-model="editorTheme"
+              <label class="block text-sm font-medium text-gray-700 mb-2">강의 언어</label>
+
+              <div v-if="isLoadingLanguages" class="text-sm text-gray-500 py-4">
+                언어 목록을 불러오는 중...
+              </div>
+
+              <select
+                v-else
+                v-model="courseData.language"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="light">라이트</option>
-                <option value="dark">다크</option>
+                <option :value="null">언어를 선택하세요</option>
+                <option
+                  v-for="language in availableLanguages"
+                  :key="language.id"
+                  :value="language.id"
+                >
+                  {{ language.name }}
+                </option>
               </select>
             </div>
           </div>
@@ -229,22 +288,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { MdEditor, type Themes, type ToolbarNames } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 import { lectureApiService } from '@/services/lectureApi'
+import { languageApiService } from '@/services/languageApi'
 import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { Button, FormInput, FormTextarea, FormSelect, ErrorMessage, SuccessMessage, ConfirmDialog } from '@/components/common'
 import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS, MESSAGES } from '@/constants'
 import { validateTitle, validateDescription, handleApiError } from '@/utils'
 import { LectureType } from '@/types/lecture'
+import type { Language } from '@/types/language'
 
 const router = useRouter()
 const route = useRoute()
 
+// 미저장 변경사항 추적
+const hasUnsavedChanges = ref(false)
+const initialDataSnapshot = ref<string>('')
+
 // 편집 모드 확인
-const isEditMode = computed(() => route.query.mode === 'edit')
+const isEditMode = computed(() => !!route.query.edit)
+const editLectureId = computed(() => route.query.edit ? Number(route.query.edit) : null)
+
+// 원본 공개 상태 저장 (수정 시 변경사항 감지용)
+const originalIsPublic = ref<boolean>(true)
 
 // 탭 관리
 const tabs = [
@@ -279,8 +348,20 @@ def hello_world():
 ### 설명
 이 강의에서는...`,
   isPublic: true,
-  tags: [] as string[]
+  tags: [] as string[],
+  language: null as number | null,
+  thumbnailUrl: null as string | null
 })
+
+// 썸네일 관련
+const thumbnailPreview = ref<string | null>(null)
+const isUploadingThumbnail = ref(false)
+const isDragging = ref(false)
+const thumbnailInput = ref<HTMLInputElement | null>(null)
+
+// 사용 가능한 언어
+const availableLanguages = ref<Language[]>([])
+const isLoadingLanguages = ref(false)
 
 // 에디터 설정
 const editorTheme = ref<Themes>('light')
@@ -305,6 +386,55 @@ function addTag() {
 
 function removeTag(index: number) {
   courseData.tags.splice(index, 1)
+}
+
+// 썸네일 업로드
+async function uploadThumbnail(file: File) {
+  // 파일 유효성 검사
+  const validation = S3ApiService.validateImageFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+
+  isUploadingThumbnail.value = true
+  try {
+    // S3에 업로드
+    const response = await s3ApiService.uploadImage(file, 'thumbnails')
+    courseData.thumbnailUrl = response.imageUrl
+    thumbnailPreview.value = response.imageUrl
+    console.log('썸네일 업로드 완료:', response.imageUrl)
+  } catch (error) {
+    console.error('썸네일 업로드 실패:', error)
+    alert('썸네일 업로드 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingThumbnail.value = false
+    isDragging.value = false
+  }
+}
+
+// 파일 선택
+function handleThumbnailSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 드래그 앤 드롭
+function handleThumbnailDrop(event: DragEvent) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 썸네일 제거
+function removeThumbnail() {
+  thumbnailPreview.value = null
+  courseData.thumbnailUrl = null
 }
 
 // 이미지 업로드
@@ -351,9 +481,123 @@ async function onUploadImg(files: File[], callback: (urls: string[]) => void) {
   }
 }
 
+// 강의 데이터 로드
+async function loadLectureData() {
+  if (!editLectureId.value) return
+
+  try {
+    const lecture = await lectureApiService.getLecture(editLectureId.value)
+    console.log('강의 데이터 로드:', lecture)
+
+    // 기본 정보
+    courseData.title = lecture.title || ''
+    courseData.category = lecture.category || ''
+    courseData.difficulty = lecture.difficulty || ''
+    courseData.isPublic = lecture.isPublic ?? true
+
+    // 원본 공개 상태 저장 (변경사항 감지용)
+    originalIsPublic.value = lecture.isPublic ?? true
+
+    // 마크다운 콘텐츠 (백엔드 description 필드에서 가져옴)
+    courseData.content = lecture.description || ''
+
+    // 강의 설명 필드는 비워둠 (API 연결 없음)
+    courseData.description = ''
+
+    console.log('강의 데이터 로드 완료')
+  } catch (error) {
+    console.error('강의 데이터 로드 실패:', error)
+    alert('강의 데이터를 불러오는데 실패했습니다.')
+  }
+}
+
+// 언어 목록 로드 및 초기화
+onMounted(async () => {
+  // 언어 목록 로드
+  isLoadingLanguages.value = true
+  try {
+    availableLanguages.value = await languageApiService.getLanguages()
+  } catch (error) {
+    console.error('언어 목록 로드 실패:', error)
+    // 기본 언어 목록 사용
+    availableLanguages.value = await languageApiService.getPopularLanguages()
+  } finally {
+    isLoadingLanguages.value = false
+  }
+
+  // 편집 모드인 경우 강의 데이터 로드
+  if (isEditMode.value) {
+    await loadLectureData()
+  }
+
+  // 초기 데이터 스냅샷 저장 (약간의 지연 후 - 초기 렌더링 완료 대기)
+  setTimeout(() => {
+    initialDataSnapshot.value = getCurrentDataSnapshot()
+  }, 500)
+
+  // 브라우저 새로고침/닫기 경고
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 데이터 변경 감지
+watch(
+  [courseData, editorTheme, newTag],
+  () => {
+    const currentSnapshot = getCurrentDataSnapshot()
+    hasUnsavedChanges.value = currentSnapshot !== initialDataSnapshot.value
+  },
+  { deep: true }
+)
+
+// 현재 데이터 스냅샷 생성
+function getCurrentDataSnapshot(): string {
+  return JSON.stringify({
+    courseData: courseData,
+    editorTheme: editorTheme.value
+  })
+}
+
+// 브라우저 새로고침/닫기 경고
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    event.preventDefault()
+    event.returnValue = ''
+    return ''
+  }
+}
+
+// Vue Router 네비게이션 가드
+onBeforeRouteLeave((to, from, next) => {
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      next()
+    } else {
+      next(false)
+    }
+  } else {
+    next()
+  }
+})
+
 // 액션 함수들
 function goBack() {
-  router.back()
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      router.back()
+    }
+  } else {
+    router.back()
+  }
 }
 
 function previewCourse() {
@@ -386,39 +630,75 @@ function saveDraft() {
   // 임시저장 기능 구현
   console.log('임시저장:', courseData)
   alert('임시저장되었습니다.')
+
+  // 임시저장 후 변경사항 플래그 초기화
+  hasUnsavedChanges.value = false
+  initialDataSnapshot.value = getCurrentDataSnapshot()
 }
 
 async function publishCourse() {
-  if (!courseData.title.trim()) {
+  console.log('발행 시도 - courseData:', courseData)
+
+  if (!courseData.title || !courseData.title.trim()) {
     alert('강의 제목을 입력해주세요.')
+    activeTab.value = 'basic'
     return
   }
 
-  if (!courseData.content.trim()) {
+  if (!courseData.content || !courseData.content.trim()) {
     alert('강의 내용을 입력해주세요.')
+    activeTab.value = 'content'
     return
   }
 
   isPublishing.value = true
   try {
+    // 백엔드 DTO에 맞춰서 description에 마크다운 콘텐츠를 보냄
     const lectureData = {
       title: courseData.title,
-      description: courseData.description || courseData.content.substring(0, 200),
+      description: courseData.content,  // 마크다운 콘텐츠를 description으로 보냄
       type: LectureType.MARKDOWN,
       category: courseData.category || '기타',
       difficulty: courseData.difficulty || '입문',
       isPublic: courseData.isPublic
     }
 
-    if (isEditMode.value) {
-      const lectureId = Number(route.query.edit)
-      await lectureApiService.updateLecture(lectureId, lectureData)
+    if (isEditMode.value && editLectureId.value) {
+      await lectureApiService.updateLecture(editLectureId.value, lectureData)
+
+      // 현재 isPublic 상태에 따라 공개/비공개 API 호출 (임시 조치 - 백엔드 수정 필요)
+      try {
+        if (lectureData.isPublic) {
+          await lectureApiService.publishLecture(editLectureId.value)
+          console.log('강의 공개 전환 완료')
+        } else {
+          await lectureApiService.unpublishLecture(editLectureId.value)
+          console.log('강의 비공개 전환 완료')
+        }
+      } catch (error) {
+        console.error('공개/비공개 전환 실패:', error)
+      }
+
       alert('강의가 수정되었습니다!')
     } else {
       const createdLecture = await lectureApiService.createLecture(lectureData)
       console.log('강의 생성 완료:', createdLecture)
+
+      // isPublic이 true인 경우 공개 전환 API 호출 (임시 조치 - 백엔드 수정 필요)
+      if (lectureData.isPublic) {
+        try {
+          await lectureApiService.publishLecture(createdLecture.id)
+          console.log('강의 공개 전환 완료')
+        } catch (error) {
+          console.error('공개 전환 실패:', error)
+        }
+      }
+
       alert('강의가 발행되었습니다.')
     }
+
+    // 발행 성공 시 변경사항 플래그 초기화
+    hasUnsavedChanges.value = false
 
     router.push({ name: 'dashboard' })
   } catch (error) {
@@ -435,10 +715,18 @@ async function deleteCourse() {
     return
   }
 
+  if (!editLectureId.value) {
+    alert('삭제할 강의를 찾을 수 없습니다.')
+    return
+  }
+
   try {
-    const lectureId = Number(route.query.edit)
-    await lectureApiService.deleteLecture(lectureId)
+    await lectureApiService.deleteLecture(editLectureId.value)
     alert('강의가 삭제되었습니다.')
+
+    // 삭제 성공 시 변경사항 플래그 초기화 (경고 없이 페이지 이동)
+    hasUnsavedChanges.value = false
+
     router.push({ name: 'dashboard' })
   } catch (error) {
     console.error('강의 삭제 실패:', error)
