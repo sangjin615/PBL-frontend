@@ -509,16 +509,24 @@ async function loadNextLecture() {
 
 // 메서드
 function goBack() {
-  router.back();
+  const confirmMessage = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.';
+  const answer = window.confirm(confirmMessage);
+  if (answer) {
+    router.back();
+  }
 }
 
 // 다음 강의로 이동
 function goToNextLesson() {
   if (nextLesson.value) {
-    const curriculumId = route.query.curriculumId;
-    // 페이지를 완전히 새로 로드하여 컴포넌트를 재마운트
-    const url = `/learn/${nextLesson.value.id}${curriculumId ? `?curriculumId=${curriculumId}` : ''}`;
-    window.location.href = url;
+    const confirmMessage = '다음 강의로 이동하시겠습니까? 현재 강의의 진행 상황이 저장되지 않을 수 있습니다.';
+    const answer = window.confirm(confirmMessage);
+    if (answer) {
+      const curriculumId = route.query.curriculumId;
+      // 페이지를 완전히 새로 로드하여 컴포넌트를 재마운트
+      const url = `/learn/${nextLesson.value.id}${curriculumId ? `?curriculumId=${curriculumId}` : ''}`;
+      window.location.href = url;
+    }
   }
 }
 
@@ -778,30 +786,38 @@ const stopDragET = () => {
 
 // 코드 존재 여부 확인 함수
 function hasUnsavedCode(): boolean {
-  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
-  return currentCode.trim().length > 0;
+  try {
+    const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+    const hasCode = currentCode.trim().length > 0;
+    console.log('코드 존재 여부 확인:', {
+      currentCode: currentCode,
+      trimmedLength: currentCode.trim().length,
+      hasCode: hasCode
+    });
+    return hasCode;
+  } catch (error) {
+    console.error('코드 존재 여부 확인 중 오류:', error);
+    return false;
+  }
 }
+
 
 // 페이지 이탈 시 경고 (브라우저 새로고침, 뒤로가기 등)
 function handleBeforeUnload(e: BeforeUnloadEvent) {
-  if (hasUnsavedCode()) {
-    e.preventDefault();
-    e.returnValue = ''; // Chrome에서 필요
-    return '';
-  }
+  // 코드가 있거나 강의를 듣고 있다면 항상 확인
+  e.preventDefault();
+  e.returnValue = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.'; // Chrome에서 필요
+  return '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.';
 }
 
 // Vue Router navigation guard (페이지 내 라우팅)
 onBeforeRouteLeave((to, from, next) => {
-  if (hasUnsavedCode()) {
-    const answer = window.confirm('작성 중인 코드가 있습니다. 정말 나가시겠습니까?');
-    if (answer) {
-      next();
-    } else {
-      next(false);
-    }
-  } else {
+  const confirmMessage = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.';
+  const answer = window.confirm(confirmMessage);
+  if (answer) {
     next();
+  } else {
+    next(false);
   }
 });
 

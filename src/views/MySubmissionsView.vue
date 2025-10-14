@@ -43,9 +43,13 @@
             <tbody>
               <tr v-for="item in filtered" :key="item.id" class="border-b hover:bg-gray-50">
                 <td class="px-4 py-3 text-gray-600">{{ item.submittedAt }}</td>
-                <td class="px-4 py-3 text-blue-600 hover:underline cursor-pointer">{{ item.userId }}</td>
                 <td class="px-4 py-3">
-                  <router-link :to="{ name: 'problem', params: { problemId: item.problemId } }" class="text-blue-600 hover:underline">
+                  <span class="text-blue-600 hover:underline cursor-pointer" @click="goToUserProfile(item.userId)">
+                    {{ item.userId }}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <router-link :to="{ name: 'problem-result', params: { problemId: item.problemId } }" class="text-blue-600 hover:underline">
                     {{ item.problemId }}
                   </router-link>
                 </td>
@@ -69,7 +73,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Button, FormInput, FormSelect } from '@/components/common'
+
+const router = useRouter()
 
 type Submission = {
   id: string
@@ -149,6 +156,12 @@ const filtered = computed(() => {
 
 function applyFilters() {
   // 반응형 computed가 자동 반영하므로 별도 처리 없음
+}
+
+function goToUserProfile(userId: string) {
+  // 사용자 프로필 페이지가 있다면 그쪽으로, 없다면 대시보드로 이동
+  // 현재는 대시보드로 이동하도록 설정 (나중에 사용자 프로필 페이지가 생기면 수정)
+  router.push({ name: 'dashboard' })
 }
 
 function resultLabel(code: Submission['result']): string {
