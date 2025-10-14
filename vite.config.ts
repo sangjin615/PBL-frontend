@@ -35,7 +35,6 @@ export default defineConfig({
       '@codingame/monaco-vscode-standalone-html-language-features',
       '@codingame/monaco-vscode-standalone-json-language-features',
       '@codingame/monaco-vscode-standalone-typescript-language-features',
-      '@testing-library/react',
       'langium',
       'langium/lsp',
       'langium/grammar',
