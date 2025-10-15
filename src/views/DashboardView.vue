@@ -248,8 +248,7 @@
         <div
           v-for="item in displayedItems"
           :key="`${item.type}-${item.id}`"
-          @click="handleItemClick(item)"
-          class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow cursor-pointer group"
+          class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow group"
         >
           <!-- 강의 썸네일 -->
           <div
@@ -375,6 +374,12 @@
                 ></path>
               </svg>
               {{ item.privacy }}
+            </div>
+
+            <!-- 액션 버튼: 자세히보기 / 수정하기 -->
+            <div class="mt-4 flex items-center gap-2">
+              <Button size="sm" @click.stop="viewItem(item)">자세히보기</Button>
+              <Button size="sm" variant="secondary" @click.stop="editItem(item)">수정하기</Button>
             </div>
           </div>
         </div>
@@ -652,27 +657,27 @@ function handleSortChange(event: Event) {
   displayLimit.value = 8; // 표시 제한 초기화
 }
 
-// 아이템 클릭 핸들러
-function handleItemClick(item: DashboardItem) {
+// 자세히보기: 학습자 관점으로 이동
+function viewItem(item: DashboardItem) {
   if (item.type === "curriculum") {
-    // 커리큘럼 클릭 시 커리큘럼 개요 페이지로 이동
-    router.push({
-      name: "curriculum-overview",
-      params: { id: `course_${item.id}` },
-      query: { mode: "instructor" },
-    });
+    // 커리큘럼 상세(수강) 페이지로 이동
+    router.push({ name: "curriculum-detail", params: { id: item.id } });
   } else {
-    // 강의물 클릭 시 강의 수정 페이지로 이동
+    // 강의물 학습 페이지로 이동 (커리큘럼 정보가 있으면 query에 포함 가능)
+    router.push({ name: "lecture", params: { lectureId: item.id } });
+  }
+}
+
+// 수정하기: 기존처럼 작성/수정 화면으로 이동
+function editItem(item: DashboardItem) {
+  if (item.type === "curriculum") {
+    // 커리큘럼 수정 화면으로 이동 (현재 생성 화면을 재사용)
+    router.push({ name: "instructor-create-curriculum", query: { edit: item.id, mode: "edit" } });
+  } else {
     if (item.format === "문제" || item.lectureType === LectureType.PROBLEM) {
-      router.push({
-        name: "instructor-create-problem",
-        query: { edit: item.id, mode: "edit" },
-      });
+      router.push({ name: "instructor-create-problem", query: { edit: item.id, mode: "edit" } });
     } else {
-      router.push({
-        name: "instructor-create-markdown",
-        query: { edit: item.id, mode: "edit" },
-      });
+      router.push({ name: "instructor-create-markdown", query: { edit: item.id, mode: "edit" } });
     }
   }
 }
