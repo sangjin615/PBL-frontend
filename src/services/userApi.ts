@@ -1,4 +1,4 @@
-import { apiConfig } from '../config/api';
+import { apiConfig, getCurrentUserId } from '../config/api';
 import type {
   User,
   SignUpRequest,
@@ -25,13 +25,20 @@ class UserApiService {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
+    const currentUserId = getCurrentUserId();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    // 사용자 ID가 있을 때만 헤더에 추가
+    if (currentUserId !== null) {
+      headers['X-User-Id'] = String(currentUserId);
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': String(apiConfig.auth.defaultUserId),
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {

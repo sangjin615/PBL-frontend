@@ -44,6 +44,33 @@ export const authConfig = {
   defaultUserId: 1 // 개발용 기본 사용자 ID
 };
 
+// 동적 사용자 ID 가져오기 함수
+export function getCurrentUserId(): number | null {
+  // 개발 환경에서 로그아웃 상태인지 확인
+  if (authConfig.enabled === false && localStorage.getItem("loggedOut")) {
+    return null;
+  }
+  
+  // 실제 사용자 정보가 있으면 해당 ID 사용
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      return user.id || null;
+    } catch (e) {
+      console.error("Failed to parse stored user:", e);
+      return null;
+    }
+  }
+  
+  // 개발 환경에서는 기본 사용자 ID 사용
+  if (authConfig.enabled === false) {
+    return authConfig.defaultUserId;
+  }
+  
+  return null;
+}
+
 // 전체 API 설정
 export const apiConfig = {
   judge0: judge0Config,

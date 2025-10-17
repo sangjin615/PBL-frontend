@@ -31,16 +31,6 @@ export function useAuth() {
       return currentUserState.value;
     }
 
-    // 개발 환경: 기본 사용자 정보 사용
-    if (authConfig.enabled === false) {
-      return {
-        id: authConfig.defaultUserId,
-        username: "김준성",
-        loginId: "junseong.kim",
-        subscribers: "8.71천명",
-      };
-    }
-
     // 프로덕션: 실제 인증 토큰에서 사용자 정보 가져오기
     // TODO: 실제 JWT 토큰 파싱 또는 세션 스토리지에서 가져오기
     const storedUser = localStorage.getItem("user");
@@ -51,6 +41,16 @@ export function useAuth() {
         console.error("Failed to parse stored user:", e);
         return null;
       }
+    }
+
+    // 개발 환경: 기본 사용자 정보 사용 (로그아웃 상태가 아닐 때만)
+    if (authConfig.enabled === false && !localStorage.getItem("loggedOut")) {
+      return {
+        id: authConfig.defaultUserId,
+        username: "김준성",
+        loginId: "junseong.kim",
+        subscribers: "8.71천명",
+      };
     }
 
     return null;
@@ -76,6 +76,8 @@ export function useAuth() {
 
       currentUserState.value = user;
       localStorage.setItem("user", JSON.stringify(user));
+      // 로그아웃 상태 플래그 제거
+      localStorage.removeItem("loggedOut");
 
       console.log("로그인 성공:", user);
       return true;
@@ -92,6 +94,8 @@ export function useAuth() {
     // 상태 초기화
     currentUserState.value = null;
     localStorage.removeItem("user");
+    // 로그아웃 상태 플래그 설정 (개발 환경에서 새로고침 시 로그인 상태 유지 방지)
+    localStorage.setItem("loggedOut", "true");
 
     // 로그인 페이지로 리다이렉트
     // TODO: 실제 로그인 페이지 경로로 변경
@@ -114,7 +118,7 @@ export function useAuth() {
    * 현재 사용자 ID 가져오기
    */
   const userId = computed(() => {
-    return currentUser.value?.id || authConfig.defaultUserId;
+    return currentUser.value?.id || null;
   });
 
   /**

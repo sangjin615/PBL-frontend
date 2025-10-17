@@ -3,7 +3,7 @@
  * 백엔드 S3 모듈과 통신하는 API 클라이언트
  */
 
-import { apiConfig } from '../config/api';
+import { apiConfig, getCurrentUserId } from '../config/api';
 
 export interface S3UploadResponse {
   id: number;
@@ -40,11 +40,18 @@ export class S3ApiService {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
+    const currentUserId = getCurrentUserId();
+    const headers: Record<string, string> = {
+      ...options.headers,
+    };
+    
+    // 사용자 ID가 있을 때만 헤더에 추가
+    if (currentUserId !== null) {
+      headers['X-User-Id'] = String(currentUserId);
+    }
+
     const config: RequestInit = {
-      headers: {
-        'X-User-Id': String(apiConfig.auth.defaultUserId),
-        ...options.headers,
-      },
+      headers,
       ...options,
     };
 

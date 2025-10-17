@@ -3,7 +3,7 @@
  * 수강 신청 및 진도 관리 API 호출
  */
 
-import { apiConfig } from '@/config/api';
+import { apiConfig, getCurrentUserId } from '@/config/api';
 import type {
   EnrollRequest,
   EnrollmentResponse,
@@ -36,13 +36,10 @@ class EnrollmentApiService {
       ...(options.headers as Record<string, string>),
     };
 
-    // 인증 헤더 추가 (config 기반)
-    if (apiConfig.auth.enabled) {
-      // TODO: 실제 로그인한 사용자 ID 가져오기
-      headers[apiConfig.auth.headerName] = String(apiConfig.auth.defaultUserId);
-    } else {
-      // 개발 모드: 기본 사용자 ID 사용
-      headers[apiConfig.auth.headerName] = String(apiConfig.auth.defaultUserId);
+    // 인증 헤더 추가 (동적 사용자 ID 사용)
+    const currentUserId = getCurrentUserId();
+    if (currentUserId !== null) {
+      headers[apiConfig.auth.headerName] = String(currentUserId);
     }
 
     const url = `${this.baseUrl}${endpoint}`;

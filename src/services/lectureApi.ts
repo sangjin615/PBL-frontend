@@ -12,7 +12,7 @@ import type {
   TestCase,
 } from "@/types/lecture";
 import { LectureType } from "@/types/lecture";
-import { apiConfig } from "@/config/api";
+import { apiConfig, getCurrentUserId } from "@/config/api";
 
 class LectureApiService {
   private readonly baseURL: string;
@@ -30,12 +30,19 @@ class LectureApiService {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
+    const currentUserId = getCurrentUserId();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    // 사용자 ID가 있을 때만 헤더에 추가
+    if (currentUserId !== null) {
+      headers['X-User-Id'] = String(currentUserId);
+    }
+
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': String(apiConfig.auth.defaultUserId),
-        ...options.headers,
-      },
+      headers,
       ...options,
     };
 

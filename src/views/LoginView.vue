@@ -94,7 +94,10 @@ async function handleLogin() {
     await authLogin(response)
     
     alert(MESSAGES.SUCCESS.LOGIN)
-    router.push('/dashboard')
+    
+    // 로그인 전에 접근하려던 페이지가 있으면 해당 페이지로, 없으면 대시보드로 이동
+    const redirectTo = router.currentRoute.value.query.redirect as string || '/dashboard'
+    router.push(redirectTo)
   } catch (err: any) {
     console.error('로그인 실패:', err)
     error.value = handleApiError(err)
