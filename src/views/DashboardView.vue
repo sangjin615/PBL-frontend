@@ -441,13 +441,30 @@ async function loadApiData() {
   }
 }
 
+// 배열 형태의 날짜를 Date 객체로 변환하는 함수
+function parseArrayDate(dateArray: number[] | string): string {
+  if (typeof dateArray === 'string') {
+    return new Date(dateArray).toLocaleDateString("ko-KR");
+  }
+
+  if (Array.isArray(dateArray) && dateArray.length >= 3) {
+    // [year, month, day, hour, minute, second, nanoseconds] 형태
+    const [year, month, day] = dateArray;
+    // JavaScript Date의 month는 0부터 시작하므로 -1 필요 없음 (서버에서 1~12로 전송)
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString("ko-KR");
+  }
+
+  return "날짜 없음";
+}
+
 // API에서 가져온 강의 데이터와 기존 데이터 통합
 const filteredItems = computed(() => {
   // API에서 가져온 강의들을 DashboardItem 형태로 변환
   const apiLectures: DashboardItem[] = lectures.value.map(lecture => ({
     id: lecture.id,
     title: lecture.title,
-    createdDate: new Date(lecture.createdAt).toLocaleDateString("ko-KR"),
+    createdDate: parseArrayDate(lecture.createdAt),
     privacy: lecture.isPublic ? "공개" : "비공개",
     thumbnailColor: getThumbnailColor(lecture.type),
     type: "lecture" as const,
@@ -465,7 +482,7 @@ const filteredItems = computed(() => {
   const apiCurriculums: DashboardItem[] = curricula.value.map(curriculum => ({
     id: curriculum.id,
     title: curriculum.title,
-    createdDate: new Date(curriculum.createdAt).toLocaleDateString("ko-KR"),
+    createdDate: parseArrayDate(curriculum.createdAt),
     privacy: curriculum.isPublic ? "공개" : "비공개",
     thumbnailColor: getThumbnailColor('curriculum'),
     type: "curriculum" as const,
