@@ -265,13 +265,21 @@
               </div>
             </div>
 
-            <!-- 비공개 상태 -->
-            <div class="flex items-center text-sm text-gray-500 mt-2">
-              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <!-- 공개/비공개 상태 -->
+            <div class="flex items-center text-sm mt-2"
+              :class="item.privacy === '공개' ? 'text-green-600' : 'text-gray-500'">
+              <!-- 비공개 아이콘 (잠금) -->
+              <svg v-if="item.privacy === '비공개'" class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fill-rule="evenodd"
                   d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
                   clip-rule="evenodd"
+                ></path>
+              </svg>
+              <!-- 공개 아이콘 (열린 자물쇠) -->
+              <svg v-else class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z"
                 ></path>
               </svg>
               {{ item.privacy }}
