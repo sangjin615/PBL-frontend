@@ -11,9 +11,11 @@
           </button>
           <div>
             <h1 class="text-lg font-semibold">
-              {{ loading ? '강의 정보 로딩 중...' : lessonData.title }}
+              {{ loading ? '강의 정보 로딩 중...' : lecture?.title || '' }}
             </h1>
-            <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
+            <p class="text-sm text-gray-600">
+              {{ lecture?.author?.username || '알 수 없음' }} • {{ lecture?.durationMinutes ? `${lecture.durationMinutes}분` : '' }}
+            </p>
             <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           </div>
         </div>
@@ -280,6 +282,7 @@ import { curriculumApiService } from '../services/curriculumApi';
 import { MdPreview } from 'md-editor-v3-ko';
 import 'md-editor-v3-ko/lib/style.css';
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI';
+import { SUPPORTED_LANGUAGES_FALLBACK } from '@/constants';
 
 const route = useRoute();
 const router = useRouter();
@@ -313,12 +316,7 @@ const isEditorReady = ref(false);
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
 
-// 강의 데이터 (헤더에 표시)
-const lessonData = ref({
-  title: '',
-  instructor: '',
-  duration: ''
-});
+// lessonData 제거 - lecture를 직접 사용
 
 // Lecture API에서 강의 정보 로드
 async function loadLectureData() {
@@ -333,11 +331,6 @@ async function loadLectureData() {
 
     // Lecture API 호출 - 직접 lecture ref에 저장
     lecture.value = await lectureApiService.getLecture(lectureId);
-
-    // 헤더용 lessonData 매핑
-    lessonData.value.title = lecture.value.title;
-    lessonData.value.instructor = lecture.value.author?.username || '알 수 없음';
-    lessonData.value.duration = lecture.value.durationMinutes ? `${lecture.value.durationMinutes}분` : '';
 
   } catch (err) {
     console.error('강의 데이터 로드 실패:', err);
@@ -609,12 +602,7 @@ async function fetchSupportedLanguages() {
   } catch (error) {
     console.error('언어 목록 로드 실패:', error);
     // 기본 언어 목록으로 fallback
-    supportedLanguages.value = [
-      { id: 71, name: 'Python (3.8.1)', version: '3.8.1', file_extension: '.py' },
-      { id: 63, name: 'JavaScript (Node.js 12.14.0)', version: '12.14.0', file_extension: '.js' },
-      { id: 62, name: 'Java (OpenJDK 13.0.1)', version: '13.0.1', file_extension: '.java' },
-      { id: 54, name: 'C++ (GCC 9.2.0)', version: '9.2.0', file_extension: '.cpp' }
-    ];
+    supportedLanguages.value = [...SUPPORTED_LANGUAGES_FALLBACK];
   }
 }
 

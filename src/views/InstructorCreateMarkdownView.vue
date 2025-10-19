@@ -98,17 +98,14 @@
             <!-- 카테고리 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">카테고리 *</label>
-              <select 
+              <select
                 v-model="courseData.category"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">카테고리를 선택하세요</option>
-                <option value="알고리즘">알고리즘</option>
-                <option value="웹개발">웹개발</option>
-                <option value="모바일">모바일</option>
-                <option value="데이터사이언스">데이터사이언스</option>
-                <option value="AI/ML">AI/ML</option>
-                <option value="기타">기타</option>
+                <option v-for="category in LECTURE_CATEGORIES" :key="category" :value="category">
+                  {{ category }}
+                </option>
               </select>
             </div>
 
@@ -120,10 +117,9 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">난이도를 선택하세요</option>
-                <option value="입문">입문</option>
-                <option value="초급">초급</option>
-                <option value="중급">중급</option>
-                <option value="고급">고급</option>
+                <option v-for="level in DIFFICULTY_LEVELS" :key="level" :value="level">
+                  {{ level }}
+                </option>
               </select>
             </div>
 

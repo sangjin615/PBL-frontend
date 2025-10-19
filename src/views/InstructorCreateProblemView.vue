@@ -97,34 +97,28 @@
             <!-- 카테고리 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">카테고리 *</label>
-              <select 
+              <select
                 v-model="problemData.category"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="">카테고리를 선택하세요</option>
-                <option value="알고리즘">알고리즘</option>
-                <option value="자료구조">자료구조</option>
-                <option value="수학">수학</option>
-                <option value="구현">구현</option>
-                <option value="그래프">그래프</option>
-                <option value="동적계획법">동적계획법</option>
-                <option value="기타">기타</option>
+                <option v-for="category in LECTURE_CATEGORIES" :key="category" :value="category">
+                  {{ category }}
+                </option>
               </select>
             </div>
 
             <!-- 난이도 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">난이도 *</label>
-              <select 
+              <select
                 v-model="problemData.difficulty"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="">난이도를 선택하세요</option>
-                <option value="브론즈">브론즈</option>
-                <option value="실버">실버</option>
-                <option value="골드">골드</option>
-                <option value="플래티넘">플래티넘</option>
-                <option value="다이아몬드">다이아몬드</option>
+                <option v-for="level in DIFFICULTY_LEVELS" :key="level" :value="level">
+                  {{ level }}
+                </option>
               </select>
             </div>
 
@@ -375,6 +369,7 @@ import { languageApiService } from '@/services/languageApi'
 import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { LectureType } from '@/types/lecture'
 import type { Language } from '@/types/language'
+import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS } from '@/constants'
 
 const router = useRouter()
 const route = useRoute()

@@ -96,7 +96,25 @@ export const VALIDATION_RULES = {
   }
 } as const;
 
+// 챕터 제목
+export const CHAPTER_TITLES = [
+  '기초 개념',
+  '핵심 이론',
+  '실전 적용',
+  '고급 기법',
+  '프로젝트'
+] as const;
+
+// 언어 폴백 목록 (Judge0 API 실패 시 사용)
+export const SUPPORTED_LANGUAGES_FALLBACK = [
+  { id: 71, name: 'Python (3.8.1)', version: '3.8.1', file_extension: '.py' },
+  { id: 63, name: 'JavaScript (Node.js 12.14.0)', version: '12.14.0', file_extension: '.js' },
+  { id: 62, name: 'Java (OpenJDK 13.0.1)', version: '13.0.1', file_extension: '.java' },
+  { id: 54, name: 'C++ (GCC 9.2.0)', version: '9.2.0', file_extension: '.cpp' }
+] as const;
+
 // 타입 정의
 export type LectureCategory = typeof LECTURE_CATEGORIES[number];
 export type DifficultyLevel = typeof DIFFICULTY_LEVELS[number];
 export type ColorKey = keyof typeof COLORS;
+export type ChapterTitle = typeof CHAPTER_TITLES[number];

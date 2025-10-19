@@ -155,7 +155,7 @@
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">총 소요 시간</span>
                 <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
-                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : hardcodedData.totalDuration }}
+                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : '미정' }}
                 </span>
               </div>
               <div class="flex justify-between">
@@ -174,11 +174,11 @@
           </div>
 
           <!-- 태그 -->
-          <div v-if="curriculum && (curriculum.tags?.length > 0 || hardcodedData.tags.length > 0)" class="bg-figma-1 rounded-lg border p-6" style="border-color: rgb(var(--figma-color-4))">
+          <div v-if="curriculum && curriculum.tags?.length > 0" class="bg-figma-1 rounded-lg border p-6" style="border-color: rgb(var(--figma-color-4))">
             <h3 class="font-semibold mb-4" style="color: rgb(var(--figma-color-2))">태그</h3>
             <div class="flex flex-wrap gap-2">
               <span
-                v-for="tag in (curriculum.tags && curriculum.tags.length > 0 ? curriculum.tags : hardcodedData.tags)"
+                v-for="tag in curriculum.tags"
                 :key="tag"
                 class="px-3 py-1 text-xs rounded-full font-medium"
                 style="background-color: rgb(var(--figma-color-7)); color: rgb(var(--figma-color-6))"
@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { curriculumApiService } from '@/services/curriculumApi';
 import { enrollmentApiService } from '@/services/enrollmentApi';
@@ -233,14 +233,10 @@ const tabs = ref([
   { id: 'inquiries', name: '문의' }
 ]);
 
-// 하드코딩된 데이터 (백엔드 미구현 항목)
-// TODO: 아직 구현되지 않은 기능들
+// TODO: 백엔드 API 미구현 항목 (백엔드_API_추가_개발_요청.md 참고)
+// - learningGoals: CurriculumResponse에 learningGoals 필드 추가 필요
+//   → @ElementCollection으로 List<String> learningGoals 추가 후 hardcodedData.learningGoals 제거
 const hardcodedData = {
-  // totalDuration: 강의 시간 합계 계산 로직 필요
-  totalDuration: 'API 연결없음(기본값 = "32시간")',
-  // tags: 태그 API 미구현
-  tags: ['API 연결없음'],
-  // learningGoals: 학습 목표 API 미구현
   learningGoals: [
     'API 연결없음(기본값 = "알고리즘의 기본 개념과 복잡도 분석")'
   ]
@@ -255,24 +251,12 @@ async function loadCurriculumDetail() {
     const curriculumId = Number(route.params.id);
     const data: CurriculumDetailResponse = await curriculumApiService.getCurriculumById(curriculumId);
 
-    // 커리큘럼 정보 설정
+    // 커리큘럼 정보 설정 (백엔드 API 응답을 직접 사용)
     curriculum.value = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
+      ...data,
       instructor: data.author?.username || '알 수 없음',
-      category: extractCategory(data.title),
-      totalLectureCount: data.totalLectureCount || 0,
-      requiredLectureCount: data.requiredLectureCount || 0,
-      optionalLectureCount: data.optionalLectureCount || 0,
-      // 새로운 필드들 추가
-      difficulty: data.difficulty,
-      summary: data.summary,
-      averageRating: data.averageRating,
-      studentCount: data.studentCount,
-      tags: data.tags || [],
-      thumbnailImageUrl: data.thumbnailImageUrl,
-      durationMinutes: data.durationMinutes
+      category: data.category || '미분류',
+      tags: data.tags || []
     };
 
     // 강의 목록 정렬 (orderIndex 순)
@@ -293,18 +277,6 @@ async function loadCurriculumDetail() {
   } finally {
     loading.value = false;
   }
-}
-
-// 카테고리 추출
-function extractCategory(title: string): string {
-  const text = title.toLowerCase();
-  if (text.includes('algorithm')) return '알고리즘';
-  if (text.includes('web') || text.includes('html')) return '웹';
-  if (text.includes('python')) return 'Python';
-  if (text.includes('unity') || text.includes('game')) return '게임 개발';
-  if (text.includes('sql') || text.includes('database')) return '데이터베이스';
-  if (text.includes('ai') || text.includes('인공지능')) return '인공지능';
-  return '기타';
 }
 
 // 날짜 포맷팅

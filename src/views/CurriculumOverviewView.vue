@@ -290,7 +290,7 @@
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">강의 시간</span>
                 <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
-                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : hardcodedData.totalDuration }}
+                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : '미정' }}
                 </span>
               </div>
               <div class="flex justify-between">
@@ -320,6 +320,7 @@ import { curriculumApiService } from '@/services/curriculumApi';
 import { enrollmentApiService } from '@/services/enrollmentApi';
 import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
+import { CHAPTER_TITLES } from '@/constants';
 
 const router = useRouter();
 const route = useRoute();
@@ -349,32 +350,16 @@ const tabs = ref([
   { id: 'learning', name: '나의 학습' }
 ]);
 
-// 하드코딩된 데이터 (백엔드 미구현 항목)
-// TODO: 아직 구현되지 않은 기능들
+// TODO: 백엔드 API 미구현 항목 (백엔드_API_추가_개발_요청.md 참고)
+// - Review API 미구현 (GET/POST/PUT/DELETE /api/curriculums/{id}/reviews)
+//   → Review 엔티티, 컨트롤러, 서비스 추가 필요
+//   → 리뷰 작성, 조회, 수정, 삭제 API 구현 후 hardcodedData.reviews 제거
 const hardcodedData = {
-  // totalDuration: 강의 시간 합계 계산 로직 필요
-  totalDuration: 'API 연결없음(기본값 = "24시간")',
-  // reviews: 리뷰 API 미구현
   reviews: [
     {
       id: -99,
       name: 'API 연결없음(기본값 = "김준성")',
-      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
-    },
-    {
-      id: -99,
-      name: 'API 연결없음(기본값 = "김준성")',
-      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
-    },
-    {
-      id: -99,
-      name: 'API 연결없음(기본값 = "김준성")',
-      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 좋아요... ㅠㅠㅠ")'
-    },
-    {
-      id: -99,
-      name: 'API 연결없음(기본값 = "김준성")',
-      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... ㅠㅠㅠ")'
+      content: 'API 연결없음(기본값 = "예전에 배운 강의는 정말 유익했어요... 님 교수님의 강의 좋아요... ㅠㅠㅠ")'
     }
   ]
 };
@@ -398,8 +383,7 @@ const groupedLectures = computed(() => {
 
 // 챕터 제목 생성
 function getChapterTitle(chapterIndex: number): string {
-  const titles = ['기초 개념', '핵심 이론', '실전 적용', '고급 기법', '프로젝트'];
-  return titles[chapterIndex] || `추가 학습 ${chapterIndex + 1}`;
+  return CHAPTER_TITLES[chapterIndex] || `추가 학습 ${chapterIndex + 1}`;
 }
 
 // 챕터 토글
@@ -425,7 +409,7 @@ async function loadCurriculumDetail() {
       title: data.title,
       description: data.description,
       instructor: data.author?.username || '알 수 없음',
-      category: extractCategory(data.title),
+      category: data.category || '미분류',
       // API에서 가져온 필드들
       difficulty: data.difficulty,
       summary: data.summary,
@@ -453,18 +437,6 @@ async function loadCurriculumDetail() {
   } finally {
     loading.value = false;
   }
-}
-
-// 카테고리 추출
-function extractCategory(title: string): string {
-  const text = title.toLowerCase();
-  if (text.includes('algorithm')) return '알고리즘';
-  if (text.includes('web') || text.includes('html')) return '웹';
-  if (text.includes('python')) return 'Python';
-  if (text.includes('unity') || text.includes('game')) return '게임 개발';
-  if (text.includes('sql') || text.includes('database')) return '데이터베이스';
-  if (text.includes('ai') || text.includes('인공지능')) return '인공지능';
-  return '개발·프로그래밍';
 }
 
 // 수강 상태 확인

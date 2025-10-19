@@ -74,6 +74,7 @@ export interface CurriculumDetailResponse {
   tags?: string[];
   thumbnailImageUrl?: string;
   durationMinutes?: number;
+  category?: string;
   createdAt: string;
   updatedAt: string;
   author: AuthorInfo;
