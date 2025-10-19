@@ -289,7 +289,9 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">강의 시간</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ hardcodedData.totalDuration }}</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
+                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : hardcodedData.totalDuration }}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">난이도</span>
@@ -428,7 +430,10 @@ async function loadCurriculumDetail() {
       difficulty: data.difficulty,
       summary: data.summary,
       averageRating: data.averageRating,
-      studentCount: data.studentCount
+      studentCount: data.studentCount,
+      tags: data.tags || [],
+      thumbnailImageUrl: data.thumbnailImageUrl,
+      durationMinutes: data.durationMinutes
     };
 
     lectures.value = (data.lectures || []).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));

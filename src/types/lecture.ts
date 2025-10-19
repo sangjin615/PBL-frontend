@@ -20,48 +20,58 @@ export interface AuthorInfo {
   loginId: string;
 }
 
+// 백엔드 Constraints 응답 구조
+export interface ConstraintsResponse {
+  cpu_time_limit?: number;  // BigDecimal (초 단위)
+  memory_limit?: number;     // Integer (KB 단위)
+  wall_time_limit?: number;
+  stack_limit?: number;
+  number_of_runs?: number;
+  max_processes_and_or_threads?: number;
+  enable_per_process_and_thread_time_limit?: boolean;
+  enable_per_process_and_thread_memory_limit?: boolean;
+  max_file_size?: number;
+}
+
 export interface Lecture {
   id: number;
   title: string;
-  description: string;  // 마크다운 강의는 여기에 전체 내용, 문제 강의는 문제 설명
+  description: string;  // 강의 간략 설명 (요약)
+  content?: string;     // 강의 본문 내용 (MARKDOWN: 전체 내용, PROBLEM: 문제 전체 설명)
+  input_content?: string;  // 문제 입력 형식 설명 (PROBLEM 타입만 사용) - 백엔드는 snake_case
+  output_content?: string; // 문제 출력 형식 설명 (PROBLEM 타입만 사용) - 백엔드는 snake_case
   type: LectureType;
   category: string;
   difficulty: string;
-  timeLimit?: number;
-  memoryLimit?: number;
+  constraints?: ConstraintsResponse;  // 중첩된 constraints 객체
   isPublic: boolean;
   testCaseCount: number;
   testCases?: TestCase[];
   createdAt: string;
   updatedAt: string;
   author: AuthorInfo;
-
-  // 향후 백엔드 추가 예정 필드
   tags?: string[];
+  thumbnailImageUrl?: string;  // 백엔드: thumbnailImageUrl
+  durationMinutes: number;  // 강의 소요 시간 (분)
   language?: number | null;
-  thumbnailUrl?: string | null;
-
-  // 문제 강의 UI용 필드 (프론트엔드 전용, 백엔드는 description 사용)
-  problemDescription?: string;
-  inputDescription?: string;
-  outputDescription?: string;
 }
 
 export interface CreateLectureRequest {
   title: string;
-  description: string;
+  description: string;      // 강의 간략 설명
+  content?: string;          // 강의 본문 내용
+  input_content?: string;    // 문제 입력 형식 (PROBLEM 타입만) - 백엔드는 snake_case
+  output_content?: string;   // 문제 출력 형식 (PROBLEM 타입만) - 백엔드는 snake_case
   type: LectureType;
   category: string;
   difficulty: string;
-  timeLimit?: number;
-  memoryLimit?: number;
+  constraints?: ConstraintsResponse;  // 중첩된 constraints 객체
   testCases?: TestCase[];
   isPublic?: boolean;
-
-  // 향후 백엔드 추가 예정 필드
   tags?: string[];
+  thumbnailImageUrl?: string;
+  durationMinutes?: number;
   language?: number | null;
-  thumbnailUrl?: string | null;
 }
 
 export interface LectureSearchParams {

@@ -44,9 +44,15 @@ export interface CurriculumResponse {
   totalLectureCount: number;
   requiredLectureCount: number;
   optionalLectureCount: number;
+  tags?: string[];
+  thumbnailImageUrl?: string;
+  durationMinutes?: number;
   createdAt: string;
   updatedAt: string;
   author: AuthorInfo;
+  category?: string;
+  languages?: string[];
+  reviewsCount?: number;
 }
 
 /**
@@ -65,6 +71,9 @@ export interface CurriculumDetailResponse {
   totalLectureCount: number;
   requiredLectureCount: number;
   optionalLectureCount: number;
+  tags?: string[];
+  thumbnailImageUrl?: string;
+  durationMinutes?: number;
   createdAt: string;
   updatedAt: string;
   author: AuthorInfo;
@@ -77,8 +86,12 @@ export interface CreateCurriculumRequest {
   title: string;
   description: string;
   isPublic: boolean;
+  authorId?: number;
   difficulty?: string;
   summary?: string;
+  tags?: string[];
+  thumbnailImageUrl?: string;
+  durationMinutes?: number;
 }
 
 /**
@@ -90,6 +103,9 @@ export interface UpdateCurriculumRequest {
   isPublic?: boolean;
   difficulty?: string;
   summary?: string;
+  tags?: string[];
+  thumbnailImageUrl?: string;
+  durationMinutes?: number;
 }
 
 /**
@@ -97,8 +113,9 @@ export interface UpdateCurriculumRequest {
  */
 export interface AddLectureRequest {
   lectureId: number;
-  isRequired: boolean;
-  order: number;
+  isRequired?: boolean;
+  originalAuthor?: string;
+  sourceInfo?: string;
 }
 
 /**

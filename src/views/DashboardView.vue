@@ -499,10 +499,10 @@ const filteredItems = computed(() => {
     title: curriculum.title,
     createdDate: parseArrayDate(curriculum.createdAt),
     privacy: curriculum.isPublic ? "공개" : "비공개",
-    thumbnailColor: getThumbnailColor('curriculum'),
+    thumbnailColor: curriculum.thumbnailImageUrl || getThumbnailColor('curriculum'),
     type: "curriculum" as const,
-    duration: "미정",
-    tags: ["커리큘럼"],
+    duration: curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : "미정",
+    tags: curriculum.tags && curriculum.tags.length > 0 ? curriculum.tags : ["커리큘럼"],
     courseCount: curriculum.totalLectureCount,
     status: curriculum.isPublic ? "발행됨" : "초안"
   }));

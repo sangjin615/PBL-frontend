@@ -198,6 +198,66 @@
                 />
               </div>
             </div>
+
+            <!-- 공개 설정 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
+              <div class="flex items-center">
+                <button
+                  @click="problemData.isPublic = !problemData.isPublic"
+                  type="button"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
+                    problemData.isPublic ? 'bg-green-600' : 'bg-gray-200'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                      problemData.isPublic ? 'translate-x-6' : 'translate-x-1'
+                    ]"
+                  />
+                </button>
+                <span class="ml-3 text-sm text-gray-600">
+                  {{ problemData.isPublic ? '공개 (모든 사용자가 볼 수 있음)' : '비공개 (링크를 아는 사용자만 볼 수 있음)' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 태그 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <span
+                  v-for="(tag, index) in problemData.tags"
+                  :key="index"
+                  class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
+                >
+                  {{ tag }}
+                  <button
+                    @click="removeTag(index)"
+                    class="ml-2 text-green-600 hover:text-green-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <div class="flex space-x-2">
+                <input
+                  v-model="newTag"
+                  type="text"
+                  placeholder="태그 입력"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  @keyup.enter="addTag"
+                />
+                <button
+                  @click="addTag"
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  추가
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -300,74 +360,6 @@
             </button>
           </div>
         </div>
-
-        <!-- 설정 탭 -->
-        <div v-if="activeTab === 'settings'" class="max-w-4xl">
-          <h2 class="text-xl font-semibold mb-6">문제 설정</h2>
-          
-          <div class="space-y-6">
-            <!-- 공개 설정 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
-              <div class="space-y-2">
-                <label class="flex items-center">
-                  <input 
-                    v-model="problemData.isPublic" 
-                    type="radio" 
-                    :value="true" 
-                    class="mr-2"
-                  />
-                  공개 (모든 사용자가 볼 수 있음)
-                </label>
-                <label class="flex items-center">
-                  <input 
-                    v-model="problemData.isPublic" 
-                    type="radio" 
-                    :value="false" 
-                    class="mr-2"
-                  />
-                  비공개 (링크를 아는 사용자만 볼 수 있음)
-                </label>
-              </div>
-            </div>
-
-            <!-- 태그 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
-              <div class="flex flex-wrap gap-2 mb-2">
-                <span
-                  v-for="(tag, index) in problemData.tags"
-                  :key="index"
-                  class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
-                >
-                  {{ tag }}
-                  <button
-                    @click="removeTag(index)"
-                    class="ml-2 text-green-600 hover:text-green-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              </div>
-              <div class="flex space-x-2">
-                <input
-                  v-model="newTag"
-                  type="text"
-                  placeholder="태그 입력"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                  @keyup.enter="addTag"
-                />
-                <button
-                  @click="addTag"
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  추가
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -402,8 +394,7 @@ const originalIsPublic = ref<boolean>(true)
 const tabs = [
   { id: 'basic', label: '기본 정보' },
   { id: 'content', label: '문제 내용' },
-  { id: 'testcases', label: '테스트 케이스' },
-  { id: 'settings', label: '설정' }
+  { id: 'testcases', label: '테스트 케이스' }
 ]
 
 const activeTab = ref('basic')
@@ -555,8 +546,8 @@ async function loadLectureData() {
     problemData.description = '' // API 연결 없음
     problemData.category = lecture.category || ''
     problemData.difficulty = lecture.difficulty || ''
-    problemData.timeLimit = lecture.timeLimit || 1
-    problemData.memoryLimit = lecture.memoryLimit || 256
+    problemData.timeLimit = lecture.constraints?.cpu_time_limit || 1
+    problemData.memoryLimit = lecture.constraints?.memory_limit ? Math.round(lecture.constraints.memory_limit / 1000) : 256
     problemData.isPublic = lecture.isPublic ?? true
     problemData.tags = lecture.tags || []
     problemData.language = lecture.language || null
@@ -565,10 +556,11 @@ async function loadLectureData() {
     // 원본 공개 상태 저장 (변경사항 감지용)
     originalIsPublic.value = lecture.isPublic ?? true
 
-    // 문제 내용 - description에서 로드
-    problemData.problemDescription = lecture.description || ''
-    problemData.inputDescription = lecture.inputDescription || ''
-    problemData.outputDescription = lecture.outputDescription || ''
+    // 문제 내용 - 백엔드 필드에서 로드 (백엔드는 snake_case 사용)
+    problemData.description = lecture.description || ''  // 간략 설명
+    problemData.problemDescription = lecture.content || ''  // 문제 전체 설명
+    problemData.inputDescription = lecture.input_content || ''  // 입력 형식
+    problemData.outputDescription = lecture.output_content || ''  // 출력 형식
 
     // 테스트 케이스
     if (lecture.testCases && lecture.testCases.length > 0) {
@@ -731,19 +723,26 @@ async function publishProblem() {
   try {
     const lectureData = {
       title: problemData.title,
-      description: problemData.problemDescription, // 문제 설명 전체를 description으로 전송
+      description: problemData.description || problemData.title, // 간략 설명 (없으면 제목 사용)
+      content: problemData.problemDescription, // 문제 전체 설명
+      input_content: problemData.inputDescription, // 입력 형식 (백엔드는 snake_case)
+      output_content: problemData.outputDescription, // 출력 형식 (백엔드는 snake_case)
       type: LectureType.PROBLEM,
       category: problemData.category || '알고리즘',
       difficulty: problemData.difficulty || '쉬움',
-      timeLimit: problemData.timeLimit || 1,
-      memoryLimit: problemData.memoryLimit || 128,
+      constraints: {
+        cpu_time_limit: problemData.timeLimit || 1,  // 초 단위
+        memory_limit: (problemData.memoryLimit || 128) * 1000 // MB를 KB로 변환
+      },
       testCases: problemData.testCases.map(tc => ({
         input: tc.input,
         expectedOutput: tc.output
       })),
       isPublic: problemData.isPublic,
       language: problemData.language,
-      thumbnailUrl: problemData.thumbnailUrl
+      tags: problemData.tags || [],
+      thumbnailImageUrl: problemData.thumbnailUrl || '',
+      durationMinutes: problemData.timeLimit || 1 // 문제 시간 제한을 소요시간으로 사용
     }
 
     if (isEditMode.value && editLectureId.value) {
