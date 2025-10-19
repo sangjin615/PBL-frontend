@@ -154,7 +154,9 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">총 소요 시간</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ hardcodedData.totalDuration }}</span>
+                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">
+                  {{ curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : hardcodedData.totalDuration }}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">난이도</span>
@@ -172,11 +174,11 @@
           </div>
 
           <!-- 태그 -->
-          <div v-if="curriculum" class="bg-figma-1 rounded-lg border p-6" style="border-color: rgb(var(--figma-color-4))">
+          <div v-if="curriculum && (curriculum.tags?.length > 0 || hardcodedData.tags.length > 0)" class="bg-figma-1 rounded-lg border p-6" style="border-color: rgb(var(--figma-color-4))">
             <h3 class="font-semibold mb-4" style="color: rgb(var(--figma-color-2))">태그</h3>
             <div class="flex flex-wrap gap-2">
-              <span 
-                v-for="tag in hardcodedData.tags" 
+              <span
+                v-for="tag in (curriculum.tags && curriculum.tags.length > 0 ? curriculum.tags : hardcodedData.tags)"
                 :key="tag"
                 class="px-3 py-1 text-xs rounded-full font-medium"
                 style="background-color: rgb(var(--figma-color-7)); color: rgb(var(--figma-color-6))"
@@ -267,7 +269,10 @@ async function loadCurriculumDetail() {
       difficulty: data.difficulty,
       summary: data.summary,
       averageRating: data.averageRating,
-      studentCount: data.studentCount
+      studentCount: data.studentCount,
+      tags: data.tags || [],
+      thumbnailImageUrl: data.thumbnailImageUrl,
+      durationMinutes: data.durationMinutes
     };
 
     // 강의 목록 정렬 (orderIndex 순)

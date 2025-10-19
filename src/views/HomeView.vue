@@ -59,7 +59,6 @@ import type { Course } from '../types/course';
 import { useSearchStore } from '../stores/search';
 import { useUiStore } from '../stores/ui';
 import { curriculumApiService } from '../services/curriculumApi';
-import { curriculumsToCourses } from '../services/courseAdapter';
 
 const searchStore = useSearchStore();
 const ui = useUiStore();
@@ -79,6 +78,15 @@ onMounted(async () => {
   await loadCourses();
 });
 
+// 날짜 변환 헬퍼 함수
+function formatDate(date: string | number[]): string {
+  if (Array.isArray(date)) {
+    const [year, month, day] = date;
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  return date;
+}
+
 // 백엔드에서 커리큘럼 데이터 로드
 async function loadCourses() {
   try {
@@ -86,7 +94,28 @@ async function loadCourses() {
     error.value = null;
 
     const curriculums = await curriculumApiService.getPublicCurriculums();
-    courses.value = curriculumsToCourses(curriculums);
+
+    // CurriculumResponse를 Course로 직접 변환 (최소한의 변환만)
+    courses.value = curriculums.map(curriculum => ({
+      id: String(curriculum.id),
+      title: curriculum.title,
+      instructor: curriculum.author?.username || '알 수 없음',
+      category: curriculum.category || '미분류',
+      rating: curriculum.averageRating || 0,
+      studentCount: curriculum.studentCount || 0,
+      reviewsCount: curriculum.reviewsCount || 0,
+      price: 0,
+      tags: curriculum.tags || [],
+      languages: curriculum.languages || [],
+      difficulty: curriculum.difficulty,
+      description: curriculum.description,
+      createdAt: formatDate(curriculum.createdAt),
+      type: 'curriculum' as const,
+      problemsCount: curriculum.totalLectureCount || 0,
+      thumbnail: curriculum.thumbnailImageUrl,
+      totalLectureCount: curriculum.totalLectureCount,
+      thumbnailImageUrl: curriculum.thumbnailImageUrl
+    }));
   } catch (err) {
     console.error('커리큘럼 로드 실패:', err);
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.';

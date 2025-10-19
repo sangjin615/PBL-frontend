@@ -115,6 +115,78 @@
                 </span>
               </div>
             </div>
+
+            <!-- 썸네일 -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
+
+              <!-- 썸네일 미리보기 -->
+              <div v-if="thumbnailPreview" class="mb-3 relative inline-block">
+                <img :src="thumbnailPreview" alt="썸네일 미리보기" class="w-48 h-32 object-cover rounded-lg border border-gray-300" />
+                <button
+                  @click="removeThumbnail"
+                  type="button"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 업로드 영역 -->
+              <div
+                v-show="!thumbnailPreview"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleThumbnailDrop"
+                @click="thumbnailInput?.click()"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400',
+                  isUploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+              >
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">
+                  {{ isUploadingThumbnail ? '업로드 중...' : '이미지를 드래그하거나 클릭하여 업로드' }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (최대 5MB)</p>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleThumbnailSelect"
+                  :disabled="isUploadingThumbnail"
+                />
+              </div>
+            </div>
+
+            <!-- 공개 설정 -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
+              <div class="flex items-center">
+                <button
+                  @click="curriculum.isPublic = !curriculum.isPublic"
+                  type="button"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                    curriculum.isPublic ? 'bg-blue-600' : 'bg-gray-200'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                      curriculum.isPublic ? 'translate-x-6' : 'translate-x-1'
+                    ]"
+                  />
+                </button>
+                <span class="ml-3 text-sm text-gray-600">
+                  {{ curriculum.isPublic ? '공개 (모든 사용자가 볼 수 있음)' : '비공개 (링크를 아는 사용자만 볼 수 있음)' }}
+                </span>
+              </div>
+            </div>
           </div>
 
 
@@ -173,7 +245,23 @@
                         {{ lesson.type === 'markdown' ? '강의' : lesson.type === 'problem' ? '문제' : '비디오' }}
                       </span>
                     </div>
-                    <h4 class="font-medium text-gray-900 text-sm truncate">{{ lesson.title }}</h4>
+                    <h4 class="font-medium text-gray-900 text-sm truncate mb-1">{{ lesson.title }}</h4>
+                    <!-- 태그 표시 -->
+                    <div v-if="lesson.tags && lesson.tags.length > 0" class="flex flex-wrap gap-1">
+                      <span
+                        v-for="(tag, tagIdx) in lesson.tags.slice(0, 3)"
+                        :key="tagIdx"
+                        class="px-1.5 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600"
+                      >
+                        {{ tag }}
+                      </span>
+                      <span
+                        v-if="lesson.tags.length > 3"
+                        class="px-1.5 py-0.5 text-xs text-gray-500"
+                      >
+                        +{{ lesson.tags.length - 3 }}
+                      </span>
+                    </div>
                   </div>
 
                   <!-- 액션 버튼들 -->
@@ -330,9 +418,19 @@
                   </div>
                   <h4 class="font-semibold text-gray-900 mb-1">{{ material.title }}</h4>
                   <p class="text-sm text-gray-600 mb-2">{{ material.description }}</p>
-                  <div class="flex items-center space-x-4 text-xs text-gray-500">
+                  <div class="flex items-center space-x-4 text-xs text-gray-500 mb-2">
                     <span>{{ material.duration }}</span>
                     <span>{{ material.difficulty }}</span>
+                  </div>
+                  <!-- 태그 표시 -->
+                  <div v-if="material.tags && material.tags.length > 0" class="flex flex-wrap gap-1">
+                    <span
+                      v-for="(tag, idx) in material.tags"
+                      :key="idx"
+                      class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600"
+                    >
+                      {{ tag }}
+                    </span>
                   </div>
                 </div>
                 <button
@@ -369,6 +467,7 @@ import { Button, FormInput, FormTextarea, FormSelect, ErrorMessage, SuccessMessa
 import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS, MESSAGES } from '@/constants'
 import { validateTitle, validateDescription, handleApiError } from '@/utils'
 import { getCurrentUserId } from '@/config/api'
+import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import type { Lecture } from '@/types/lecture'
 
 const router = useRouter()
@@ -407,6 +506,9 @@ const curriculum = ref({
   difficulty: '',
   summary: '',
   tags: [] as string[],
+  thumbnailImageUrl: '',
+  durationMinutes: 0,
+  isPublic: true,
   lessons: [] as any[]
 })
 
@@ -415,6 +517,12 @@ const activeTab = ref<'all' | 'my'>('all')
 const tagInput = ref('')
 const searchQuery = ref('')
 const filterType = ref('')
+
+// 썸네일 관련
+const thumbnailPreview = ref<string | null>(null)
+const isUploadingThumbnail = ref(false)
+const isDragging = ref(false)
+const thumbnailInput = ref<HTMLInputElement | null>(null)
 
 // 강의 목록
 const allLectures = ref<any[]>([])  // 모든 공개 강의
@@ -478,14 +586,92 @@ const removeTag = (index: number) => {
   curriculum.value.tags.splice(index, 1)
 }
 
+// 썸네일 업로드
+async function uploadThumbnail(file: File) {
+  // 파일 유효성 검사
+  const validation = S3ApiService.validateImageFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+
+  isUploadingThumbnail.value = true
+  try {
+    // S3에 업로드
+    const response = await s3ApiService.uploadImage(file, 'thumbnails')
+    curriculum.value.thumbnailImageUrl = response.imageUrl
+    thumbnailPreview.value = response.imageUrl
+    console.log('썸네일 업로드 완료:', response.imageUrl)
+  } catch (error) {
+    console.error('썸네일 업로드 실패:', error)
+    alert('썸네일 업로드 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingThumbnail.value = false
+    isDragging.value = false
+  }
+}
+
+// 파일 선택
+function handleThumbnailSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 드래그 앤 드롭
+function handleThumbnailDrop(event: DragEvent) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 썸네일 제거
+function removeThumbnail() {
+  thumbnailPreview.value = null
+  curriculum.value.thumbnailImageUrl = ''
+}
+
 const addToCurriculum = (material: any) => {
   // 이미 추가된 강의물인지 확인
   if (curriculum.value.lessons.some(lesson => lesson.id === material.id)) {
     alert('이미 커리큘럼에 추가된 강의물입니다.')
     return
   }
-  
+
   curriculum.value.lessons.push({ ...material })
+
+  // 강의의 태그를 커리큘럼 태그에 자동 추가 (중복 제거)
+  console.log('추가된 강의:', material)
+  console.log('강의 태그:', material.tags)
+  console.log('현재 커리큘럼 태그:', curriculum.value.tags)
+
+  // 태그 추가 로직
+  const tagsToAdd: string[] = []
+
+  // 1. 강의에 태그가 있으면 추가
+  if (material.tags && material.tags.length > 0) {
+    tagsToAdd.push(...material.tags)
+  } else {
+    // 2. 태그가 없으면 카테고리를 태그로 추가
+    if (material.category && material.category !== '미분류') {
+      tagsToAdd.push(material.category)
+    }
+  }
+
+  // 중복 제거하며 커리큘럼 태그에 추가
+  tagsToAdd.forEach((tag: string) => {
+    if (!curriculum.value.tags.includes(tag)) {
+      curriculum.value.tags.push(tag)
+      console.log('태그 추가됨:', tag)
+    }
+  })
+
+  console.log('업데이트된 커리큘럼 태그:', curriculum.value.tags)
+
   recentlyAddedId.value = material.id
   // 1.2초 후 하이라이트 해제
   window.setTimeout(() => {
@@ -603,6 +789,7 @@ const onDragEndCurriculumItem = () => {
 const loadAllLectures = async () => {
   try {
     const lectures = await curriculumApiService.getPublicLecturesForCurriculum()
+    console.log('로드된 강의 목록:', lectures)
     allLectures.value = lectures.map((lecture: Lecture) => ({
       id: lecture.id,
       title: lecture.title,
@@ -612,8 +799,10 @@ const loadAllLectures = async () => {
       difficulty: lecture.difficulty || '중급',
       duration: lecture.type === 'PROBLEM' ? '15분' : '30분',
       createdDate: formatDate(lecture.createdAt),
-      testCaseCount: lecture.testCaseCount
+      testCaseCount: lecture.testCaseCount,
+      tags: lecture.tags || []
     }))
+    console.log('변환된 강의 목록:', allLectures.value)
   } catch (error) {
     console.error('모든 강의 목록 로드 실패:', error)
     alert('강의 목록을 불러오는데 실패했습니다.')
@@ -639,7 +828,8 @@ const loadMyLectures = async () => {
       difficulty: lecture.difficulty || '중급',
       duration: lecture.type === 'PROBLEM' ? '15분' : '30분',
       createdDate: formatDate(lecture.createdAt),
-      testCaseCount: lecture.testCaseCount
+      testCaseCount: lecture.testCaseCount,
+      tags: lecture.tags || []
     }))
   } catch (error) {
     console.error('내 강의 목록 로드 실패:', error)
@@ -668,7 +858,15 @@ const loadExistingCurriculum = async (curriculumId: number) => {
     curriculum.value.category = data.lectures?.[0]?.lectureCategory?.toLowerCase() || ''
     curriculum.value.difficulty = data.difficulty?.toLowerCase() || ''
     curriculum.value.summary = data.summary || ''
-    curriculum.value.tags = [] // API에 tags가 없으면 빈 배열
+    curriculum.value.tags = data.tags || []
+    curriculum.value.thumbnailImageUrl = data.thumbnailImageUrl || ''
+    curriculum.value.durationMinutes = data.durationMinutes || 0
+    curriculum.value.isPublic = data.isPublic ?? true
+
+    // 썸네일 미리보기 설정
+    if (data.thumbnailImageUrl) {
+      thumbnailPreview.value = data.thumbnailImageUrl
+    }
 
     // 강의 목록 변환
     curriculum.value.lessons = data.lectures.map((lecture: any) => ({
@@ -681,7 +879,8 @@ const loadExistingCurriculum = async (curriculumId: number) => {
       duration: lecture.lectureType === 'PROBLEM' ? '15분' : '30분',
       createdDate: formatDate(lecture.createdAt),
       orderIndex: lecture.orderIndex,
-      isRequired: lecture.isRequired
+      isRequired: lecture.isRequired,
+      tags: lecture.lectureTags || []
     }))
 
     console.log('기존 커리큘럼 로드 완료:', data)
@@ -730,9 +929,12 @@ const saveCurriculum = async () => {
       await curriculumApiService.updateCurriculum(editCurriculumId.value, {
         title: curriculum.value.title,
         description: curriculum.value.description,
-        isPublic: true,
+        isPublic: curriculum.value.isPublic,
         difficulty: curriculum.value.difficulty,
-        summary: curriculum.value.summary
+        summary: curriculum.value.summary,
+        tags: curriculum.value.tags,
+        thumbnailImageUrl: curriculum.value.thumbnailImageUrl,
+        durationMinutes: curriculum.value.durationMinutes
       })
 
       // 기존 강의 제거 후 다시 추가 (순서 변경을 위해)
@@ -744,18 +946,19 @@ const saveCurriculum = async () => {
       const curriculumResponse = await curriculumApiService.createCurriculum({
         title: curriculum.value.title,
         description: curriculum.value.description,
-        isPublic: true,
+        isPublic: curriculum.value.isPublic,
         difficulty: curriculum.value.difficulty,
-        summary: curriculum.value.summary
+        summary: curriculum.value.summary,
+        tags: curriculum.value.tags,
+        thumbnailImageUrl: curriculum.value.thumbnailImageUrl,
+        durationMinutes: curriculum.value.durationMinutes
       })
 
       // 강의 추가
-      for (let i = 0; i < curriculum.value.lessons.length; i++) {
-        const lesson = curriculum.value.lessons[i]
+      for (const lesson of curriculum.value.lessons) {
         await curriculumApiService.addLectureToCurriculum(curriculumResponse.id, {
           lectureId: lesson.id,
-          isRequired: false,
-          order: i + 1
+          isRequired: false
         })
       }
 

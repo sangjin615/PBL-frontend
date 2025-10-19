@@ -91,7 +91,7 @@
                 v-model="courseData.description"
                 rows="4"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="API 연결없음 (선택사항)"
+                placeholder="강의에 대한 간단한 설명을 입력하세요 (선택사항)"
               ></textarea>
             </div>
 
@@ -173,52 +173,29 @@
                 />
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- 마크다운 에디터 탭 -->
-        <div v-if="activeTab === 'content'" class="max-w-6xl">
-          <h2 class="text-xl font-semibold mb-6">강의 내용</h2>
-          
-          <div class="border border-gray-300 rounded-lg overflow-hidden">
-            <MdEditor
-              v-model="courseData.content"
-              :theme="editorTheme"
-              :toolbars="toolbars"
-              :height="600"
-              placeholder="마크다운으로 강의 내용을 작성하세요..."
-              @on-upload-img="onUploadImg"
-            />
-          </div>
-        </div>
-
-        <!-- 설정 탭 -->
-        <div v-if="activeTab === 'settings'" class="max-w-4xl">
-          <h2 class="text-xl font-semibold mb-6">강의 설정</h2>
-          
-          <div class="space-y-6">
             <!-- 공개 설정 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
-              <div class="space-y-2">
-                <label class="flex items-center">
-                  <input 
-                    v-model="courseData.isPublic" 
-                    type="radio" 
-                    :value="true" 
-                    class="mr-2"
+              <div class="flex items-center">
+                <button
+                  @click="courseData.isPublic = !courseData.isPublic"
+                  type="button"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                    courseData.isPublic ? 'bg-blue-600' : 'bg-gray-200'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                      courseData.isPublic ? 'translate-x-6' : 'translate-x-1'
+                    ]"
                   />
-                  공개 (모든 사용자가 볼 수 있음)
-                </label>
-                <label class="flex items-center">
-                  <input 
-                    v-model="courseData.isPublic" 
-                    type="radio" 
-                    :value="false" 
-                    class="mr-2"
-                  />
-                  비공개 (링크를 아는 사용자만 볼 수 있음)
-                </label>
+                </button>
+                <span class="ml-3 text-sm text-gray-600">
+                  {{ courseData.isPublic ? '공개 (모든 사용자가 볼 수 있음)' : '비공개 (링크를 아는 사용자만 볼 수 있음)' }}
+                </span>
               </div>
             </div>
 
@@ -226,13 +203,13 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
               <div class="flex flex-wrap gap-2 mb-2">
-                <span 
-                  v-for="(tag, index) in courseData.tags" 
+                <span
+                  v-for="(tag, index) in courseData.tags"
                   :key="index"
                   class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                 >
                   {{ tag }}
-                  <button 
+                  <button
                     @click="removeTag(index)"
                     class="ml-2 text-blue-600 hover:text-blue-800"
                   >
@@ -241,14 +218,14 @@
                 </span>
               </div>
               <div class="flex space-x-2">
-                <input 
+                <input
                   v-model="newTag"
-                  type="text" 
+                  type="text"
                   placeholder="태그 입력"
                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
                   @keyup.enter="addTag"
                 />
-                <button 
+                <button
                   @click="addTag"
                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
@@ -280,6 +257,22 @@
                 </option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <!-- 마크다운 에디터 탭 -->
+        <div v-if="activeTab === 'content'" class="max-w-6xl">
+          <h2 class="text-xl font-semibold mb-6">강의 내용</h2>
+
+          <div class="border border-gray-300 rounded-lg overflow-hidden">
+            <MdEditor
+              v-model="courseData.content"
+              :theme="editorTheme"
+              :toolbars="toolbars"
+              :height="600"
+              placeholder="마크다운으로 강의 내용을 작성하세요..."
+              @on-upload-img="onUploadImg"
+            />
           </div>
         </div>
       </div>
@@ -318,11 +311,10 @@ const originalIsPublic = ref<boolean>(true)
 // 탭 관리
 const tabs = [
   { id: 'basic', label: '기본 정보' },
-  { id: 'content', label: '강의 내용' },
-  { id: 'settings', label: '설정' }
+  { id: 'content', label: '강의 내용' }
 ]
 
-const activeTab = ref('content')
+const activeTab = ref('basic')
 
 // 강의 데이터
 const courseData = reactive({
@@ -653,14 +645,18 @@ async function publishCourse() {
 
   isPublishing.value = true
   try {
-    // 백엔드 DTO에 맞춰서 description에 마크다운 콘텐츠를 보냄
+    // 백엔드 DTO에 맞춰서 필드 매핑
     const lectureData = {
       title: courseData.title,
-      description: courseData.content,  // 마크다운 콘텐츠를 description으로 보냄
+      description: courseData.description || '',  // 강의 설명 (짧은 요약)
+      content: courseData.content,  // 강의 전체 내용 (마크다운)
       type: LectureType.MARKDOWN,
       category: courseData.category || '기타',
       difficulty: courseData.difficulty || '입문',
-      isPublic: courseData.isPublic
+      isPublic: courseData.isPublic,
+      tags: courseData.tags || [],
+      thumbnailImageUrl: courseData.thumbnailUrl || '',
+      durationMinutes: 30  // TODO: 마크다운 강의 기본 소요시간 (추후 사용자 입력으로 변경 가능)
     }
 
     if (isEditMode.value && editLectureId.value) {
