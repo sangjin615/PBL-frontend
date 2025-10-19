@@ -34,6 +34,7 @@
 
           <!-- 채널 관리 버튼 -->
           <button
+            @click="goToChannelManagement"
             class="px-4 py-2 bg-black text-white rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors"
           >
             <span>채널 관리</span>
@@ -64,7 +65,7 @@
               v-for="tab in tabs"
               :key="tab.id"
               @click="handleTabChange(tab.id)"
-              class="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+              class="py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2"
               :class="
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -72,35 +73,20 @@
               "
             >
               {{ tab.name }}
+              <span 
+                class="px-2 py-1 text-xs rounded-full"
+                :class="
+                  activeTab === tab.id
+                    ? 'bg-blue-100 text-blue-600'
+                    : 'bg-gray-100 text-gray-500'
+                "
+              >
+                {{ getTabCount(tab.id) }}
+              </span>
             </button>
           </div>
 
           <div class="flex items-center space-x-4">
-            <!-- 검색 아이콘 -->
-            <button class="p-2 text-gray-400 hover:text-gray-600">
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </button>
-
-            <!-- 로그아웃 버튼 -->
-            <Button
-              @click="handleLogout"
-              variant="danger"
-              size="sm"
-            >
-              로그아웃
-            </Button>
           </div>
         </div>
       </div>
@@ -109,19 +95,17 @@
     <!-- 정렬 옵션 -->
     <div class="bg-white border-b">
       <div class="px-8 py-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-4">
-            <span class="text-sm text-gray-600">정렬:</span>
-            <select
-              :value="sortBy"
-              @change="handleSortChange"
-              class="text-sm border-0 bg-transparent text-gray-700 focus:ring-0"
-            >
-              <option value="recommended">추천순</option>
-              <option value="recent">최신순</option>
-              <option value="title">제목순</option>
-            </select>
-          </div>
+        <div class="flex items-center space-x-4">
+          <span class="text-sm text-gray-600">정렬:</span>
+          <select
+            :value="sortBy"
+            @change="handleSortChange"
+            class="text-sm border-0 bg-transparent text-gray-700 focus:ring-0"
+          >
+            <option value="recommended">추천순</option>
+            <option value="recent">최신순</option>
+            <option value="title">제목순</option>
+          </select>
         </div>
       </div>
     </div>
@@ -130,7 +114,7 @@
     <div class="px-8 py-8">
       <!-- 로딩 상태 (데이터가 전혀 없을 때만 표시) -->
       <LoadingSpinner
-        v-if="isLoading && displayedItems.length === 0"
+        v-if="isLoading && paginatedItems.length === 0"
         size="lg"
         message="강의 데이터를 불러오는 중..."
       />
@@ -147,7 +131,7 @@
       <!-- 강의 카드 그리드 (항상 표시) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
-          v-for="item in displayedItems"
+          v-for="item in paginatedItems"
           :key="`${item.type}-${item.id}`"
           class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow group"
         >
@@ -327,27 +311,57 @@
         </button>
       </div>
 
-      <!-- 무한 스크롤 로딩 인디케이터 -->
-      <div v-if="isLoadingMore" class="flex justify-center items-center py-8">
-        <div
-          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
-        ></div>
-        <span class="ml-3 text-gray-600">더 많은 강의를 불러오는 중...</span>
-      </div>
-
-      <!-- 모든 아이템을 표시했을 때 메시지 -->
-      <div
-        v-if="!hasMoreItems && displayedItems.length > 8"
-        class="text-center py-8"
-      >
-        <p class="text-gray-500 text-sm">모든 강의를 표시했습니다.</p>
+      <!-- 페이지네이션 -->
+      <div v-if="allSortedItems.length > 0" class="flex justify-center items-center py-8">
+        <div class="flex items-center space-x-4">
+          <span class="text-sm text-gray-600">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, allSortedItems.length) }} / {{ allSortedItems.length }}개
+          </span>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="goToPreviousPage"
+              :disabled="currentPage === 1"
+              class="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            
+            <div class="flex items-center space-x-1">
+              <button
+                v-for="page in visiblePages"
+                :key="page"
+                @click="goToPage(page)"
+                class="px-3 py-1 text-sm rounded-md border"
+                :class="
+                  page === currentPage
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                "
+              >
+                {{ page }}
+              </button>
+            </div>
+            
+            <button
+              @click="goToNextPage"
+              :disabled="currentPage === totalPages"
+              class="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { lectureApiService } from "@/services/lectureApi";
 import { curriculumApiService } from "@/services/curriculumApi";
@@ -361,7 +375,7 @@ import type { Lecture } from "@/types/lecture";
 import type { CurriculumResponse } from "@/types/curriculum";
 
 const router = useRouter();
-const { currentUser, logout } = useAuth();
+const { currentUser } = useAuth();
 
 // 사용자 정보 (동적)
 const userInfo = computed(() => ({
@@ -381,9 +395,9 @@ const activeTab = ref("all");
 const sortBy = ref("recommended");
 const showCreateMenu = ref(false);
 
-// 무한 스크롤 관련 상태
-const displayLimit = ref(8); // 처음에 표시할 아이템 수
-const isLoadingMore = ref(false);
+// 페이지네이션 관련 상태
+const currentPage = ref(1);
+const itemsPerPage = ref(8); // 페이지당 아이템 수
 
 // 발행된 강의 데이터 (localStorage에서 불러옴 - 기존 로직 유지)
 const publishedCourses = ref<DashboardItem[]>([]);
@@ -414,6 +428,7 @@ function loadPublishedCourses() {
     }));
   }
 }
+
 
 // API에서 데이터 로딩
 async function loadApiData() {
@@ -560,27 +575,73 @@ const allSortedItems = computed(() => {
   }
 });
 
-// 현재 표시할 아이템들 (무한 스크롤용)
-const displayedItems = computed(() => {
-  return allSortedItems.value.slice(0, displayLimit.value);
+// 현재 표시할 아이템들 (페이지네이션용)
+const paginatedItems = computed(() => {
+  const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+  const endIndex = startIndex + itemsPerPage.value;
+  return allSortedItems.value.slice(startIndex, endIndex);
 });
 
-// 더 불러올 아이템이 있는지 확인
-const hasMoreItems = computed(() => {
-  return displayLimit.value < allSortedItems.value.length;
+// 총 페이지 수
+const totalPages = computed(() => {
+  return Math.ceil(allSortedItems.value.length / itemsPerPage.value);
 });
 
-// 탭 변경 시 표시 제한 초기화
-function handleTabChange(tabId: string) {
-  activeTab.value = tabId;
-  displayLimit.value = 8; // 표시 제한 초기화
+// 표시할 페이지 번호들 (최대 5개)
+const visiblePages = computed(() => {
+  const pages = [];
+  const start = Math.max(1, currentPage.value - 2);
+  const end = Math.min(totalPages.value, start + 4);
+  
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+});
+
+// 탭별 개수 계산
+function getTabCount(tabId: string) {
+  switch (tabId) {
+    case "curriculum":
+      return curricula.value.length;
+    case "materials":
+      return lectures.value.length + publishedCourses.value.length;
+    case "all":
+    default:
+      return curricula.value.length + lectures.value.length + publishedCourses.value.length;
+  }
 }
 
-// 정렬 변경 시 표시 제한 초기화
+// 탭 변경 시 페이지 초기화
+function handleTabChange(tabId: string) {
+  activeTab.value = tabId;
+  currentPage.value = 1; // 첫 페이지로 이동
+}
+
+// 정렬 변경 시 페이지 초기화
 function handleSortChange(event: Event) {
   const target = event.target as HTMLSelectElement;
   sortBy.value = target.value;
-  displayLimit.value = 8; // 표시 제한 초기화
+  currentPage.value = 1; // 첫 페이지로 이동
+}
+
+// 페이지네이션 함수들
+function goToPage(page: number) {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+}
+
+function goToPreviousPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+}
+
+function goToNextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
 }
 
 // 자세히보기: 학습자 관점으로 이동
@@ -608,43 +669,18 @@ function editItem(item: DashboardItem) {
   }
 }
 
-// 더 많은 아이템 로드 (무한 스크롤)
-function loadMoreItems() {
-  if (isLoadingMore.value || !hasMoreItems.value) return;
-
-  isLoadingMore.value = true;
-
-  // 시뮬레이션을 위한 약간의 지연
-  setTimeout(() => {
-    displayLimit.value += 8; // 8개씩 추가로 표시
-    isLoadingMore.value = false;
-  }, 300);
-}
-
-// 스크롤 이벤트 핸들러
-function handleScroll() {
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  const windowHeight = window.innerHeight;
-  const documentHeight = document.documentElement.scrollHeight;
-
-  // 페이지 하단에서 200px 전에 도달하면 더 로드
-  if (scrollTop + windowHeight >= documentHeight - 200) {
-    loadMoreItems();
-  }
-}
-
 // 새로고침 함수
 async function refreshLectures() {
-  await loadApiData();
-  loadPublishedCourses(); // localStorage 데이터도 다시 로드
-  displayLimit.value = 8; // 표시 제한 초기화
+  await Promise.all([
+    loadApiData(),
+    loadPublishedCourses()
+  ]);
+  currentPage.value = 1; // 첫 페이지로 이동
 }
 
-// 로그아웃 처리
-function handleLogout() {
-  if (confirm(MESSAGES.CONFIRM.LOGOUT)) {
-    logout();
-  }
+// 채널 관리 함수
+function goToChannelManagement() {
+  router.push({ name: "mypage", query: { tab: "channel" } });
 }
 
 // 만들기 메뉴 네비게이션 함수들
@@ -663,20 +699,12 @@ function goToCreateProblem() {
   router.push({ name: "instructor-create-problem" });
 }
 
-// 컴포넌트 마운트 시 데이터 로드 및 스크롤 이벤트 등록
+// 컴포넌트 마운트 시 데이터 로드
 onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
   loadPublishedCourses();
 
   // API에서 강의 및 커리큘럼 데이터 가져오기
   await loadApiData();
-
-  // 무한 스크롤을 위한 스크롤 이벤트 리스너 등록
-  window.addEventListener("scroll", handleScroll);
-});
-
-// 컴포넌트 언마운트 시 스크롤 이벤트 해제
-onUnmounted(() => {
-  window.removeEventListener("scroll", handleScroll);
 });
 </script>

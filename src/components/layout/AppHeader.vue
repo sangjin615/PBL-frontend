@@ -12,7 +12,20 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="relative">
+      <!-- 로그인되지 않은 경우 로그인 버튼 표시 -->
+      <button
+        v-if="!isAuthenticated"
+        @click="goToLogin"
+        class="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+        </svg>
+        <span>로그인</span>
+      </button>
+
+      <!-- 로그인된 경우 만들기 버튼 표시 -->
+      <div v-if="isAuthenticated" class="relative">
         <button
           class="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-white hover:opacity-90 transition-colors"
           @click="toggleCreateMenu"
@@ -70,11 +83,13 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUiStore } from '../../stores/ui';
+import { useAuth } from '../../composables/useAuth';
 import AppSearchBar from '../common/AppSearchBar.vue';
 import CourseTypeModal from '../modal/CourseTypeModal.vue';
 
 const router = useRouter();
 const ui = useUiStore();
+const { isAuthenticated } = useAuth();
 const showCreateMenu = ref(false);
 const showTypeModal = ref(false);
 
@@ -126,6 +141,10 @@ function createCurriculum() {
 function openAiAssistant() {
   showCreateMenu.value = false;
   router.push({ name: 'ai-assistant' });
+}
+
+function goToLogin() {
+  router.push({ name: 'login' });
 }
 
 // 드롭다운 메뉴 외부 클릭 시 닫기
