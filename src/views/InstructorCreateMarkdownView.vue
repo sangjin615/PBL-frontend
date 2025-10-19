@@ -490,11 +490,11 @@ async function loadLectureData() {
     // 원본 공개 상태 저장 (변경사항 감지용)
     originalIsPublic.value = lecture.isPublic ?? true
 
-    // 마크다운 콘텐츠 (백엔드 description 필드에서 가져옴)
-    courseData.content = lecture.description || ''
+    // 마크다운 콘텐츠 (백엔드 content 필드에서 가져옴)
+    courseData.content = lecture.content || lecture.description || ''
 
-    // 강의 설명 필드는 비워둠 (API 연결 없음)
-    courseData.description = ''
+    // 강의 간략 설명 (백엔드 description 필드)
+    courseData.description = lecture.description || ''
 
     console.log('강의 데이터 로드 완료')
   } catch (error) {

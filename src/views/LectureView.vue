@@ -58,65 +58,67 @@
           </div>
           
           <!-- MARKDOWN 타입: 마크다운 뷰어 -->
-          <div v-else-if="lectureType === 'MARKDOWN'" class="markdown-content">
+          <div v-else-if="lecture?.type === 'MARKDOWN'" class="markdown-content">
             <MdPreview
-              :modelValue="markdownContent"
+              :modelValue="lecture.content || lecture.description || '# 강의 내용이 없습니다.'"
               :theme="'light'"
               :editorId="'learning-markdown-preview'"
             />
           </div>
-          
+
           <!-- PROBLEM 타입: 문제 설명 -->
-          <div v-else-if="lectureType === 'PROBLEM'" class="problem-content">
+          <div v-else-if="lecture?.type === 'PROBLEM'" class="problem-content">
             <!-- 문제 제목 -->
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ problemData.title }}</h2>
-            
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ lecture.title }}</h2>
+
             <!-- 문제 제약조건 -->
             <div class="bg-gray-50 rounded-lg p-4 mb-6">
-              <div class="grid grid-cols-3 gap-4 text-sm">
+              <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span class="text-gray-600">시간제한</span>
-                  <p class="font-semibold">{{ problemData.timeLimit }}</p>
+                  <p class="font-semibold">{{ lecture.constraints?.cpu_time_limit || 1 }}초</p>
                 </div>
                 <div>
                   <span class="text-gray-600">메모리 제한</span>
-                  <p class="font-semibold">{{ problemData.memoryLimit }}</p>
-                </div>
-                <div>
-                  <span class="text-gray-600">정답 비율</span>
-                  <p class="font-semibold">{{ problemData.successRate }}</p>
+                  <p class="font-semibold">{{ Math.round((lecture.constraints?.memory_limit || 128000) / 1000) }}MB</p>
                 </div>
               </div>
             </div>
-            
+
             <!-- 문제 설명 -->
             <div class="mb-6">
               <h3 class="text-lg font-semibold mb-3">문제</h3>
-              <p class="text-gray-700 leading-relaxed">{{ problemData.description }}</p>
+              <div class="markdown-preview-container">
+                <MdPreview :model-value="lecture.content || ''" />
+              </div>
             </div>
 
             <!-- 입력 설명 -->
             <div class="mb-6">
               <h3 class="text-lg font-semibold mb-3">입력</h3>
-              <p class="text-gray-700 leading-relaxed">{{ problemData.inputDescription }}</p>
+              <div class="markdown-preview-container">
+                <MdPreview :model-value="lecture.input_content || ''" />
+              </div>
             </div>
 
             <!-- 출력 설명 -->
             <div class="mb-6">
               <h3 class="text-lg font-semibold mb-3">출력</h3>
-              <p class="text-gray-700 leading-relaxed">{{ problemData.outputDescription }}</p>
+              <div class="markdown-preview-container">
+                <MdPreview :model-value="lecture.output_content || ''" />
+              </div>
             </div>
-            
+
             <!-- 테스트케이스 -->
             <div class="mb-6">
               <h3 class="text-lg font-semibold mb-3">테스트 케이스</h3>
-              <div v-if="problemData.testCases.length === 0" class="text-gray-500">
+              <div v-if="!lecture.testCases || lecture.testCases.length === 0" class="text-gray-500">
                 테스트 케이스가 없습니다.
               </div>
               <div v-else class="space-y-4">
-                <div 
-                  v-for="(tc, idx) in problemData.testCases" 
-                  :key="idx" 
+                <div
+                  v-for="(tc, idx) in lecture.testCases"
+                  :key="idx"
                   class="bg-gray-50 rounded-lg p-4"
                 >
                   <div class="flex items-start justify-between mb-2">
@@ -141,7 +143,7 @@
                     </div>
                     <div>
                       <h5 class="font-medium text-gray-700 mb-2">출력</h5>
-                      <pre class="text-sm bg-white p-2 rounded border">{{ tc.output }}</pre>
+                      <pre class="text-sm bg-white p-2 rounded border">{{ tc.expectedOutput }}</pre>
                     </div>
                   </div>
                 </div>
@@ -193,7 +195,7 @@
           <div class="flex space-x-2">
             <!-- MARKDOWN 타입: 코드 실행 버튼 -->
             <button
-              v-if="lectureType === 'MARKDOWN'"
+              v-if="lecture?.type === 'MARKDOWN'"
               @click="runCode"
               :disabled="isRunning"
               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -202,7 +204,7 @@
             </button>
             <!-- PROBLEM 타입: 제출 버튼 -->
             <button
-              v-if="lectureType === 'PROBLEM'"
+              v-if="lecture?.type === 'PROBLEM'"
               @click="submitCode"
               :disabled="isRunning"
               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -273,7 +275,7 @@ import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 import type { MonacoEditorConfig } from '../services/extendedClient';
 import { lectureApiService } from '../services/lectureApi';
-import type { Lecture } from '../types/lecture';
+import type { Lecture, TestCase } from '../types/lecture';
 import { curriculumApiService } from '../services/curriculumApi';
 import { MdPreview } from 'md-editor-v3-ko';
 import 'md-editor-v3-ko/lib/style.css';
@@ -294,19 +296,8 @@ const supportedLanguages = ref<Array<{id: number, name: string, version?: string
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-// 강의 타입별 상태
-const lectureType = ref<'MARKDOWN' | 'PROBLEM'>('MARKDOWN');
-const markdownContent = ref('');
-const problemData = ref({
-  title: '',
-  timeLimit: '1초',
-  memoryLimit: '256MB',
-  successRate: '75.2%',
-  description: '',
-  inputDescription: '',
-  outputDescription: '',
-  testCases: [] as Array<{input: string, output: string}>
-});
+// 강의 데이터 (API에서 직접 로드)
+const lecture = ref<Lecture | null>(null);
 
 // 사용자 임의 입력 실행 기능
 const customInput = ref('');
@@ -322,96 +313,12 @@ const isEditorReady = ref(false);
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
 
-// 강의 데이터
+// 강의 데이터 (헤더에 표시)
 const lessonData = ref({
-  title: 'Introduction To Algorithms - 1강: 정렬 알고리즘',
-  instructor: '김유희',
-  duration: 'API 연결없음(기본값 = "45분")',
-  chapters: [
-    {
-      id: 1,
-      title: '버블 정렬',
-      sections: [
-        {
-          id: 1,
-          title: '버블 정렬이란?',
-          content: '버블 정렬은 인접한 두 원소를 비교하여 정렬하는 간단한 정렬 알고리즘입니다. 가장 큰 원소가 맨 뒤로 "버블"처럼 올라가는 모습에서 이름이 유래되었습니다.',
-          codeExample: {
-            language: 'Python',
-            code: `def bubble_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        for j in range(0, n - i - 1):
-            if arr[j] > arr[j + 1]:
-                arr[j], arr[j + 1] = arr[j + 1], arr[j]
-    return arr
-
-# 예제
-numbers = [64, 34, 25, 12, 22, 11, 90]
-sorted_numbers = bubble_sort(numbers)
-print(sorted_numbers)`
-          },
-          explanation: '이 코드는 배열의 각 원소를 인접한 원소와 비교하여 더 큰 원소를 뒤로 이동시킵니다. 외부 루프는 전체 배열을 한 번씩 순회하고, 내부 루프는 정렬되지 않은 부분만 순회합니다.'
-        },
-        {
-          id: 2,
-          title: '시간 복잡도',
-          content: '버블 정렬의 시간 복잡도는 O(n²)입니다. 최악의 경우 모든 원소를 비교해야 하므로 비효율적입니다.',
-          codeExample: {
-            language: 'Python',
-            code: `# 시간 복잡도 분석
-# 외부 루프: n번 실행
-# 내부 루프: n-1, n-2, ..., 1번 실행
-# 총 비교 횟수: n(n-1)/2 ≈ n²/2
-# 따라서 시간 복잡도: O(n²)`
-          },
-          explanation: '버블 정렬은 간단하지만 효율적이지 않습니다. 대용량 데이터에는 적합하지 않습니다.'
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: '선택 정렬',
-      sections: [
-        {
-          id: 1,
-          title: '선택 정렬이란?',
-          content: '선택 정렬은 배열에서 가장 작은 원소를 찾아 맨 앞으로 이동시키는 정렬 알고리즘입니다.',
-          codeExample: {
-            language: 'Python',
-            code: `def selection_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        min_idx = i
-        for j in range(i + 1, n):
-            if arr[j] < arr[min_idx]:
-                min_idx = j
-        arr[i], arr[min_idx] = arr[min_idx], arr[i]
-    return arr`
-          },
-          explanation: '선택 정렬은 각 단계에서 최솟값을 찾아 정렬된 위치에 배치합니다.'
-        }
-      ]
-    }
-  ]
+  title: '',
+  instructor: '',
+  duration: ''
 });
-
-// Lecture API 응답을 Problem 형식으로 변환하는 어댑터
-function adaptLectureToProblem(lecture: Lecture) {
-  return {
-    title: lecture.title,
-    timeLimit: lecture.timeLimit ? `${lecture.timeLimit}초` : '1초',
-    memoryLimit: lecture.memoryLimit ? `${lecture.memoryLimit}MB` : '256MB',
-    successRate: '75.2%',
-    description: lecture.description || '',
-    inputDescription: '첫째 줄에 입력이 주어진다.',
-    outputDescription: '첫째 줄에 결과를 출력한다.',
-    testCases: lecture.testCases?.map(tc => ({
-      input: tc.input,
-      output: tc.expectedOutput
-    })) || []
-  };
-}
 
 // Lecture API에서 강의 정보 로드
 async function loadLectureData() {
@@ -424,36 +331,17 @@ async function loadLectureData() {
       throw new Error('강의 ID가 없습니다.');
     }
 
-    // Lecture API 호출
-    const lecture: Lecture = await lectureApiService.getLecture(lectureId);
+    // Lecture API 호출 - 직접 lecture ref에 저장
+    lecture.value = await lectureApiService.getLecture(lectureId);
 
-    // 강의 타입 설정
-    lectureType.value = lecture.type;
-
-    if (lecture.type === 'MARKDOWN') {
-      // 마크다운 강의
-      markdownContent.value = lecture.description || '# 강의 내용이 없습니다.\n\n이 강의에는 아직 내용이 추가되지 않았습니다.';
-    } else if (lecture.type === 'PROBLEM') {
-      // 문제 강의
-      problemData.value = adaptLectureToProblem(lecture);
-    }
-
-    // API 데이터를 lessonData에 매핑
-    lessonData.value.title = lecture.title;
-    lessonData.value.instructor = lecture.author?.username || '알 수 없음';
-
-    // 강의 시간은 하드코딩 유지
-    lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
-
+    // 헤더용 lessonData 매핑
+    lessonData.value.title = lecture.value.title;
+    lessonData.value.instructor = lecture.value.author?.username || '알 수 없음';
+    lessonData.value.duration = lecture.value.durationMinutes ? `${lecture.value.durationMinutes}분` : '';
 
   } catch (err) {
     console.error('강의 데이터 로드 실패:', err);
     error.value = '강의 정보를 불러오는 중 오류가 발생했습니다.';
-
-    // 에러 시 기본값 유지
-    lessonData.value.title = 'Introduction To Algorithms - 1강: 정렬 알고리즘';
-    lessonData.value.instructor = '김유희';
-    lessonData.value.duration = 'API 연결없음(기본값 = "45분")';
   } finally {
     loading.value = false;
   }
@@ -583,9 +471,9 @@ async function runCode() {
 }
 
 // 테스트케이스 실행 함수
-async function runTestCase(testCase: {input: string, output: string}) {
+async function runTestCase(testCase: TestCase) {
   const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
-  
+
   if (!currentCode.trim()) {
     executionResult.value = {
       message: '실행할 코드가 없습니다.'
@@ -604,7 +492,7 @@ async function runTestCase(testCase: {input: string, output: string}) {
     });
 
     executionResult.value = result;
-    
+
   } catch (error: any) {
     console.error('테스트케이스 실행 오류:', error);
     executionResult.value = {
