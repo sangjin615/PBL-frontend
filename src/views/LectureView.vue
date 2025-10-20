@@ -294,6 +294,7 @@ const executionResult = ref<SubmissionResult | null>(null);
 const monacoEditorRef = ref<any>(null);
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
+const isSubmitted = ref(false); // 제출 완료 플래그
 
 // API 연결 상태
 const loading = ref(true);
@@ -390,6 +391,13 @@ async function loadNextLecture() {
 
 // 메서드
 function goBack() {
+  // 제출 완료 후에는 경고 없이 이동
+  if (isSubmitted.value) {
+    console.log('제출 완료 상태 - 경고 없이 뒤로 가기');
+    router.back();
+    return;
+  }
+
   const confirmMessage = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.';
   const answer = window.confirm(confirmMessage);
   if (answer) {
@@ -400,6 +408,15 @@ function goBack() {
 // 다음 강의로 이동
 function goToNextLesson() {
   if (nextLesson.value) {
+    // 제출 완료 후에는 경고 없이 이동
+    if (isSubmitted.value) {
+      console.log('제출 완료 상태 - 경고 없이 다음 강의로 이동');
+      const curriculumId = route.query.curriculumId;
+      const url = `/learn/${nextLesson.value.id}${curriculumId ? `?curriculumId=${curriculumId}` : ''}`;
+      window.location.href = url;
+      return;
+    }
+
     const confirmMessage = '다음 강의로 이동하시겠습니까? 현재 강의의 진행 상황이 저장되지 않을 수 있습니다.';
     const answer = window.confirm(confirmMessage);
     if (answer) {
@@ -560,12 +577,15 @@ async function submitCode() {
     console.log('채점 요청:', gradingRequest);
     const result = await gradingAPI.submitForGrading(gradingRequest);
     console.log('채점 응답:', result);
-    
+
+    // 제출 성공 플래그 설정
+    isSubmitted.value = true;
+
     // 제출 성공 메시지 표시
     executionResult.value = {
       message: `제출 완료! 채점 토큰: ${result.token}\n결과 페이지로 이동합니다...`
     };
-    
+
     // 즉시 결과 페이지로 이동
     const routeParams = {
       name: 'problem-result',
@@ -573,7 +593,7 @@ async function submitCode() {
       query: { token: result.token }
     };
     console.log('라우팅 시도:', routeParams);
-    
+
     router.push(routeParams).then(() => {
       console.log('라우팅 성공!');
     }).catch((error) => {
@@ -688,6 +708,13 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 
 // Vue Router navigation guard (페이지 내 라우팅)
 onBeforeRouteLeave((to, from, next) => {
+  // 제출 완료 후에는 경고 없이 이동
+  if (isSubmitted.value) {
+    console.log('제출 완료 상태 - 경고 없이 페이지 이동');
+    next();
+    return;
+  }
+
   const confirmMessage = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.';
   const answer = window.confirm(confirmMessage);
   if (answer) {
