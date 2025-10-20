@@ -89,6 +89,19 @@ class CurriculumApiService {
   }
 
   /**
+   * 공개 커리큘럼 조회 (페이징)
+   * GET /api/curriculums/public?page=0&size=10
+   */
+  async getPublicCurriculumsPaginated(
+    page: number = 0,
+    size: number = 10
+  ): Promise<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }> {
+    return this.request<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }>(
+      `/api/curriculums/public?page=${page}&size=${size}`
+    );
+  }
+
+  /**
    * 커리큘럼 상세 조회
    * GET /api/curriculums/{id}
    */
