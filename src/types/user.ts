@@ -22,10 +22,15 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  id: number;
-  username: string;
-  loginId: string;
-  createdAt: string;
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    username: string;
+    loginId: string;
+    createdAt: number[] | string;
+    updatedAt: number[] | string;
+  };
 }
 
 export interface SignUpResponse {

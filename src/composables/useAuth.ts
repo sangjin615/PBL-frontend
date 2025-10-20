@@ -6,6 +6,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { authConfig } from "@/config/api";
+import type { LoginResponse } from "@/types/user";
 
 // 사용자 정보 타입
 export interface User {
@@ -58,28 +59,54 @@ export function useAuth() {
 
   /**
    * 사용자 로그인
-   * @param loginId 로그인 아이디
-   * @param password 비밀번호
+   * @param loginResponse 서버 로그인 응답 또는 로그인 아이디 (개발용)
+   * @param password 비밀번호 (개발용 - 사용 안 함)
    */
-  async function login(loginId: string, password: string): Promise<boolean> {
+  async function login(loginResponse: LoginResponse | string, password?: string): Promise<boolean> {
     try {
-      // TODO: 실제 로그인 API 호출
-      // const response = await authApi.login(loginId, password);
+      console.log("=== 로그인 함수 호출 ===");
+      console.log("authConfig.enabled:", authConfig.enabled);
+      console.log("loginResponse 타입:", typeof loginResponse);
+      console.log("loginResponse 값:", loginResponse);
 
-      // 임시: 개발용 로그인 처리
-      const user: User = {
-        id: authConfig.defaultUserId,
-        username: "김준성",
-        loginId: loginId,
-        subscribers: "8.71천명",
-      };
+      let user: User;
+
+      // authConfig.enabled가 true면 실제 서버 응답 사용
+      if (authConfig.enabled && typeof loginResponse === 'object') {
+        // 서버 응답이 {success, message, user} 구조인 경우
+        const userData = loginResponse.user || loginResponse;
+
+        user = {
+          id: userData.id,
+          username: userData.username,
+          loginId: userData.loginId,
+          subscribers: "0명", // 기본값
+        };
+        console.log("✅ 프로덕션 모드: 실제 사용자 정보 사용", user);
+      }
+      // authConfig.enabled가 false면 개발용 하드코딩
+      else {
+        const loginId = typeof loginResponse === 'string'
+          ? loginResponse
+          : (loginResponse.user?.loginId || loginResponse.loginId);
+
+        user = {
+          id: authConfig.defaultUserId,
+          username: "김준성",
+          loginId: loginId,
+          subscribers: "8.71천명",
+        };
+        console.log("⚠️ 개발 모드: 하드코딩된 사용자 정보 사용", user);
+      }
 
       currentUserState.value = user;
       localStorage.setItem("user", JSON.stringify(user));
+      console.log("💾 localStorage에 저장:", localStorage.getItem("user"));
+
       // 로그아웃 상태 플래그 제거
       localStorage.removeItem("loggedOut");
 
-      console.log("로그인 성공:", user);
+      console.log("✅ 로그인 성공:", user);
       return true;
     } catch (error) {
       console.error("로그인 실패:", error);

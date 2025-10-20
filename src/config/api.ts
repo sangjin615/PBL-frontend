@@ -4,7 +4,7 @@
  */
 
 const PROTOCOL = 'http://';
-export const URL_PREFIX = '114.201.56.70';
+export const URL_PREFIX = 'localhost';
 export const URL_PORT = 2358;
 
 // 환경변수에서 API URL 가져오기, 없으면 기본값 사용
@@ -39,7 +39,7 @@ export const backendConfig = {
 
 // 인증 설정
 export const authConfig = {
-  enabled: false, // 개발 중에는 false로 설정 (백엔드에서 인증 무시)
+  enabled: true, // 개발 중에는 false로 설정 (백엔드에서 인증 무시)
   headerName: 'X-User-Id',
   defaultUserId: 1 // 개발용 기본 사용자 ID
 };
