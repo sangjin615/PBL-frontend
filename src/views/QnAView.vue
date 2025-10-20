@@ -117,7 +117,7 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ question.date }}
+                {{ question.createdAt }}
               </td>
             </tr>
           </tbody>
@@ -149,6 +149,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { qnaQuestions } from '../mock/qna'
+import type { QnAQuestion } from '../types/qna'
 
 const router = useRouter()
 
@@ -167,129 +169,8 @@ const tabs = ref([
 
 const activeTab = ref('all')
 
-// 질문 데이터
-const questions = ref([
-  {
-    id: 1,
-    status: 'unresolved',
-    title: '준성이는 대학원에 가고싶다',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 2,
-    status: 'resolved',
-    title: '엄마 난 커서 교수님이 될래요!',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 3,
-    status: 'resolved',
-    title: '오류좀 고쳐주세요',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 4,
-    status: 'resolved',
-    title: '이거 어떻게 해야하나요?',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 5,
-    status: 'resolved',
-    title: '도와주세요 ㅠㅠ',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 6,
-    status: 'resolved',
-    title: '이 코드가 왜 안될까요?',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 7,
-    status: 'resolved',
-    title: 'Spring Boot 설정 관련 질문',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 8,
-    status: 'resolved',
-    title: '데이터베이스 연결 오류',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 9,
-    status: 'resolved',
-    title: 'JPA 사용법 문의',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  },
-  {
-    id: 10,
-    status: 'resolved',
-    title: 'REST API 설계 질문',
-    category: '질문',
-    course: '자바스프링',
-    language: 'Java',
-    author: '김준성 사용자',
-    comments: 1,
-    likes: 5,
-    date: '2달전'
-  }
-])
+// 질문 데이터 (새로운 더미데이터 사용)
+const questions = ref<QnAQuestion[]>(qnaQuestions)
 
 // 페이지네이션
 const pages = ref([1, 2, 3, 4, 5, '...', 11])

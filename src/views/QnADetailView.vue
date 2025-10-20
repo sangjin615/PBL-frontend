@@ -17,22 +17,23 @@
             </svg>
           </div>
           <div>
-            <p class="font-medium text-gray-900">김준성 사용자</p>
+            <p class="font-medium text-gray-900">{{ currentQuestion?.author || '로딩 중...' }}</p>
           </div>
         </div>
-        <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
-          </svg>
-          <span class="text-sm">신고하기</span>
+        <button 
+          v-if="currentQuestion"
+          @click="() => alert('게시글 신고: ' + currentQuestion.title)"
+          class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+        >
+          🚨 신고
         </button>
       </div>
 
       <!-- 질문 제목 -->
-      <h2 class="text-xl font-bold text-gray-900 mb-3">오류좀 고쳐주세요</h2>
+      <h2 class="text-xl font-bold text-gray-900 mb-3">{{ currentQuestion?.title || '로딩 중...' }}</h2>
       
       <!-- 질문 내용 -->
-      <p class="text-gray-700 mb-4">이 문제 못풀면 저 잠 못자요 제발요</p>
+      <p class="text-gray-700 mb-4">{{ currentQuestion?.content || '로딩 중...' }}</p>
 
       <!-- 질문 반응 및 시간 -->
       <div class="flex items-center justify-between">
@@ -56,8 +57,14 @@
 
     <!-- 댓글/답변 영역 -->
     <div class="space-y-4 mb-6">
-      <!-- 첫 번째 댓글 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <!-- 댓글 목록 -->
+      <div 
+        v-for="comment in currentQuestion?.commentsList || []" 
+        :key="comment.id"
+        :class="[
+          'bg-white rounded-lg shadow-sm border border-gray-200 p-4'
+        ]"
+      >
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-3">
             <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
@@ -66,62 +73,33 @@
               </svg>
             </div>
             <div>
-              <p class="font-medium text-gray-900">임상진 사용자</p>
+              <p class="font-medium text-gray-900">{{ comment.author }}</p>
             </div>
           </div>
-          <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
-            </svg>
-            <span class="text-sm">신고하기</span>
+          <button 
+            @click="() => alert('댓글 신고: ' + comment.content)"
+            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+          >
+            🚨 신고
           </button>
         </div>
         
-        <p class="text-gray-700 mb-3">아 그거 그렇게 하는거 아님</p>
+        <p class="text-gray-700 mb-3">{{ comment.content }}</p>
         
         <div class="flex items-center justify-between">
           <button class="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"></path>
             </svg>
-            <span class="text-sm">2</span>
+            <span class="text-sm">{{ comment.likes }}</span>
           </button>
-          <span class="text-sm text-gray-500">12분 전</span>
+          <span class="text-sm text-gray-500">{{ comment.createdAt }}</span>
         </div>
       </div>
-
-      <!-- 두 번째 댓글 (답글) -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 ml-8">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-              <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-              </svg>
-            </div>
-            <div>
-              <p class="font-medium text-gray-900">김준성 사용자</p>
-            </div>
-          </div>
-          <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
-            </svg>
-            <span class="text-sm">신고하기</span>
-          </button>
-        </div>
-        
-        <p class="text-gray-700 mb-3">그래서 어떻게 하는 건데요;;</p>
-        
-        <div class="flex items-center justify-between">
-          <button class="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"></path>
-            </svg>
-            <span class="text-sm">0</span>
-          </button>
-          <span class="text-sm text-gray-500">10분 전</span>
-        </div>
+      
+      <!-- 댓글이 없을 때 -->
+      <div v-if="!currentQuestion?.commentsList?.length" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center text-gray-500">
+        아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
       </div>
     </div>
 
@@ -157,11 +135,37 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { qnaQuestions } from '../mock/qna'
+import type { QnAQuestion } from '../types/qna'
 
 const router = useRouter()
+const route = useRoute()
+
+// 현재 질문 데이터
+const currentQuestion = ref<QnAQuestion | null>(null)
+
+// 질문 ID 가져오기
+const questionId = computed(() => Number(route.params.id))
+
+// 질문 데이터 로드
+onMounted(() => {
+  const question = qnaQuestions.find(q => q.id === questionId.value)
+  if (question) {
+    currentQuestion.value = question
+  } else {
+    // 질문을 찾을 수 없으면 목록으로 이동
+    router.push('/qna')
+  }
+})
 
 function goBackToList() {
   router.push('/qna')
+}
+
+// 신고 완료 처리
+function handleReported() {
+  console.log('게시글/댓글 신고가 접수되었습니다.');
 }
 </script>

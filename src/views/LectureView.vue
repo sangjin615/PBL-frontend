@@ -21,6 +21,15 @@
         </div>
         
         <div class="flex items-center space-x-4">
+          <!-- 신고 버튼 -->
+          <button 
+            v-if="lecture"
+            @click="() => alert('강의 신고: ' + lecture.title)"
+            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+          >
+            🚨 신고
+          </button>
+          
           <div class="text-sm text-gray-600">
             진행률: {{ progress }}%
           </div>

@@ -9,11 +9,20 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
           </button>
-          <div>
-            <h1 class="text-xl font-bold" style="color: rgb(var(--figma-color-2))">
-              {{ lessonData.title }}
-            </h1>
-            <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
+          <div class="flex items-center space-x-4">
+            <div>
+              <h1 class="text-xl font-bold" style="color: rgb(var(--figma-color-2))">
+                {{ lessonData.title }}
+              </h1>
+              <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
+            </div>
+            <!-- 신고 버튼 -->
+            <button 
+              @click="() => alert('강의 신고: ' + lessonData.title)"
+              class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+            >
+              🚨 신고
+            </button>
           </div>
         </div>
         
@@ -194,7 +203,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
-import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
+import { Button, LoadingSpinner, ErrorMessage, ReportButton } from '@/components/common';
 import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 import type { MonacoEditorConfig } from '../services/extendedClient';
@@ -210,6 +219,14 @@ const monacoEditorRef = ref<any>(null);
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
 const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
 const currentChapter = ref<{id: number, title: string, sections: Array<{id: number, title: string, content: string, codeExample?: {language: string, code: string}, explanation?: string}>}>({} as any);
+
+// 강의 데이터 (하드코딩) - 실제 사용되는 데이터
+const lessonData = ref({
+  id: 1,
+  title: '알고리즘이란?',
+  instructor: '김유희',
+  duration: '30분'
+});
 
 // Monaco Editor 통합 설정
 const editorConfig = ref<MonacoEditorConfig>(
@@ -303,6 +320,11 @@ function goToNextLesson() {
   if (nextLesson.value) {
     router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
   }
+}
+
+// 신고 완료 처리
+function handleReported() {
+  console.log('강의 신고가 접수되었습니다.');
 }
 
 function copyCode(codeText: string) {

@@ -11,3 +11,4 @@ export { default as FormInput } from './FormInput.vue';
 export { default as FormSelect } from './FormSelect.vue';
 export { default as FormTextarea } from './FormTextarea.vue';
 export { default as Button } from './Button.vue';
+export { default as ReportButton } from './ReportButton.vue';

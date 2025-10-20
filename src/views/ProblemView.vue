@@ -15,6 +15,14 @@
           </div>
         </div>
         <div class="flex items-center space-x-4">
+          <!-- 신고 버튼 -->
+          <button 
+            @click="() => alert('문제 신고: ' + problem.title)"
+            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+          >
+            🚨 신고
+          </button>
+          
           <!-- 다음 강의 버튼 -->
           <Button 
             v-if="nextLesson"
@@ -214,7 +222,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '../components/editor/MonacoEditor.vue'
-import { Button, LoadingSpinner, ErrorMessage } from '@/components/common'
+import { Button, LoadingSpinner, ErrorMessage, ReportButton } from '@/components/common'
 import { languageApiService } from '../services/languageApi'
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI'
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI'
@@ -409,6 +417,11 @@ const goBack = (): void => {
 const goToNextLesson = (): void => {
   if (!nextLesson.value) return;
   router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
+};
+
+// 신고 완료 처리
+const handleReported = (): void => {
+  console.log('문제 신고가 접수되었습니다.');
 };
 
 // API에서 지원하는 언어 목록을 가져오는 함수

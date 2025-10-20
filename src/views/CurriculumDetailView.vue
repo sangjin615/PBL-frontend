@@ -26,6 +26,13 @@
             <button class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors" style="background-color: rgb(var(--figma-color-6))">
               채널 관리
             </button>
+            <button 
+              v-if="curriculum"
+              @click="() => alert('커리큘럼 신고: ' + curriculum.title)"
+              class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+            >
+              🚨 신고
+            </button>
           </div>
         </div>
       </div>
@@ -211,6 +218,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { curriculumApiService } from '@/services/curriculumApi';
 import { enrollmentApiService } from '@/services/enrollmentApi';
+import { ReportButton } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
 
 const route = useRoute();
@@ -298,6 +306,11 @@ function goToLecture(lectureId: number) {
     params: { lectureId },
     query: { curriculumId }
   });
+}
+
+// 신고 완료 처리
+function handleReported() {
+  console.log('커리큘럼 신고가 접수되었습니다.');
 }
 
 onMounted(() => {
