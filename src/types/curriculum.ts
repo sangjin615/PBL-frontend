@@ -133,3 +133,14 @@ export interface ReorderLecturesRequest {
  * 커리큘럼 강의 응답 (다른 컴포넌트에서 사용하는 타입 alias)
  */
 export type CurriculumLectureResponse = CurriculumLecture;
+
+/**
+ * 커리큘럼 네비게이션 응답 (이전/다음 강의)
+ * GET /api/curriculums/{curriculumId}/lectures/{lectureId}/navigation
+ */
+export interface CurriculumNavigationResponse {
+  curriculumId: number;
+  currentLectureId: number;
+  nextLectureId: number | null;  // null: 마지막 강의
+  preLectureId: number | null;   // null: 첫 번째 강의
+}

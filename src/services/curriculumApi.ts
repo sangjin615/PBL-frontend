@@ -10,6 +10,7 @@ import type {
   UpdateCurriculumRequest,
   AddLectureRequest,
   ReorderLecturesRequest,
+  CurriculumNavigationResponse,
 } from "@/types/curriculum";
 import type { Lecture, LectureType } from "@/types/lecture";
 import { apiConfig, getCurrentUserId } from "@/config/api";
@@ -299,6 +300,21 @@ class CurriculumApiService {
       : "/api/curriculums/lectures/public/search";
 
     return this.request<Lecture[]>(endpoint);
+  }
+
+  // === 커리큘럼 네비게이션 API ===
+
+  /**
+   * 커리큘럼 네비게이션 정보 조회 (이전/다음 강의)
+   * GET /api/curriculums/{curriculumId}/lectures/{lectureId}/navigation
+   */
+  async getNavigationInfo(
+    curriculumId: number,
+    lectureId: number
+  ): Promise<CurriculumNavigationResponse> {
+    return this.request<CurriculumNavigationResponse>(
+      `/api/curriculums/${curriculumId}/lectures/${lectureId}/navigation`
+    );
   }
 }
 

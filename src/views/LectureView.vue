@@ -288,6 +288,7 @@ import type { MonacoEditorConfig } from '../services/extendedClient';
 import { lectureApiService } from '../services/lectureApi';
 import type { Lecture, TestCase } from '../types/lecture';
 import { curriculumApiService } from '../services/curriculumApi';
+import type { CurriculumNavigationResponse } from '@/types/curriculum';
 import { MdPreview } from 'md-editor-v3-ko';
 import 'md-editor-v3-ko/lib/style.css';
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI';
@@ -324,7 +325,7 @@ const editorConfig = ref<MonacoEditorConfig>(
 const isEditorReady = ref(false);
 
 // 다음 강의 정보
-const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
+const nextLesson = ref<{id: number} | null>(null);
 
 // lessonData 제거 - lecture를 직접 사용
 
@@ -350,7 +351,7 @@ async function loadLectureData() {
   }
 }
 
-// 다음 강의 정보 로드
+// 다음 강의 정보 로드 (새 네비게이션 API 사용)
 async function loadNextLecture() {
   try {
     const currentLectureId = Number(route.params.lectureId);
@@ -361,32 +362,13 @@ async function loadNextLecture() {
       return;
     }
 
-    // 커리큘럼 상세 정보 가져오기 (강의 목록 포함)
-    const curriculum = await curriculumApiService.getCurriculumById(curriculumId);
+    // 새로운 네비게이션 API 호출
+    const nav = await curriculumApiService.getNavigationInfo(curriculumId, currentLectureId);
 
-    if (!curriculum.lectures || curriculum.lectures.length === 0) {
-      nextLesson.value = null;
-      return;
-    }
-
-    // orderIndex로 정렬
-    const sortedLectures = [...curriculum.lectures].sort((a, b) => a.orderIndex - b.orderIndex);
-
-    // 현재 강의의 인덱스 찾기 (URL의 lectureId는 실제로는 CurriculumLecture.id)
-    const currentIndex = sortedLectures.findIndex(lecture => lecture.id === currentLectureId);
-
-    if (currentIndex === -1) {
-      nextLesson.value = null;
-      return;
-    }
-
-    // 다음 강의 찾기
-    if (currentIndex < sortedLectures.length - 1) {
-      const nextLecture = sortedLectures[currentIndex + 1];
+    // 다음 강의 ID만 저장
+    if (nav.nextLectureId) {
       nextLesson.value = {
-        id: nextLecture.id,
-        title: nextLecture.lectureTitle,
-        format: nextLecture.lectureType === 'MARKDOWN' ? '마크다운' : '문제'
+        id: nav.nextLectureId
       };
     } else {
       nextLesson.value = null;
@@ -576,7 +558,8 @@ async function submitCode() {
 
   try {
     const lectureId = Number(route.params.lectureId);
-    
+    const curriculumId = route.query.curriculumId as string | undefined;
+
     const gradingRequest: GradingRequest = {
       source_code: currentCode,
       language_id: selectedLanguage.value,
@@ -595,11 +578,14 @@ async function submitCode() {
       message: `제출 완료! 채점 토큰: ${result.token}\n결과 페이지로 이동합니다...`
     };
 
-    // 즉시 결과 페이지로 이동
+    // 즉시 결과 페이지로 이동 (토큰 + curriculumId 포함)
     const routeParams = {
       name: 'problem-result',
       params: { problemId: lectureId.toString() },
-      query: { token: result.token }
+      query: {
+        token: result.token,
+        ...(curriculumId && { curriculumId })
+      }
     };
     console.log('라우팅 시도:', routeParams);
 

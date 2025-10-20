@@ -163,21 +163,32 @@
 
         <!-- 액션 버튼들 -->
         <div v-if="!isGrading" class="flex justify-center space-x-4">
-          <Button 
+          <Button
             @click="tryAgain"
             variant="primary"
             size="lg"
           >
             돌아가기
           </Button>
-          <Button 
+          <Button
+            @click="goPrevious"
+            variant="ghost"
+            size="lg"
+            :disabled="!preLectureId"
+            :class="{ 'opacity-50 cursor-not-allowed': !preLectureId }"
+          >
+            ← 이전 강의
+          </Button>
+          <Button
             @click="goNext"
             variant="ghost"
             size="lg"
+            :disabled="!nextLectureId"
+            :class="{ 'opacity-50 cursor-not-allowed': !nextLectureId }"
           >
-            넘어가기
+            다음 강의 →
           </Button>
-          <Button 
+          <Button
             @click="toggleExplanation"
             variant="ghost"
             size="lg"
@@ -245,6 +256,8 @@ import { languageApiService } from '../services/languageApi'
 import { gradingAPI, type GradingResponse } from '../services/gradingAPI'
 import type { MonacoEditorConfig } from '../services/extendedClient'
 import { aiAssistantAPI } from '../services/aiAssistantAPI'
+import curriculumApiService from '@/services/curriculumApi'
+import type { CurriculumNavigationResponse } from '@/types/curriculum'
 import { MdPreview } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 
@@ -254,6 +267,9 @@ const router = useRouter()
 // 소스코드 및 언어 정보
 const languageId = ref(71) // 기본값 Python
 const token = ref('')
+const curriculumId = ref<string | null>(null) // 커리큘럼 ID
+const preLectureId = ref<number | null>(null) // 이전 강의 ID
+const nextLectureId = ref<number | null>(null) // 다음 강의 ID
 const monacoEditorRef = ref<any>(null)
 
 // Monaco Editor 통합 설정
@@ -313,19 +329,57 @@ const flushExplanationBuffer = (): void => {
   }
 }
 
+// 네비게이션 정보 가져오기
+async function fetchNavigationInfo(curriculumId: number, lectureId: number) {
+  try {
+    const nav = await curriculumApiService.getNavigationInfo(curriculumId, lectureId);
+    preLectureId.value = nav.preLectureId;
+    nextLectureId.value = nav.nextLectureId;
+    console.log('네비게이션 정보:', nav);
+  } catch (error) {
+    console.error('네비게이션 정보 조회 실패:', error);
+  }
+}
+
 // 네비게이션 함수들
 const tryAgain = (): void => {
-  // 현재 토큰을 쿼리 파라미터로 전달
+  // 현재 토큰을 쿼리 파라미터로 전달하여 LectureView로 돌아가기
   const currentToken = token.value;
-  router.push({ 
-    name: 'problem', 
-    params: { problemId: route.params.problemId },
+  const lectureId = route.params.problemId;  // problemId가 실제로는 lectureId
+
+  router.push({
+    name: 'lecture',  // 'lecture' 라우트 사용
+    params: { lectureId },
     query: currentToken ? { token: currentToken } : {}
   });
 };
 
+// 이전 강의로 이동
+const goPrevious = (): void => {
+  if (preLectureId.value && curriculumId.value) {
+    router.push({
+      name: 'lecture',
+      params: { lectureId: preLectureId.value },
+      query: { curriculumId: curriculumId.value }
+    });
+  }
+};
+
+// 다음 강의로 이동
 const goNext = (): void => {
-  router.push({ name: 'curriculum-detail', params: { id: 'course_1' } });
+  if (nextLectureId.value && curriculumId.value) {
+    router.push({
+      name: 'lecture',
+      params: { lectureId: nextLectureId.value },
+      query: { curriculumId: curriculumId.value }
+    });
+  } else if (curriculumId.value) {
+    // 마지막 강의인 경우 커리큘럼 상세 페이지로
+    router.push({
+      name: 'curriculum-detail',
+      params: { id: curriculumId.value }
+    });
+  }
 };
 
 const goToNextLesson = (): void => {
@@ -748,7 +802,21 @@ const displayFinalResult = (result: any): void => {
 // 컴포넌트 마운트 - 데이터 준비 후 에디터 렌더링
 onMounted(async () => {
   const tokenParam = route.query.token as string;
+  const curriculumIdParam = route.query.curriculumId as string | undefined;
+
   console.log('ProblemResultView onMounted - 토큰:', tokenParam);
+  console.log('ProblemResultView onMounted - 커리큘럼 ID:', curriculumIdParam);
+
+  // curriculumId 저장
+  if (curriculumIdParam) {
+    curriculumId.value = curriculumIdParam;
+  }
+
+  // 네비게이션 정보 가져오기 (커리큘럼 ID가 있을 때만)
+  if (curriculumIdParam) {
+    const lectureId = Number(route.params.problemId);
+    await fetchNavigationInfo(Number(curriculumIdParam), lectureId);
+  }
 
   if (tokenParam) {
     try {
