@@ -13,6 +13,7 @@ import type {
   CurriculumNavigationResponse,
 } from "@/types/curriculum";
 import type { Lecture, LectureType } from "@/types/lecture";
+import type { PaginationMeta } from './lectureApi';
 import { apiConfig, getCurrentUserId } from "@/config/api";
 
 class CurriculumApiService {
@@ -250,8 +251,14 @@ class CurriculumApiService {
    * 사용자별 커리큘럼 목록 조회
    * GET /api/curriculums/user/{userId}
    */
-  async getUserCurriculums(userId: number): Promise<CurriculumResponse[]> {
-    return this.request<CurriculumResponse[]>(`/api/curriculums/user/${userId}`);
+  async getUserCurriculums(
+    userId: number,
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedCurriculumResponse> {
+    return this.request<PaginatedCurriculumResponse>(
+      `/api/curriculums/user/${userId}?page=${page}&size=${size}`
+    );
   }
 
   /**
@@ -259,10 +266,12 @@ class CurriculumApiService {
    * GET /api/curriculums/user/{userId}/public
    */
   async getUserPublicCurriculums(
-    userId: number
-  ): Promise<CurriculumResponse[]> {
-    return this.request<CurriculumResponse[]>(
-      `/api/curriculums/user/${userId}/public`
+    userId: number,
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedCurriculumResponse> {
+    return this.request<PaginatedCurriculumResponse>(
+      `/api/curriculums/user/${userId}/public?page=${page}&size=${size}`
     );
   }
 
@@ -318,6 +327,11 @@ class CurriculumApiService {
   }
 }
 
-// 싱글톤 인스턴스 생성 및 내보내기
+// === 페이징 응답 타입 정의 ===
+export interface PaginatedCurriculumResponse {
+  curriculums: CurriculumResponse[];
+  meta: PaginationMeta;
+}
+
 export const curriculumApiService = new CurriculumApiService();
 export default curriculumApiService;

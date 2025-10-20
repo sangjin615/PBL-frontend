@@ -194,7 +194,7 @@ import { useRouter } from 'vue-router';
 import { enrollmentApiService } from '@/services/enrollmentApi';
 import type { EnrollmentResponse } from '@/types/enrollment';
 import { EnrollmentStatus } from '@/types/enrollment';
-import { apiConfig } from '@/config/api';
+import { getCurrentUserId } from '@/config/api';
 
 const router = useRouter();
 
@@ -277,7 +277,12 @@ function goMySubmissions() {
 const loadEnrollments = async () => {
   isLoading.value = true;
   try {
-    const userId = apiConfig.auth.defaultUserId;
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.error('사용자 ID를 찾을 수 없습니다. 로그인이 필요합니다.');
+      isLoading.value = false;
+      return;
+    }
     const enrollments = await enrollmentApiService.getUserEnrollments(userId);
 
     // Enrollment 데이터를 UI에 맞게 변환

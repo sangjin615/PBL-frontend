@@ -31,14 +31,14 @@ class LectureApiService {
     const url = `${this.baseURL}${endpoint}`;
 
     const currentUserId = getCurrentUserId();
-    const headers: Record<string, string> = {
+    const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
-    
+
     // 사용자 ID가 있을 때만 헤더에 추가
     if (currentUserId !== null) {
-      headers['X-User-Id'] = String(currentUserId);
+      (headers as Record<string, string>)['X-User-Id'] = String(currentUserId);
     }
 
     const config: RequestInit = {
@@ -269,11 +269,16 @@ class LectureApiService {
   }
 
   /**
-   * 공개 강의 조회
+   * 공개 강의 조회 (페이징)
    * GET /api/lectures/public
    */
-  async getPublicLectures(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/api/lectures/public");
+  async getPublicLectures(
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedLectureResponse> {
+    return this.request<PaginatedLectureResponse>(
+      `/api/lectures/public?page=${page}&size=${size}`
+    );
   }
 
   /**
@@ -308,17 +313,44 @@ class LectureApiService {
    * 사용자별 강의 목록 조회
    * GET /api/lectures/user/{userId}
    */
-  async getUserLectures(userId: number): Promise<Lecture[]> {
-    return this.request<Lecture[]>(`/api/lectures/user/${userId}`);
+  async getUserLectures(
+    userId: number,
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedLectureResponse> {
+    return this.request<PaginatedLectureResponse>(
+      `/api/lectures/user/${userId}?page=${page}&size=${size}`
+    );
   }
 
   /**
    * 사용자별 공개 강의 목록 조회
    * GET /api/lectures/user/{userId}/public
    */
-  async getUserPublicLectures(userId: number): Promise<Lecture[]> {
-    return this.request<Lecture[]>(`/api/lectures/user/${userId}/public`);
+  async getUserPublicLectures(
+    userId: number,
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedLectureResponse> {
+    return this.request<PaginatedLectureResponse>(
+      `/api/lectures/user/${userId}/public?page=${page}&size=${size}`
+    );
   }
+}
+
+// === 페이징 응답 타입 정의 ===
+export interface PaginationMeta {
+  current_page: number;
+  next_page: number | null;
+  prev_page: number | null;
+  total_pages: number;
+  total_count: number;
+  per_page: number;
+}
+
+export interface PaginatedLectureResponse {
+  lectures: Lecture[];
+  meta: PaginationMeta;
 }
 
 // 싱글톤 인스턴스 생성 및 내보내기

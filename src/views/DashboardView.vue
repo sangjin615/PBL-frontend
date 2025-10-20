@@ -125,7 +125,7 @@
         title="API 연결 문제"
         :message="error"
         :show-retry="true"
-        @retry="loadApiData"
+        @retry="() => loadPage(currentPage)"
       />
 
       <!-- 강의 카드 그리드 (항상 표시) -->
@@ -397,7 +397,7 @@ const showCreateMenu = ref(false);
 
 // 페이지네이션 관련 상태
 const currentPage = ref(1);
-const itemsPerPage = ref(8); // 페이지당 아이템 수
+const itemsPerPage = ref(10); // 페이지당 아이템 수
 
 // 발행된 강의 데이터 (localStorage에서 불러옴 - 기존 로직 유지)
 const publishedCourses = ref<DashboardItem[]>([]);
@@ -407,6 +407,25 @@ const lectures = ref<Lecture[]>([]);
 const curricula = ref<CurriculumResponse[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+// 페이징 메타 정보
+const lectureMeta = ref({
+  current_page: 1,
+  total_pages: 0,
+  total_count: 0,
+  per_page: 10,
+  next_page: null as number | null,
+  prev_page: null as number | null
+});
+
+const curriculumMeta = ref({
+  current_page: 1,
+  total_pages: 0,
+  total_count: 0,
+  per_page: 10,
+  next_page: null as number | null,
+  prev_page: null as number | null
+});
 
 // localStorage에서 발행된 강의 불러오기 (기존 로직 유지)
 function loadPublishedCourses() {
@@ -430,24 +449,60 @@ function loadPublishedCourses() {
 }
 
 
-// API에서 데이터 로딩
-async function loadApiData() {
+// API에서 데이터 로딩 (특정 페이지, 탭에 따라)
+async function loadPage(page: number) {
   if (!currentUser.value?.id) return;
-  
+
   isLoading.value = true;
   error.value = null;
-  
+
   try {
-    // 사용자별 강의와 커리큘럼 조회
-    const [userLectures, userCurricula] = await Promise.all([
-      lectureApiService.getUserLectures(currentUser.value.id),
-      curriculumApiService.getUserCurriculums(currentUser.value.id)
-    ]);
-    
-    lectures.value = userLectures;
-    curricula.value = userCurricula;
-    
-    console.log('API 데이터 로딩 완료:', { lectures: userLectures.length, curricula: userCurricula.length });
+    // 페이지는 0부터 시작 (백엔드)
+    const backendPage = page - 1;
+
+    // 탭에 따라 필요한 데이터만 가져오기
+    if (activeTab.value === 'curriculum') {
+      // 커리큘럼 탭: 커리큘럼만 가져오기
+      const curriculumResponse = await curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 10);
+      curricula.value = curriculumResponse.curriculums;
+      curriculumMeta.value = curriculumResponse.meta;
+
+      console.log('커리큘럼 데이터 로딩 완료:', {
+        page: page,
+        curricula: curriculumResponse.curriculums.length,
+        meta: curriculumResponse.meta
+      });
+    } else if (activeTab.value === 'materials') {
+      // 강의물 탭: 강의만 가져오기
+      const lectureResponse = await lectureApiService.getUserLectures(currentUser.value.id, backendPage, 10);
+      lectures.value = lectureResponse.lectures;
+      lectureMeta.value = lectureResponse.meta;
+
+      console.log('강의 데이터 로딩 완료:', {
+        page: page,
+        lectures: lectureResponse.lectures.length,
+        meta: lectureResponse.meta
+      });
+    } else {
+      // 전체 탭: 강의와 커리큘럼 둘 다 가져오기
+      const [lectureResponse, curriculumResponse] = await Promise.all([
+        lectureApiService.getUserLectures(currentUser.value.id, backendPage, 10),
+        curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 10)
+      ]);
+
+      lectures.value = lectureResponse.lectures;
+      curricula.value = curriculumResponse.curriculums;
+      lectureMeta.value = lectureResponse.meta;
+      curriculumMeta.value = curriculumResponse.meta;
+
+      console.log('전체 데이터 로딩 완료:', {
+        page: page,
+        lectures: lectureResponse.lectures.length,
+        curricula: curriculumResponse.curriculums.length,
+        lectureMeta: lectureResponse.meta,
+        curriculumMeta: curriculumResponse.meta
+      });
+    }
   } catch (err) {
     console.error('API 데이터 로딩 실패:', err);
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
@@ -575,24 +630,34 @@ const allSortedItems = computed(() => {
   }
 });
 
-// 현재 표시할 아이템들 (페이지네이션용)
+// 현재 표시할 아이템들 (백엔드에서 받은 데이터를 그대로 표시)
 const paginatedItems = computed(() => {
-  const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-  const endIndex = startIndex + itemsPerPage.value;
-  return allSortedItems.value.slice(startIndex, endIndex);
+  return allSortedItems.value;
 });
 
-// 총 페이지 수
+// 총 페이지 수 (백엔드 메타 정보 사용)
 const totalPages = computed(() => {
-  return Math.ceil(allSortedItems.value.length / itemsPerPage.value);
+  // 탭에 따라 다른 메타 정보 사용
+  if (activeTab.value === 'curriculum') {
+    return curriculumMeta.value.total_pages;
+  } else if (activeTab.value === 'materials') {
+    return lectureMeta.value.total_pages;
+  } else {
+    // 'all' 탭: 강의와 커리큘럼 중 더 큰 페이지 수 사용
+    return Math.max(lectureMeta.value.total_pages, curriculumMeta.value.total_pages);
+  }
 });
 
-// 표시할 페이지 번호들 (최대 5개)
+// 표시할 페이지 번호들 (최대 10개)
 const visiblePages = computed(() => {
   const pages = [];
-  const start = Math.max(1, currentPage.value - 2);
-  const end = Math.min(totalPages.value, start + 4);
-  
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  // 현재 페이지를 중심으로 앞뒤로 5개씩 표시
+  const start = Math.max(1, current - 5);
+  const end = Math.min(total, start + 9);
+
   for (let i = start; i <= end; i++) {
     pages.push(i);
   }
@@ -612,35 +677,40 @@ function getTabCount(tabId: string) {
   }
 }
 
-// 탭 변경 시 페이지 초기화
+// 탭 변경 시 페이지 초기화 및 데이터 다시 로드
 function handleTabChange(tabId: string) {
   activeTab.value = tabId;
-  currentPage.value = 1; // 첫 페이지로 이동
+  currentPage.value = 1;
+  loadPage(1);
 }
 
-// 정렬 변경 시 페이지 초기화
+// 정렬 변경 시 페이지 초기화 및 데이터 다시 로드
 function handleSortChange(event: Event) {
   const target = event.target as HTMLSelectElement;
   sortBy.value = target.value;
-  currentPage.value = 1; // 첫 페이지로 이동
+  currentPage.value = 1;
+  loadPage(1);
 }
 
-// 페이지네이션 함수들
+// 페이지네이션 함수들 (페이지 이동 시 백엔드에서 데이터 로드)
 function goToPage(page: number) {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
+    loadPage(page);
   }
 }
 
 function goToPreviousPage() {
   if (currentPage.value > 1) {
     currentPage.value--;
+    loadPage(currentPage.value);
   }
 }
 
 function goToNextPage() {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
+    loadPage(currentPage.value);
   }
 }
 
@@ -671,11 +741,11 @@ function editItem(item: DashboardItem) {
 
 // 새로고침 함수
 async function refreshLectures() {
+  currentPage.value = 1;
   await Promise.all([
-    loadApiData(),
+    loadPage(1),
     loadPublishedCourses()
   ]);
-  currentPage.value = 1; // 첫 페이지로 이동
 }
 
 // 채널 관리 함수
@@ -704,7 +774,7 @@ onMounted(async () => {
   // localStorage에서 발행된 강의 먼저 로드 (즉시 표시)
   loadPublishedCourses();
 
-  // API에서 강의 및 커리큘럼 데이터 가져오기
-  await loadApiData();
+  // API에서 강의 및 커리큘럼 데이터 가져오기 (1페이지)
+  await loadPage(1);
 });
 </script>

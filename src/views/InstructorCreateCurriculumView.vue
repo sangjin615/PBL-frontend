@@ -452,6 +452,52 @@
             <p>사용 가능한 강의물이 없습니다.</p>
             <p class="text-sm mt-1">먼저 강의나 문제를 만들어보세요.</p>
           </div>
+
+          <!-- 페이지네이션 -->
+          <div v-if="totalPages > 1" class="flex justify-center items-center py-4 border-t bg-white">
+            <div class="flex items-center space-x-4">
+              <span class="text-sm text-gray-600">
+                {{ (currentPage - 1) * 10 + 1 }}-{{ Math.min(currentPage * 10, totalCount) }} / {{ totalCount }}개
+              </span>
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="goToPreviousPage"
+                  :disabled="currentPage === 1"
+                  class="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                  </svg>
+                </button>
+
+                <div class="flex space-x-1">
+                  <button
+                    v-for="page in visiblePages"
+                    :key="page"
+                    @click="goToPage(page)"
+                    class="px-3 py-1 text-sm rounded-md border"
+                    :class="
+                      page === currentPage
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    "
+                  >
+                    {{ page }}
+                  </button>
+                </div>
+
+                <button
+                  @click="goToNextPage"
+                  :disabled="currentPage === totalPages"
+                  class="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -459,7 +505,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import curriculumApiService from '@/services/curriculumApi'
 import lectureApiService from '@/services/lectureApi'
@@ -530,6 +576,39 @@ const myLectures = ref<any[]>([])   // 내가 만든 강의
 // 최근 추가된 아이템 하이라이트용
 const recentlyAddedId = ref<number | string | null>(null)
 
+// 페이지네이션 관련 상태 (탭별로 분리)
+const currentPage = ref(1)
+const itemsPerPage = 10
+
+// 모든 강의 탭 메타 정보
+const allLecturesMeta = ref({
+  current_page: 1,
+  total_pages: 0,
+  total_count: 0,
+  per_page: 10,
+  next_page: null as number | null,
+  prev_page: null as number | null
+})
+
+// 내가 만든 강의 탭 메타 정보
+const myLecturesMeta = ref({
+  current_page: 1,
+  total_pages: 0,
+  total_count: 0,
+  per_page: 10,
+  next_page: null as number | null,
+  prev_page: null as number | null
+})
+
+// 현재 탭에 따라 totalPages와 totalCount 사용
+const totalPages = computed(() => {
+  return activeTab.value === 'all' ? allLecturesMeta.value.total_pages : myLecturesMeta.value.total_pages
+})
+
+const totalCount = computed(() => {
+  return activeTab.value === 'all' ? allLecturesMeta.value.total_count : myLecturesMeta.value.total_count
+})
+
 // 드래그 앤 드롭 상태
 const draggedMaterial = ref<any>(null)  // 오른쪽에서 드래그 중인 강의
 const draggedIndex = ref<number | null>(null)  // 커리큘럼 내 드래그 중인 항목 인덱스
@@ -556,6 +635,22 @@ const filteredMaterials = computed(() => {
   }
 
   return filtered
+})
+
+// 표시할 페이지 번호들 (최대 10개)
+const visiblePages = computed(() => {
+  const pages = []
+  const total = totalPages.value
+  const current = currentPage.value
+
+  // 현재 페이지를 중심으로 앞뒤로 5개씩 표시
+  const start = Math.max(1, current - 5)
+  const end = Math.min(total, start + 9)
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
 })
 
 const totalDuration = computed(() => {
@@ -785,12 +880,17 @@ const onDragEndCurriculumItem = () => {
   dragOverIndex.value = null
 }
 
-// 모든 공개 강의 로드
-const loadAllLectures = async () => {
+// 모든 공개 강의 로드 (페이징)
+const loadAllLectures = async (page: number = 1) => {
   try {
-    const lectures = await curriculumApiService.getPublicLecturesForCurriculum()
-    console.log('로드된 강의 목록:', lectures)
-    allLectures.value = lectures.map((lecture: Lecture) => ({
+    // 페이지는 0부터 시작 (백엔드)
+    const backendPage = page - 1
+
+    // lectureApi 사용하여 공개 강의 가져오기 (페이징)
+    const response = await lectureApiService.getPublicLectures(backendPage, 10)
+    console.log('로드된 공개 강의 목록:', response)
+
+    allLectures.value = response.lectures.map((lecture: Lecture) => ({
       id: lecture.id,
       title: lecture.title,
       description: lecture.description,
@@ -802,7 +902,13 @@ const loadAllLectures = async () => {
       testCaseCount: lecture.testCaseCount,
       tags: lecture.tags || []
     }))
+
+    // 메타 정보 저장
+    allLecturesMeta.value = response.meta
+    currentPage.value = response.meta.current_page
+
     console.log('변환된 강의 목록:', allLectures.value)
+    console.log('메타 정보:', response.meta)
   } catch (error) {
     console.error('모든 강의 목록 로드 실패:', error)
     alert('강의 목록을 불러오는데 실패했습니다.')
@@ -810,7 +916,7 @@ const loadAllLectures = async () => {
 }
 
 // 내가 만든 강의 로드
-const loadMyLectures = async () => {
+const loadMyLectures = async (page: number = 1) => {
   try {
     const currentUserId = getCurrentUserId()
     if (currentUserId === null) {
@@ -818,8 +924,12 @@ const loadMyLectures = async () => {
       return
     }
 
-    const lectures = await lectureApiService.getUserLectures(currentUserId)
-    myLectures.value = lectures.map((lecture: Lecture) => ({
+    // 페이지는 0부터 시작 (백엔드)
+    const backendPage = page - 1
+
+    // 페이징된 응답 받기 (10개씩)
+    const response = await lectureApiService.getUserLectures(currentUserId, backendPage, 10)
+    myLectures.value = response.lectures.map((lecture: Lecture) => ({
       id: lecture.id,
       title: lecture.title,
       description: lecture.description,
@@ -831,6 +941,10 @@ const loadMyLectures = async () => {
       testCaseCount: lecture.testCaseCount,
       tags: lecture.tags || []
     }))
+
+    // 메타 정보 저장
+    myLecturesMeta.value = response.meta
+    currentPage.value = response.meta.current_page
   } catch (error) {
     console.error('내 강의 목록 로드 실패:', error)
     alert('내 강의 목록을 불러오는데 실패했습니다.')
@@ -844,6 +958,37 @@ const formatDate = (date: number[] | string): string => {
     return `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}`
   }
   return new Date(date).toISOString().split('T')[0]
+}
+
+// 페이지네이션 함수들 (현재 탭에 따라 다른 로드 함수 호출)
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    if (activeTab.value === 'all') {
+      loadAllLectures(page)
+    } else {
+      loadMyLectures(page)
+    }
+  }
+}
+
+const goToPreviousPage = () => {
+  if (currentPage.value > 1) {
+    if (activeTab.value === 'all') {
+      loadAllLectures(currentPage.value - 1)
+    } else {
+      loadMyLectures(currentPage.value - 1)
+    }
+  }
+}
+
+const goToNextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    if (activeTab.value === 'all') {
+      loadAllLectures(currentPage.value + 1)
+    } else {
+      loadMyLectures(currentPage.value + 1)
+    }
+  }
 }
 
 // 기존 커리큘럼 데이터 로드 (수정 모드)
@@ -990,9 +1135,19 @@ onMounted(async () => {
     await loadExistingCurriculum(Number(editId))
   }
 
-  // 강의 목록 로드
-  loadAllLectures()
-  loadMyLectures()
+  // 강의 목록 로드 (페이징으로 1페이지부터)
+  loadAllLectures(1)
+  loadMyLectures(1)
+})
+
+// 탭 변경 시 페이지 초기화 및 데이터 다시 로드
+watch(activeTab, () => {
+  currentPage.value = 1
+  if (activeTab.value === 'my') {
+    loadMyLectures(1)
+  } else {
+    loadAllLectures(1)
+  }
 })
 </script>
 <style scoped>

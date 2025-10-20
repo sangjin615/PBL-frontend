@@ -110,12 +110,12 @@ export const useCurriculumsStore = defineStore("curriculums", () => {
   /**
    * 사용자별 커리큘럼 조회
    */
-  async function fetchUserCurriculums(userId?: number): Promise<boolean> {
+  async function fetchUserCurriculums(userId?: number, page: number = 0, size: number = 100): Promise<boolean> {
     const targetUserId = userId || authConfig.defaultUserId;
     const result = await withErrorHandling(async () => {
-      const data = await curriculumApiService.getUserCurriculums(targetUserId);
-      curriculums.value = data;
-      return data;
+      const response = await curriculumApiService.getUserCurriculums(targetUserId, page, size);
+      curriculums.value = response.curriculums;
+      return response.curriculums;
     }, "커리큘럼 목록을 불러오는데 실패했습니다.");
     return result !== null;
   }

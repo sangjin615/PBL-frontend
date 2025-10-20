@@ -2,7 +2,7 @@
   <section class="px-6 py-6">
     <div class="max-w-7xl mx-auto">
       <!-- 로딩 상태 -->
-      <div v-if="loading" class="flex justify-center items-center py-12">
+      <div v-if="loading && courses.length === 0" class="flex justify-center items-center py-12">
         <div class="text-gray-600">데이터를 불러오는 중...</div>
       </div>
 
@@ -39,9 +39,13 @@
           <CourseCard v-for="c in visibleCourses" :key="c.id" :course="c" />
         </div>
 
-        <div v-if="remainingCount > 0" class="flex justify-center mt-8">
-          <button class="px-4 py-2 rounded-md border hover:bg-gray-50" @click="loadMore">더보기 ({{ remainingCount }})</button>
+        <!-- 로딩 중 -->
+        <div v-if="loading && courses.length > 0" class="flex justify-center mt-8">
+          <div class="text-gray-600">로딩 중...</div>
         </div>
+
+        <!-- 스크롤 감지를 위한 sentinel 요소 -->
+        <div ref="sentinel" class="h-4"></div>
 
         <!-- 결과 없음 메시지 -->
         <div v-if="visibleCourses.length === 0" class="flex justify-center items-center py-12">
@@ -53,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import CourseCard from '../components/course/CourseCard.vue';
 import type { Course } from '../types/course';
 import { useSearchStore } from '../stores/search';
@@ -66,16 +70,47 @@ const ui = useUiStore();
 const categories = searchStore.allCategories;
 const activeTab = ref<string>('전체');
 const sortBy = ref<'popular'|'latest'|'rating'|'reviews'>('popular');
-const maxVisible = ref<number>(12);
 
 // API 연동 상태 관리
 const courses = ref<Course[]>([]);
-const loading = ref<boolean>(true);
+const loading = ref<boolean>(false);
 const error = ref<string | null>(null);
 
-// 컴포넌트 마운트 시 데이터 로드
+// 페이징 상태
+const currentPage = ref<number>(0);
+const hasMore = ref<boolean>(true);
+const pageSize = 12;
+
+// Intersection Observer를 위한 sentinel 요소
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+// 컴포넌트 마운트 시 데이터 로드 및 observer 설정
 onMounted(async () => {
   await loadCourses();
+
+  // Intersection Observer 설정
+  if (sentinel.value) {
+    observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMore.value && !loading.value) {
+          loadCourses();
+        }
+      },
+      {
+        rootMargin: '100px' // 화면 하단 100px 전에 미리 로드
+      }
+    );
+    observer.observe(sentinel.value);
+  }
+});
+
+// 컴포넌트 언마운트 시 observer 정리
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect();
+  }
 });
 
 // 날짜 변환 헬퍼 함수
@@ -87,16 +122,18 @@ function formatDate(date: string | number[]): string {
   return date;
 }
 
-// 백엔드에서 커리큘럼 데이터 로드
+// 백엔드에서 커리큘럼 데이터 로드 (페이징)
 async function loadCourses() {
+  if (loading.value || !hasMore.value) return;
+
   try {
     loading.value = true;
     error.value = null;
 
-    const curriculums = await curriculumApiService.getPublicCurriculums();
+    const response = await curriculumApiService.getPublicCurriculumsPaginated(currentPage.value, pageSize);
 
-    // CurriculumResponse를 Course로 직접 변환 (최소한의 변환만)
-    courses.value = curriculums.map(curriculum => ({
+    // CurriculumResponse를 Course로 직접 변환
+    const newCourses = response.curriculums.map(curriculum => ({
       id: String(curriculum.id),
       title: curriculum.title,
       instructor: curriculum.author?.username || '알 수 없음',
@@ -116,10 +153,16 @@ async function loadCourses() {
       totalLectureCount: curriculum.totalLectureCount,
       thumbnailImageUrl: curriculum.thumbnailImageUrl
     }));
+
+    // 기존 데이터에 추가
+    courses.value = [...courses.value, ...newCourses];
+
+    // 다음 페이지가 있는지 확인
+    hasMore.value = response.meta.next_page !== null;
+    currentPage.value++;
   } catch (err) {
     console.error('커리큘럼 로드 실패:', err);
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
-    courses.value = [];
   } finally {
     loading.value = false;
   }
@@ -148,20 +191,16 @@ const sortedCourses = computed<Course[]>(() => {
       list.sort((a, b) => b.rating - a.rating);
       break;
     case 'reviews':
-      list.sort((a, b) => b.reviewsCount - a.reviewsCount);
+      list.sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0));
       break;
     case 'latest':
       list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       break;
     default:
-      list.sort((a, b) => (b.reviewsCount * b.rating) - (a.reviewsCount * a.rating));
+      list.sort((a, b) => ((b.reviewsCount || 0) * b.rating) - ((a.reviewsCount || 0) * a.rating));
   }
   return list;
 });
 
-const visibleCourses = computed<Course[]>(() => sortedCourses.value.slice(0, maxVisible.value));
-const remainingCount = computed(() => Math.max(sortedCourses.value.length - maxVisible.value, 0));
-function loadMore() {
-  maxVisible.value += 12;
-}
+const visibleCourses = computed<Course[]>(() => sortedCourses.value);
 </script>
