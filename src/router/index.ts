@@ -3,6 +3,12 @@ import { useAuth } from '@/composables/useAuth';
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/admin/reports',
+    name: 'admin-reports',
+    component: () => import('../views/AdminReportsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     name: 'home',
     component: () => import('../views/HomeView.vue'),

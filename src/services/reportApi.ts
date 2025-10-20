@@ -80,6 +80,29 @@ class ReportApiService {
    * 신고 목록 조회 (관리자용)
    */
   async getReports(page: number = 1, pageSize: number = 20): Promise<ReportListResponse> {
+    // 개발/테스트용 모킹 (백엔드가 준비되면 제거)
+    if (import.meta.env.DEV) {
+      const totalCount = 8;
+      const base = (page - 1) * pageSize;
+      const reports = Array.from({ length: Math.min(pageSize, totalCount - base) }, (_, idx) => {
+        const id = base + idx + 1;
+        const types: Array<ReportRequest['type']> = ['curriculum', 'lecture', 'problem', 'post', 'comment'];
+        const type = types[id % types.length];
+        return {
+          id,
+          reporterId: 1,
+          type,
+          targetId: 1000 + id,
+          content: `테스트 신고 내용 #${id} - 부적절한 콘텐츠 신고입니다.`,
+          status: 'pending' as const,
+          createdAt: new Date(Date.now() - id * 3600_000).toISOString(),
+          updatedAt: new Date(Date.now() - id * 1800_000).toISOString(),
+        };
+      });
+      await new Promise(r => setTimeout(r, 400));
+      return { reports, totalCount, page, pageSize };
+    }
+
     return this.request<ReportListResponse>(
       `/api/reports?page=${page}&pageSize=${pageSize}`
     );

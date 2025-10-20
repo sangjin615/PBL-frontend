@@ -96,5 +96,6 @@ const items = [
   { key: 'dashboard', label: '내 대시보드', to: '/dashboard', icon: IconApps },
   { key: 'qna', label: '질문&답변', to: '/qna', icon: IconChat },
   { key: 'subs', label: '구독', to: '/subscriptions', icon: IconMenu },
+  { key: 'admin-reports', label: '신고 처리', to: '/admin/reports', icon: IconMenu },
 ];
 </script>
