@@ -35,54 +35,62 @@
 
     <!-- 메인 콘텐츠 -->
     <div class="flex h-[calc(100vh-80px)]">
-      <!-- 왼쪽: 소스코드 에디터 -->
-      <div class="w-1/2 bg-white border-r">
-        <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex bg-gray-100 rounded-lg p-1">
-              <button
-                @click="activeCodeTab = 'current'"
-                class="px-3 py-1 text-sm rounded-md"
-                :class="activeCodeTab === 'current' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
-              >
-                제출한 소스코드
-              </button>
-              <button
-                @click="activeCodeTab = 'history'; loadSubmissionHistory()"
-                class="px-3 py-1 text-sm rounded-md"
-                :class="activeCodeTab === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
-              >
-                내 제출
-              </button>
-            </div>
-            <div v-if="activeCodeTab === 'history'" class="flex items-center gap-2">
-              <select 
-                v-model="selectedHistoryId" 
-                @change="loadSelectedHistory" 
-                class="px-2 py-1 border rounded-md text-sm"
-                :disabled="isLoadingSubmissions"
-              >
-                <option v-if="isLoadingSubmissions" value="">로딩 중...</option>
-                <option v-else-if="mySubmissions.length === 0" value="">제출 기록이 없습니다 ({{ mySubmissions.length }}개)</option>
-                <option v-else v-for="(s, idx) in mySubmissions" :key="s.token" :value="s.token">
-                  {{ idx + 1 }}차 · {{ s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '알 수 없음' }} · {{ s.status?.description || 'Unknown' }}
-                </option>
-              </select>
+      <!-- 왼쪽: 소스코드 에디터 + AI 강의 추천 -->
+      <div class="w-1/2 bg-white border-r flex flex-col">
+        <!-- 상단: 소스코드 에디터 -->
+        <div class="flex-1 flex flex-col">
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  @click="activeCodeTab = 'current'"
+                  class="px-3 py-1 text-sm rounded-md"
+                  :class="activeCodeTab === 'current' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                >
+                  제출한 소스코드
+                </button>
+                <button
+                  @click="activeCodeTab = 'history'; loadSubmissionHistory()"
+                  class="px-3 py-1 text-sm rounded-md"
+                  :class="activeCodeTab === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                >
+                  내 제출
+                </button>
+              </div>
+              <div v-if="activeCodeTab === 'history'" class="flex items-center gap-2">
+                <select 
+                  v-model="selectedHistoryId" 
+                  @change="loadSelectedHistory" 
+                  class="px-2 py-1 border rounded-md text-sm"
+                  :disabled="isLoadingSubmissions"
+                >
+                  <option v-if="isLoadingSubmissions" value="">로딩 중...</option>
+                  <option v-else-if="mySubmissions.length === 0" value="">제출 기록이 없습니다 ({{ mySubmissions.length }}개)</option>
+                  <option v-else v-for="(s, idx) in mySubmissions" :key="s.token" :value="s.token">
+                    {{ idx + 1 }}차 · {{ s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '알 수 없음' }} · {{ s.status?.description || 'Unknown' }}
+                  </option>
+                </select>
 
+              </div>
+            </div>
+            <div class="h-[calc(50vh-120px)] p-4">
+              <MonacoEditor
+                v-if="isEditorReady"
+                ref="monacoEditorRef"
+                :key="editorConfig.languageId"
+                :config="editorConfig"
+                class="w-full h-full border rounded-lg"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <div class="text-gray-500">에디터 준비 중...</div>
+              </div>
             </div>
           </div>
-          <div class="h-[calc(100vh-200px)] p-4">
-            <MonacoEditor
-              v-if="isEditorReady"
-              ref="monacoEditorRef"
-              :key="editorConfig.languageId"
-              :config="editorConfig"
-              class="w-full h-full border rounded-lg"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center">
-              <div class="text-gray-500">에디터 준비 중...</div>
-            </div>
-          </div>
+        </div>
+        
+        <!-- 하단: AI 강의 추천 -->
+        <div class="flex-shrink-0">
+          <AiLectureRecommendation />
         </div>
       </div>
 
@@ -260,6 +268,7 @@ import curriculumApiService from '@/services/curriculumApi'
 import type { CurriculumNavigationResponse } from '@/types/curriculum'
 import { MdPreview } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
+import AiLectureRecommendation from '@/components/course/AiLectureRecommendation.vue'
 
 const route = useRoute()
 const router = useRouter()
