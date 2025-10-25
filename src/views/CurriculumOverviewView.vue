@@ -247,17 +247,9 @@
                 >
                   수강신청하기
                 </Button>
-
-                <Button
-                  variant="ghost"
-                  full-width
-                  size="lg"
-                >
-                  장바구니 담기
-                </Button>
               </template>
 
-              <!-- 수강 중일 때: 이어 수강하기 + 수강 취소 버튼 -->
+              <!-- 수강 중일 때: 수강하기 + 수강취소 버튼 -->
               <template v-else>
                 <Button
                   @click="continueLearning"
@@ -265,7 +257,7 @@
                   size="lg"
                   variant="primary"
                 >
-                  이어 수강하기
+                  수강하기
                 </Button>
 
                 <button
@@ -273,7 +265,7 @@
                   :disabled="isCanceling"
                   class="w-full px-6 py-3 text-base font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
-                  {{ isCanceling ? '취소 중...' : '수강 취소' }}
+                  {{ isCanceling ? '취소 중...' : '수강취소' }}
                 </button>
               </template>
             </div>
@@ -281,7 +273,18 @@
             <div v-if="curriculum" class="mt-6 space-y-3">
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">지식공유자</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                  <button
+                    @click="toggleSubscribe"
+                    class="px-3 py-1 text-xs rounded-full transition-colors"
+                    :class="isSubscribed 
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'"
+                  >
+                    {{ isSubscribed ? '구독중' : '구독하기' }}
+                  </button>
+                </div>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">카테고리</span>
@@ -321,6 +324,7 @@ import { enrollmentApiService } from '@/services/enrollmentApi';
 import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
 import { CHAPTER_TITLES } from '@/constants';
+import { getCurrentUserId } from '@/config/api';
 
 const router = useRouter();
 const route = useRoute();
@@ -335,6 +339,7 @@ const isEnrolling = ref(false);
 const isCanceling = ref(false);
 const isEnrolled = ref(false);
 const enrollmentId = ref<number | null>(null);
+const isSubscribed = ref(false);
 
 // 탭 상태
 const activeTab = ref('intro');
@@ -447,7 +452,14 @@ async function checkEnrollmentStatus() {
   }
 
   try {
-    const userId = 1; // TODO: 실제 로그인한 사용자 ID로 변경
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('[수강 상태 확인] 사용자 ID를 찾을 수 없습니다.');
+      isEnrolled.value = false;
+      enrollmentId.value = null;
+      return;
+    }
+
     console.log('[수강 상태 확인] userId:', userId, 'curriculumId:', curriculum.value.id);
 
     // 사용자의 전체 수강 목록 조회
@@ -538,8 +550,57 @@ function goToLecture(lectureId: number) {
   });
 }
 
+// 구독 상태 확인
+function checkSubscriptionStatus() {
+  try {
+    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+    isSubscribed.value = subscriptions.some((sub: any) => sub.name === curriculum.value?.instructor);
+  } catch {
+    isSubscribed.value = false;
+  }
+}
+
+// 구독 토글
+function toggleSubscribe() {
+  if (!curriculum.value?.instructor) return;
+
+  try {
+    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+    
+    if (isSubscribed.value) {
+      if (confirm(`"${curriculum.value.instructor}"의 구독을 해지하시겠습니까?`)) {
+        const updatedSubs = subscriptions.filter((sub: any) => sub.name !== curriculum.value.instructor);
+        localStorage.setItem('subscriptions', JSON.stringify(updatedSubs));
+        isSubscribed.value = false;
+        alert(`${curriculum.value.instructor}의 구독이 해지되었습니다.`);
+      }
+    } else {
+      const newSubscription = {
+        id: Date.now(),
+        name: curriculum.value.instructor,
+        handle: `@${curriculum.value.instructor.toLowerCase().replace(/\s+/g, '')}`,
+        avatarColor: '#4F46E5',
+        subscribers: Math.floor(Math.random() * 100000) + 10000,
+        description: `${curriculum.value.instructor}의 강의를 구독합니다.`,
+        subscribedAt: new Date().toISOString()
+      };
+      
+      subscriptions.push(newSubscription);
+      localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+      isSubscribed.value = true;
+      alert(`${curriculum.value.instructor}을(를) 구독했습니다!`);
+    }
+  } catch (err) {
+    console.error('구독 상태 변경 실패:', err);
+  }
+}
+
 onMounted(async () => {
   await loadCurriculumDetail();
   await checkEnrollmentStatus();
+  // 커리큘럼 로드 후 구독 상태 확인
+  setTimeout(() => {
+    checkSubscriptionStatus();
+  }, 100);
 });
 </script>

@@ -198,5 +198,261 @@ export const qnaQuestions: QnAQuestion[] = [
         likes: 2
       }
     ]
+  },
+  {
+    id: 9,
+    title: 'Docker 컨테이너 최적화 방법',
+    content: 'Docker 이미지 크기를 줄이고 성능을 향상시키는 방법이 궁금해요. 베스트 프랙티스를 알려주세요.',
+    author: '임도현',
+    category: 'DevOps',
+    course: 'Docker 마스터',
+    language: 'Docker',
+    status: 'unresolved',
+    comments: 2,
+    likes: 6,
+    createdAt: '5일 전',
+    commentsList: [
+      {
+        id: 12,
+        author: '서민지',
+        content: '멀티스테이지 빌드를 사용하고, 불필요한 패키지를 제거하세요. Alpine 이미지도 고려해보세요.',
+        createdAt: '4일 전',
+        likes: 4
+      }
+    ]
+  },
+  {
+    id: 10,
+    title: 'React Native 네비게이션 문제',
+    content: 'React Navigation에서 스택 네비게이션이 제대로 작동하지 않아요. 화면 전환이 안 됩니다.',
+    author: '강민호',
+    category: '모바일',
+    course: 'React Native',
+    language: 'JavaScript',
+    status: 'resolved',
+    comments: 3,
+    likes: 2,
+    createdAt: '6일 전',
+    commentsList: [
+      {
+        id: 13,
+        author: '황지원',
+        content: 'NavigationContainer로 앱을 감싸고, 스크린 컴포넌트를 올바르게 등록했는지 확인해보세요.',
+        createdAt: '5일 전',
+        likes: 3
+      }
+    ]
+  },
+  {
+    id: 11,
+    title: 'MongoDB 쿼리 최적화',
+    content: 'MongoDB에서 복잡한 쿼리가 느려요. 인덱스를 어떻게 설정해야 할까요?',
+    author: '신동욱',
+    category: '데이터베이스',
+    course: 'MongoDB 기초',
+    language: 'MongoDB',
+    status: 'unresolved',
+    comments: 1,
+    likes: 3,
+    createdAt: '1주 전',
+    commentsList: [
+      {
+        id: 14,
+        author: '최유진',
+        content: '자주 사용하는 필드에 인덱스를 생성하고, explain()으로 쿼리 실행 계획을 확인해보세요.',
+        createdAt: '6일 전',
+        likes: 2
+      }
+    ]
+  },
+  {
+    id: 12,
+    title: 'Vue 3 Composition API 사용법',
+    content: 'Vue 3의 Composition API를 사용할 때 setup 함수에서 반환하는 값들이 제대로 반응하지 않아요.',
+    author: '박지영',
+    category: '프론트엔드',
+    course: 'Vue 3 마스터',
+    language: 'JavaScript',
+    status: 'resolved',
+    comments: 4,
+    likes: 8,
+    createdAt: '1주 전',
+    commentsList: [
+      {
+        id: 15,
+        author: '김태현',
+        content: 'ref()나 reactive()를 사용해서 반응형 데이터를 만들어야 합니다. 일반 객체는 반응하지 않아요.',
+        createdAt: '6일 전',
+        likes: 5
+      }
+    ]
+  },
+  {
+    id: 13,
+    title: 'Spring Security 설정 오류',
+    content: 'Spring Security에서 CORS 설정이 제대로 안 되어서 프론트엔드에서 API 호출이 안 돼요.',
+    author: '이수진',
+    category: '백엔드',
+    course: 'Spring Boot',
+    language: 'Java',
+    status: 'unresolved',
+    comments: 0,
+    likes: 1,
+    createdAt: '1주 전',
+    commentsList: []
+  },
+  {
+    id: 14,
+    title: 'AWS Lambda 함수 배포',
+    content: 'AWS Lambda에 Node.js 함수를 배포했는데 환경 변수가 제대로 설정되지 않았어요.',
+    author: '정민수',
+    category: '클라우드',
+    course: 'AWS Lambda',
+    language: 'JavaScript',
+    status: 'resolved',
+    comments: 2,
+    likes: 4,
+    createdAt: '2주 전',
+    commentsList: [
+      {
+        id: 16,
+        author: '한지민',
+        content: 'Lambda 콘솔에서 환경 변수를 설정하거나, Serverless Framework를 사용해보세요.',
+        createdAt: '1주 전',
+        likes: 3
+      }
+    ]
+  },
+  {
+    id: 15,
+    title: 'GraphQL 스키마 설계',
+    content: 'GraphQL 스키마를 설계할 때 어떤 원칙을 따라야 할까요? REST API와 다른 점이 궁금해요.',
+    author: '송현우',
+    category: 'API',
+    course: 'GraphQL 기초',
+    language: 'GraphQL',
+    status: 'unresolved',
+    comments: 3,
+    likes: 7,
+    createdAt: '2주 전',
+    commentsList: [
+      {
+        id: 17,
+        author: '김서연',
+        content: '스키마 우선 설계를 하고, 클라이언트가 필요한 데이터만 요청할 수 있도록 설계하세요.',
+        createdAt: '1주 전',
+        likes: 4
+      }
+    ]
+  },
+  {
+    id: 16,
+    title: 'Redis 캐싱 전략',
+    content: 'Redis를 사용해서 데이터베이스 캐싱을 구현하고 싶은데, 어떤 패턴을 사용해야 할까요?',
+    author: '조민호',
+    category: '캐싱',
+    course: 'Redis 마스터',
+    language: 'Redis',
+    status: 'resolved',
+    comments: 2,
+    likes: 5,
+    createdAt: '2주 전',
+    commentsList: [
+      {
+        id: 18,
+        author: '박준영',
+        content: 'Cache-Aside 패턴이나 Write-Through 패턴을 사용하세요. 상황에 따라 다릅니다.',
+        createdAt: '1주 전',
+        likes: 3
+      }
+    ]
+  },
+  {
+    id: 17,
+    title: 'Kubernetes Pod 스케줄링',
+    content: 'Kubernetes에서 Pod가 특정 노드에만 배포되도록 하고 싶어요. 어떻게 설정해야 할까요?',
+    author: '윤서현',
+    category: 'DevOps',
+    course: 'Kubernetes',
+    language: 'YAML',
+    status: 'unresolved',
+    comments: 1,
+    likes: 2,
+    createdAt: '3주 전',
+    commentsList: [
+      {
+        id: 19,
+        author: '강동훈',
+        content: 'nodeSelector나 nodeAffinity를 사용해서 노드 선택 조건을 설정할 수 있어요.',
+        createdAt: '2주 전',
+        likes: 2
+      }
+    ]
+  },
+  {
+    id: 18,
+    title: 'WebSocket 실시간 통신',
+    content: 'WebSocket을 사용해서 실시간 채팅을 구현하고 있는데, 연결이 자주 끊어져요.',
+    author: '임지수',
+    category: '네트워킹',
+    course: 'WebSocket 기초',
+    language: 'JavaScript',
+    status: 'resolved',
+    comments: 3,
+    likes: 6,
+    createdAt: '3주 전',
+    commentsList: [
+      {
+        id: 20,
+        author: '신예준',
+        content: '하트비트나 재연결 로직을 구현하고, 네트워크 상태를 모니터링해보세요.',
+        createdAt: '2주 전',
+        likes: 4
+      }
+    ]
+  },
+  {
+    id: 19,
+    title: 'Elasticsearch 검색 최적화',
+    content: 'Elasticsearch에서 복잡한 검색 쿼리가 느려요. 성능을 향상시키는 방법이 있을까요?',
+    author: '최민지',
+    category: '검색엔진',
+    course: 'Elasticsearch',
+    language: 'Elasticsearch',
+    status: 'unresolved',
+    comments: 2,
+    likes: 3,
+    createdAt: '3주 전',
+    commentsList: [
+      {
+        id: 21,
+        author: '김도현',
+        content: '인덱스 매핑을 최적화하고, 불필요한 필드는 제외하세요. 쿼리 캐싱도 고려해보세요.',
+        createdAt: '2주 전',
+        likes: 2
+      }
+    ]
+  },
+  {
+    id: 20,
+    title: 'Jest 테스트 코드 작성',
+    content: 'Jest를 사용해서 React 컴포넌트 테스트를 작성하고 있는데, 비동기 함수 테스트가 어려워요.',
+    author: '박서준',
+    category: '테스팅',
+    course: 'Jest 마스터',
+    language: 'JavaScript',
+    status: 'resolved',
+    comments: 4,
+    likes: 9,
+    createdAt: '4주 전',
+    commentsList: [
+      {
+        id: 22,
+        author: '이하늘',
+        content: 'async/await나 Promise를 사용하고, waitFor나 findBy 쿼리를 활용해보세요.',
+        createdAt: '3주 전',
+        likes: 6
+      }
+    ]
   }
 ];

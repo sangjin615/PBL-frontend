@@ -20,19 +20,39 @@
 
           <!-- 액션 버튼들 -->
           <div class="flex items-center space-x-3">
-            <button class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors" style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))">
-              공유하기
-            </button>
-            <button class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors" style="background-color: rgb(var(--figma-color-6))">
-              채널 관리
+            <button 
+              @click="goToReview"
+              class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer" 
+              style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))"
+              type="button"
+            >
+              리뷰 작성
             </button>
             <button 
-              v-if="curriculum"
-              @click="() => alert('커리큘럼 신고: ' + curriculum.title)"
-              class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
+              @click="shareCurriculum"
+              class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer" 
+              style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))"
+              type="button"
             >
-              🚨 신고
+              공유하기
             </button>
+            <button 
+              v-if="isEnrolled"
+              @click="cancelEnrollment"
+              :disabled="isCanceling"
+              class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" 
+              style="border-color: rgb(239 68 68); color: rgb(239 68 68)"
+              type="button"
+            >
+              {{ isCanceling ? '취소 중...' : '수강취소' }}
+            </button>
+            <ReportButton
+              v-if="curriculum"
+              report-type="curriculum"
+              :target-id="curriculum.id"
+              :target-title="curriculum.title"
+              @reported="handleReported"
+            />
           </div>
         </div>
       </div>
@@ -149,7 +169,18 @@
             <div class="space-y-3">
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">강의자</span>
-                <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                  <button
+                    @click="toggleSubscribe"
+                    class="px-3 py-1 text-xs rounded-full transition-colors"
+                    :class="isSubscribed 
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'"
+                  >
+                    {{ isSubscribed ? '구독중' : '구독하기' }}
+                  </button>
+                </div>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">카테고리</span>
@@ -220,6 +251,7 @@ import { curriculumApiService } from '@/services/curriculumApi';
 import { enrollmentApiService } from '@/services/enrollmentApi';
 import { ReportButton } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
+import { getCurrentUserId } from '@/config/api';
 
 const route = useRoute();
 const router = useRouter();
@@ -230,6 +262,10 @@ const lectures = ref<CurriculumLectureResponse[]>([]);
 const enrollmentCount = ref(0);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const isSubscribed = ref(false);
+const isEnrolled = ref(false);
+const enrollmentId = ref<number | null>(null);
+const isCanceling = ref(false);
 
 // 탭 상태
 const activeTab = ref('lectures');
@@ -249,6 +285,50 @@ const hardcodedData = {
     'API 연결없음(기본값 = "알고리즘의 기본 개념과 복잡도 분석")'
   ]
 };
+
+// 수강 상태 확인
+async function checkEnrollmentStatus() {
+  if (!curriculum.value) {
+    console.log('[수강 상태 확인] curriculum이 없습니다.');
+    return;
+  }
+
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('[수강 상태 확인] 사용자 ID를 찾을 수 없습니다.');
+      isEnrolled.value = false;
+      enrollmentId.value = null;
+      return;
+    }
+
+    console.log('[수강 상태 확인] userId:', userId, 'curriculumId:', curriculum.value.id);
+
+    // 사용자의 전체 수강 목록 조회
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+    console.log('[수강 상태 확인] 수강 목록:', enrollments);
+
+    // 현재 커리큘럼이 수강 목록에 있는지 확인 (ENROLLED 상태 체크)
+    const enrollment = enrollments.find(e =>
+      e.curriculumId === curriculum.value.id && e.status === 'ENROLLED'
+    );
+    console.log('[수강 상태 확인] 현재 커리큘럼 수강 정보:', enrollment);
+
+    if (enrollment) {
+      isEnrolled.value = true;
+      enrollmentId.value = enrollment.id;
+      console.log('[수강 상태 확인] ✅ 수강 중 - enrollmentId:', enrollment.id);
+    } else {
+      isEnrolled.value = false;
+      enrollmentId.value = null;
+      console.log('[수강 상태 확인] ❌ 미수강');
+    }
+  } catch (err) {
+    console.error('수강 상태 확인 실패:', err);
+    isEnrolled.value = false;
+    enrollmentId.value = null;
+  }
+}
 
 // 커리큘럼 상세 정보 로드
 async function loadCurriculumDetail() {
@@ -308,12 +388,138 @@ function goToLecture(lectureId: number) {
   });
 }
 
+// 리뷰 작성 페이지로 이동
+function goToReview() {
+  const curriculumId = route.params.id;
+  router.push({
+    name: 'curriculum-review',
+    params: { id: curriculumId }
+  });
+}
+
+// 커리큘럼 공유하기
+async function shareCurriculum() {
+  try {
+    const curriculumId = route.params.id;
+    const shareUrl = `${window.location.origin}/curriculum/${curriculumId}/learn`;
+    
+    // Web Share API 지원 여부 확인
+    if (navigator.share) {
+      await navigator.share({
+        title: curriculum?.title || '커리큘럼',
+        text: curriculum?.description || '이 커리큘럼을 확인해보세요!',
+        url: shareUrl
+      });
+    } else {
+      // Web Share API를 지원하지 않는 경우 클립보드에 복사
+      await navigator.clipboard.writeText(shareUrl);
+      alert('링크가 클립보드에 복사되었습니다!');
+    }
+  } catch (error) {
+    console.error('공유 실패:', error);
+    
+    // 클립보드 복사도 실패한 경우 수동 복사 안내
+    const curriculumId = route.params.id;
+    const shareUrl = `${window.location.origin}/curriculum/${curriculumId}/learn`;
+    
+    // 임시 텍스트 영역을 생성하여 복사
+    const textArea = document.createElement('textarea');
+    textArea.value = shareUrl;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    alert(`링크가 클립보드에 복사되었습니다!\n\n${shareUrl}`);
+  }
+}
+
+// 구독 상태 확인
+function checkSubscriptionStatus() {
+  try {
+    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+    // 강의자 이름으로 구독 상태 확인 (실제로는 강의자 ID를 사용해야 함)
+    isSubscribed.value = subscriptions.some((sub: any) => sub.name === curriculum.value?.instructor);
+  } catch {
+    isSubscribed.value = false;
+  }
+}
+
+// 구독 토글
+function toggleSubscribe() {
+  if (!curriculum.value?.instructor) return;
+
+  try {
+    const subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+    
+    if (isSubscribed.value) {
+      // 구독 해지 확인 다이얼로그
+      if (confirm(`"${curriculum.value.instructor}"의 구독을 해지하시겠습니까?\n\n구독을 해지하면 해당 크리에이터의 새로운 콘텐츠 알림을 받을 수 없습니다.`)) {
+        const updatedSubs = subscriptions.filter((sub: any) => sub.name !== curriculum.value.instructor);
+        localStorage.setItem('subscriptions', JSON.stringify(updatedSubs));
+        isSubscribed.value = false;
+        alert(`${curriculum.value.instructor}의 구독이 해지되었습니다.`);
+      }
+    } else {
+      // 구독 추가
+      const newSubscription = {
+        id: Date.now(), // 임시 ID
+        name: curriculum.value.instructor,
+        handle: `@${curriculum.value.instructor.toLowerCase().replace(/\s+/g, '')}`,
+        avatarColor: '#4F46E5', // 기본 색상
+        subscribers: Math.floor(Math.random() * 100000) + 10000, // 임시 구독자 수
+        description: `${curriculum.value.instructor}의 강의를 구독합니다.`,
+        subscribedAt: new Date().toISOString()
+      };
+      
+      subscriptions.push(newSubscription);
+      localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+      isSubscribed.value = true;
+      alert(`${curriculum.value.instructor}을(를) 구독했습니다!`);
+    }
+  } catch (err) {
+    console.error('구독 상태 변경 실패:', err);
+  }
+}
+
+// 수강 취소
+async function cancelEnrollment() {
+  if (!enrollmentId.value || !curriculum.value) return;
+
+  const confirmed = confirm('정말로 수강을 취소하시겠습니까?');
+  if (!confirmed) return;
+
+  try {
+    isCanceling.value = true;
+    await enrollmentApiService.cancelEnrollment(enrollmentId.value);
+    alert('수강이 취소되었습니다.');
+
+    // 수강 상태 업데이트
+    isEnrolled.value = false;
+    enrollmentId.value = null;
+
+    // 커리큘럼 개요 페이지로 이동
+    router.push({ name: 'curriculum-overview', params: { id: curriculum.value.id } });
+  } catch (err: any) {
+    console.error('수강 취소 실패:', err);
+    alert(err.message || '수강 취소에 실패했습니다.');
+  } finally {
+    isCanceling.value = false;
+  }
+}
+
 // 신고 완료 처리
 function handleReported() {
   console.log('커리큘럼 신고가 접수되었습니다.');
+  // 필요시 추가 로직 (예: 토스트 메시지 표시)
 }
 
-onMounted(() => {
-  loadCurriculumDetail();
+onMounted(async () => {
+  await loadCurriculumDetail();
+  await checkEnrollmentStatus();
+  // 커리큘럼 로드 후 구독 상태 확인
+  setTimeout(() => {
+    checkSubscriptionStatus();
+  }, 100);
 });
 </script>

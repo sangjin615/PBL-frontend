@@ -6,7 +6,7 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/reports',
     name: 'admin-reports',
     component: () => import('../views/AdminReportsView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/',
@@ -36,10 +36,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/QnADetailView.vue'),
   },
   {
+    path: '/qna/write',
+    name: 'qna-write',
+    component: () => import('../views/QnAWriteView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/subscriptions',
     name: 'subscriptions',
     component: () => import('../views/SubscriptionsView.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/creator/:id',
+    name: 'creator-profile',
+    component: () => import('../views/CreatorProfileView.vue'),
   },
   {
     path: '/my-submissions',
@@ -61,6 +72,12 @@ const routes: RouteRecordRaw[] = [
     path: '/curriculum/:id/learn',
     name: 'curriculum-detail',
     component: () => import('../views/CurriculumDetailView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/curriculum/:id/review',
+    name: 'curriculum-review',
+    component: () => import('../views/CurriculumReviewView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -138,7 +155,7 @@ const router = createRouter({
 
 // 라우터 가드: 인증이 필요한 페이지 접근 시 로그인 페이지로 리다이렉트
 router.beforeEach((to, from, next) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   
   // 인증이 필요한 페이지인지 확인
   if (to.meta.requiresAuth) {
@@ -149,6 +166,16 @@ router.beforeEach((to, from, next) => {
         name: 'login', 
         query: { redirect: to.fullPath } 
       });
+      return;
+    }
+  }
+
+  // 관리자 권한이 필요한 페이지인지 확인
+  if (to.meta.requiresAdmin) {
+    // 관리자가 아닌 경우 홈 페이지로 리다이렉트
+    if (!isAdmin.value) {
+      console.log('관리자 권한이 필요한 페이지에 접근하려고 합니다. 홈 페이지로 리다이렉트합니다.');
+      next({ name: 'home' });
       return;
     }
   }

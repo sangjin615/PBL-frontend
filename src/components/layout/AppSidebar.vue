@@ -66,7 +66,7 @@ import { useAuth } from '../../composables/useAuth';
 
 const ui = useUiStore();
 const route = useRoute();
-const { logout, isAuthenticated } = useAuth();
+const { logout, isAuthenticated, isAdmin } = useAuth();
 
 const isOpen = computed(() => ui.isSidebarOpen);
 const toggleSidebar = () => ui.toggleSidebar();
@@ -90,12 +90,25 @@ const IconMenu = { template: "<svg xmlns='http://www.w3.org/2000/svg' fill='none
 const IconUser = { template: "<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' aria-hidden='true'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg>" };
 const IconLogout = { template: "<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' aria-hidden='true'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'/></svg>" };
 
-const items = [
-  { key: 'home', label: '홈', to: '/', icon: IconHome },
-  { key: 'courses', label: '수강 목록', to: '/courses', icon: IconBookmark },
-  { key: 'dashboard', label: '내 대시보드', to: '/dashboard', icon: IconApps },
-  { key: 'qna', label: '질문&답변', to: '/qna', icon: IconChat },
-  { key: 'subs', label: '구독', to: '/subscriptions', icon: IconMenu },
-  { key: 'admin-reports', label: '신고 처리', to: '/admin/reports', icon: IconMenu },
-];
+const items = computed(() => {
+  const baseItems = [
+    { key: 'home', label: '홈', to: '/', icon: IconHome },
+    { key: 'courses', label: '수강 목록', to: '/courses', icon: IconBookmark },
+    { key: 'dashboard', label: '내 대시보드', to: '/dashboard', icon: IconApps },
+    { key: 'qna', label: '질문&답변', to: '/qna', icon: IconChat },
+    { key: 'subs', label: '구독', to: '/subscriptions', icon: IconMenu },
+  ];
+
+  // 관리자만 신고 처리 메뉴 표시
+  if (isAdmin.value) {
+    baseItems.push({
+      key: 'admin-reports',
+      label: '신고 처리',
+      to: '/admin/reports',
+      icon: IconMenu
+    });
+  }
+
+  return baseItems;
+});
 </script>

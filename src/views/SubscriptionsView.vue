@@ -166,13 +166,21 @@ const filteredCreators = computed(() => {
 })
 
 function toggleSubscribe(id: number) {
-  creators.value = creators.value.filter(c => c.id !== id)
-  saveSubscriptions(creators.value)
+  const creator = creators.value.find(c => c.id === id)
+  if (!creator) return
+
+  // 구독 해지 확인 다이얼로그
+  if (confirm(`"${creator.name}"의 구독을 해지하시겠습니까?\n\n구독을 해지하면 해당 크리에이터의 새로운 콘텐츠 알림을 받을 수 없습니다.`)) {
+    creators.value = creators.value.filter(c => c.id !== id)
+    saveSubscriptions(creators.value)
+    
+    // 성공 메시지 (선택사항)
+    alert(`${creator.name}의 구독이 해지되었습니다.`)
+  }
 }
 
-function viewCreator(_creator: Creator) {
-  // 아직 프로필 라우트가 없으므로 알림 처리
-  alert('프로필 페이지는 추후 제공될 예정입니다.')
+function viewCreator(creator: Creator) {
+  router.push({ name: 'creator-profile', params: { id: creator.id.toString() } })
 }
 
 function formatSubs(n: number) {

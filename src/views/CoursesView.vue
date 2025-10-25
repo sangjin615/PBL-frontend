@@ -192,6 +192,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { enrollmentApiService } from '@/services/enrollmentApi';
+import { curriculumApiService } from '@/services/curriculumApi';
 import type { EnrollmentResponse } from '@/types/enrollment';
 import { EnrollmentStatus } from '@/types/enrollment';
 import { getCurrentUserId } from '@/config/api';
@@ -285,19 +286,46 @@ const loadEnrollments = async () => {
     }
     const enrollments = await enrollmentApiService.getUserEnrollments(userId);
 
-    // Enrollment 데이터를 UI에 맞게 변환
-    enrolledCourses.value = enrollments.map((enrollment: EnrollmentResponse) => ({
-      id: String(enrollment.id),
-      curriculumId: enrollment.curriculumId,
-      title: enrollment.curriculumTitle,
-      instructor: enrollment.username || '알 수 없음',
-      category: '커리큘럼',
-      type: 'curriculum',
-      progress: enrollment.progressPercentage || 0,
-      status: enrollment.status,
-      rating: -99, // API 연결없음
-      enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
-    }));
+    // 각 커리큘럼의 강의자 정보를 가져오기 위해 병렬로 API 호출
+    const coursesWithInstructor = await Promise.all(
+      enrollments.map(async (enrollment: EnrollmentResponse) => {
+        try {
+          // 커리큘럼 상세 정보를 가져와서 강의자 이름 추출
+          const curriculumDetail = await curriculumApiService.getCurriculumById(enrollment.curriculumId);
+          const instructor = curriculumDetail.author?.username || '알 수 없음';
+          
+          return {
+            id: String(enrollment.id),
+            curriculumId: enrollment.curriculumId,
+            title: enrollment.curriculumTitle,
+            instructor: instructor,
+            category: '커리큘럼',
+            type: 'curriculum',
+            progress: enrollment.progressPercentage || 0,
+            status: enrollment.status,
+            rating: -99, // API 연결없음
+            enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
+          };
+        } catch (error) {
+          console.error(`커리큘럼 ${enrollment.curriculumId} 정보 조회 실패:`, error);
+          // 커리큘럼 정보 조회 실패 시 기본값 사용
+          return {
+            id: String(enrollment.id),
+            curriculumId: enrollment.curriculumId,
+            title: enrollment.curriculumTitle,
+            instructor: '알 수 없음',
+            category: '커리큘럼',
+            type: 'curriculum',
+            progress: enrollment.progressPercentage || 0,
+            status: enrollment.status,
+            rating: -99,
+            enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
+          };
+        }
+      })
+    );
+
+    enrolledCourses.value = coursesWithInstructor;
   } catch (error) {
     console.error('수강 목록 로드 실패:', error);
     alert('수강 목록을 불러오는데 실패했습니다.');

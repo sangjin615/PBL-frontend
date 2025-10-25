@@ -39,8 +39,11 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
           </div>
-          <button class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
-            + 만들기
+          <button 
+            @click="goToWrite"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            글쓰기
           </button>
         </div>
       </div>
@@ -67,7 +70,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="question in questions" :key="question.id" class="hover:bg-gray-50 cursor-pointer" @click="goToQuestion(question.id)">
+            <tr v-for="question in currentPageQuestions" :key="question.id" class="hover:bg-gray-50 cursor-pointer" @click="goToQuestion(question.id)">
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
                   'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
@@ -127,10 +130,17 @@
       <!-- 페이지네이션 -->
       <div class="flex items-center justify-between mt-6">
         <div class="flex items-center space-x-2">
-          <button class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700">이전</button>
+          <button 
+            @click="changePage(currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            이전
+          </button>
           <button 
             v-for="page in pages" 
             :key="page"
+            @click="changePage(page)"
             :class="[
               'px-3 py-2 text-sm rounded',
               page === currentPage 
@@ -140,14 +150,23 @@
           >
             {{ page }}
           </button>
-          <button class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700">다음</button>
+          <button 
+            @click="changePage(currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            다음
+          </button>
+        </div>
+        <div class="text-sm text-gray-500">
+          총 {{ questions.length }}개 질문 중 {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, questions.length) }}개 표시
         </div>
       </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { qnaQuestions } from '../mock/qna'
 import type { QnAQuestion } from '../types/qna'
@@ -157,6 +176,11 @@ const router = useRouter()
 // 질문 상세 페이지로 이동
 function goToQuestion(questionId: number) {
   router.push({ name: 'qna-detail', params: { id: questionId.toString() } })
+}
+
+// 글쓰기 페이지로 이동
+function goToWrite() {
+  router.push({ name: 'qna-write' })
 }
 
 // 탭 데이터
@@ -172,7 +196,23 @@ const activeTab = ref('all')
 // 질문 데이터 (새로운 더미데이터 사용)
 const questions = ref<QnAQuestion[]>(qnaQuestions)
 
-// 페이지네이션
-const pages = ref([1, 2, 3, 4, 5, '...', 11])
-const currentPage = ref(2)
+// 페이지네이션 설정
+const itemsPerPage = 4 // 페이지당 4개 항목
+const totalPages = Math.ceil(questions.value.length / itemsPerPage)
+const pages = ref(Array.from({ length: totalPages }, (_, i) => i + 1))
+const currentPage = ref(1)
+
+// 현재 페이지의 질문들
+const currentPageQuestions = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return questions.value.slice(start, end)
+})
+
+// 페이지 변경 함수
+function changePage(page: number) {
+  if (page >= 1 && page <= totalPages) {
+    currentPage.value = page
+  }
+}
 </script>

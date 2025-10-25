@@ -14,6 +14,7 @@ export interface User {
   username: string;
   loginId: string;
   subscribers?: string;
+  role?: 'user' | 'admin'; // 사용자 역할 추가
 }
 
 // 전역 상태로 사용자 정보 관리 (여러 컴포넌트에서 공유)
@@ -51,6 +52,7 @@ export function useAuth() {
         username: "김준성",
         loginId: "junseong.kim",
         subscribers: "8.71천명",
+        role: "user" as const, // 기본 사용자 역할
       };
     }
 
@@ -88,13 +90,14 @@ export function useAuth() {
       else {
         const loginId = typeof loginResponse === 'string'
           ? loginResponse
-          : (loginResponse.user?.loginId || loginResponse.loginId);
+          : loginResponse.user?.loginId;
 
         user = {
           id: authConfig.defaultUserId,
-          username: "김준성",
+          username: loginId === 'admin' ? "관리자" : "김준성",
           loginId: loginId,
-          subscribers: "8.71천명",
+          subscribers: loginId === 'admin' ? "관리자" : "8.71천명",
+          role: loginId === 'admin' ? 'admin' : 'user',
         };
         console.log("⚠️ 개발 모드: 하드코딩된 사용자 정보 사용", user);
       }
@@ -149,6 +152,13 @@ export function useAuth() {
   });
 
   /**
+   * 관리자 권한 확인
+   */
+  const isAdmin = computed(() => {
+    return currentUser.value?.role === 'admin';
+  });
+
+  /**
    * 사용자 정보 수동 설정 (테스트용)
    */
   function setUser(user: User): void {
@@ -156,12 +166,43 @@ export function useAuth() {
     localStorage.setItem("user", JSON.stringify(user));
   }
 
+  /**
+   * 관리자 계정으로 전환 (테스트용)
+   */
+  function switchToAdmin(): void {
+    const adminUser: User = {
+      id: 999,
+      username: "관리자",
+      loginId: "admin",
+      subscribers: "관리자",
+      role: "admin"
+    };
+    setUser(adminUser);
+  }
+
+  /**
+   * 일반 사용자 계정으로 전환 (테스트용)
+   */
+  function switchToUser(): void {
+    const normalUser: User = {
+      id: 1,
+      username: "김준성",
+      loginId: "junseong.kim",
+      subscribers: "8.71천명",
+      role: "user"
+    };
+    setUser(normalUser);
+  }
+
   return {
     currentUser,
     isAuthenticated,
     userId,
+    isAdmin,
     login,
     logout,
     setUser,
+    switchToAdmin,
+    switchToUser,
   };
 }
