@@ -56,7 +56,15 @@
                   {{ (curriculum.averageRating || 0).toFixed(1) }}점
                 </span>
               </div>
-              <span v-if="curriculum.instructor" class="text-sm" style="color: rgb(var(--figma-color-5))">{{ curriculum.instructor }}</span>
+              <button 
+                v-if="curriculum.instructor && curriculum.authorId" 
+                @click.stop="goToCreatorProfile(curriculum.authorId)"
+                class="text-sm hover:text-blue-600 hover:underline transition-colors"
+                style="color: rgb(var(--figma-color-5))"
+              >
+                {{ curriculum.instructor }}
+              </button>
+              <span v-else-if="curriculum.instructor" class="text-sm" style="color: rgb(var(--figma-color-5))">{{ curriculum.instructor }}</span>
             </div>
           </div>
 
@@ -274,7 +282,15 @@
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">지식공유자</span>
                 <div class="flex items-center space-x-2">
-                  <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                  <button 
+                    v-if="curriculum.authorId"
+                    @click.stop="goToCreatorProfile(curriculum.authorId)"
+                    class="text-sm font-medium hover:text-blue-600 hover:underline transition-colors"
+                    style="color: rgb(var(--figma-color-2))"
+                  >
+                    {{ curriculum.instructor }}
+                  </button>
+                  <span v-else class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
                   <button
                     @click="toggleSubscribe"
                     class="px-3 py-1 text-xs rounded-full transition-colors"
@@ -414,6 +430,7 @@ async function loadCurriculumDetail() {
       title: data.title,
       description: data.description,
       instructor: data.author?.username || '알 수 없음',
+      authorId: data.author?.id, // 작성자 ID 추가
       category: data.category || '미분류',
       // API에서 가져온 필드들
       difficulty: data.difficulty,
@@ -547,6 +564,13 @@ function goToLecture(lectureId: number) {
     name: 'lecture',
     params: { lectureId },
     query: { curriculumId }
+  });
+}
+
+function goToCreatorProfile(authorId: number) {
+  router.push({
+    name: 'creator-profile',
+    params: { id: authorId }
   });
 }
 

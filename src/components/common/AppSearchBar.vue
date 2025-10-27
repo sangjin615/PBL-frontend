@@ -3,7 +3,7 @@
     <form class="relative" @submit.prevent="onSubmit">
       <input
         type="text"
-        class="w-full h-10 rounded-md border border-gray-300 pr-10 pl-10 focus:outline-none focus:ring-2 focus:ring-primary/40"
+        class="w-full h-10 rounded-l-md border border-gray-300 pl-10 focus:outline-none focus:ring-2 focus:ring-primary/40"
         placeholder="검색..."
         v-model="query"
         @focus="open"
@@ -12,8 +12,18 @@
       <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
       </span>
-      <button v-if="query" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="clear" aria-label="clear">
+      <button v-if="query" type="button" class="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" @click="clear" aria-label="clear">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <button
+        type="submit"
+        class="absolute right-0 top-0 h-10 px-4 bg-primary text-white rounded-r-md hover:bg-opacity-90 transition-colors flex items-center gap-1"
+        aria-label="검색"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/>
+        </svg>
+        <span class="text-sm">검색</span>
       </button>
     </form>
 

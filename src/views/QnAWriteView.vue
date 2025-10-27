@@ -11,7 +11,9 @@
           </button>
           <div>
             <h1 class="text-lg font-semibold">질문 작성</h1>
-            <p class="text-sm text-gray-600">자유롭게 질문을 작성해보세요</p>
+            <p class="text-sm text-gray-600">
+              {{ curriculumId ? '커리큘럼 문의를 작성해보세요' : '자유롭게 질문을 작성해보세요' }}
+            </p>
           </div>
         </div>
         <div class="flex items-center space-x-3">
@@ -53,8 +55,8 @@
           </div>
         </div>
 
-        <!-- 카테고리 선택 -->
-        <div class="mb-6">
+        <!-- 카테고리 선택 (커리큘럼 문의가 아닐 때만 표시) -->
+        <div v-if="!curriculumId" class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">
             카테고리 <span class="text-red-500">*</span>
           </label>
@@ -88,8 +90,8 @@
           <p v-if="contentError" class="text-red-500 text-sm mt-1">{{ contentError }}</p>
         </div>
 
-        <!-- 이미지 첨부 -->
-        <div class="mb-6">
+        <!-- 이미지 첨부 (커리큘럼 문의가 아닐 때만 표시) -->
+        <div v-if="!curriculumId" class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">
             이미지 첨부 (선택사항)
           </label>
@@ -142,11 +144,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { FormTextarea, ImageUpload } from '@/components/common';
 
 const router = useRouter();
+const route = useRoute();
+
+// curriculumId가 있으면 관련 정보 표시
+const curriculumId = computed(() => route.query.curriculumId as string | undefined);
 
 // 폼 데이터
 const form = reactive({
@@ -155,6 +161,13 @@ const form = reactive({
   category: '',
   images: [] as File[],
   isPublic: true
+});
+
+// 페이지 로드 시 curriculumId가 있으면 카테고리를 curriculum으로 설정
+onMounted(() => {
+  if (curriculumId.value) {
+    form.category = 'curriculum';
+  }
 });
 
 // 상태 관리
@@ -168,7 +181,7 @@ const contentError = ref('');
 // 폼 유효성 검사
 const isFormValid = computed(() => {
   return form.title.trim().length > 0 && 
-         form.category.length > 0 && 
+         (curriculumId.value || form.category.length > 0) && 
          form.content.trim().length > 0 &&
          form.title.length <= 100 &&
          form.content.length <= 2000;
@@ -188,7 +201,8 @@ function validateForm() {
     titleError.value = '제목은 100자 이하로 입력해주세요.';
     return false;
   }
-  if (!form.category) {
+  // 커리큘럼 문의가 아닐 때만 카테고리 검사
+  if (!curriculumId.value && !form.category) {
     categoryError.value = '카테고리를 선택해주세요.';
     return false;
   }

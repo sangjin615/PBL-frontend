@@ -20,44 +20,69 @@ export interface User {
 // 전역 상태로 사용자 정보 관리 (여러 컴포넌트에서 공유)
 const currentUserState = ref<User | null>(null);
 
+/**
+ * 현재 로그인된 사용자 정보 (전역 computed)
+ */
+const currentUser = computed<User | null>(() => {
+  // 이미 상태에 사용자가 있으면 반환
+  if (currentUserState.value) {
+    return currentUserState.value;
+  }
+
+  // 프로덕션: 실제 인증 토큰에서 사용자 정보 가져오기
+  // TODO: 실제 JWT 토큰 파싱 또는 세션 스토리지에서 가져오기
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    try {
+      const parsed = JSON.parse(storedUser);
+      // localStorage에서 읽었을 때 currentUserState에 동기화
+      if (parsed && !currentUserState.value) {
+        currentUserState.value = parsed;
+      }
+      return parsed;
+    } catch (e) {
+      console.error("Failed to parse stored user:", e);
+      return null;
+    }
+  }
+
+  // 개발 환경: 기본 사용자 정보 사용 (로그아웃 상태가 아닐 때만)
+  if (authConfig.enabled === false && !localStorage.getItem("loggedOut")) {
+    return {
+      id: authConfig.defaultUserId,
+      username: "김준성",
+      loginId: "junseong.kim",
+      subscribers: "8.71천명",
+      role: "user" as const, // 기본 사용자 역할
+    };
+  }
+
+  return null;
+});
+
+/**
+ * 사용자 로그인 여부 확인 (전역 computed)
+ */
+const isAuthenticated = computed(() => {
+  return currentUser.value !== null;
+});
+
+/**
+ * 현재 사용자 ID 가져오기 (전역 computed)
+ */
+const userId = computed(() => {
+  return currentUser.value?.id || null;
+});
+
+/**
+ * 관리자 권한 확인 (전역 computed)
+ */
+const isAdmin = computed(() => {
+  return currentUser.value?.role === 'admin';
+});
+
 export function useAuth() {
   const router = useRouter();
-
-  /**
-   * 현재 로그인된 사용자 정보
-   * 개발 단계에서는 기본 사용자 정보 반환
-   */
-  const currentUser = computed<User | null>(() => {
-    // 이미 상태에 사용자가 있으면 반환
-    if (currentUserState.value) {
-      return currentUserState.value;
-    }
-
-    // 프로덕션: 실제 인증 토큰에서 사용자 정보 가져오기
-    // TODO: 실제 JWT 토큰 파싱 또는 세션 스토리지에서 가져오기
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        return JSON.parse(storedUser);
-      } catch (e) {
-        console.error("Failed to parse stored user:", e);
-        return null;
-      }
-    }
-
-    // 개발 환경: 기본 사용자 정보 사용 (로그아웃 상태가 아닐 때만)
-    if (authConfig.enabled === false && !localStorage.getItem("loggedOut")) {
-      return {
-        id: authConfig.defaultUserId,
-        username: "김준성",
-        loginId: "junseong.kim",
-        subscribers: "8.71천명",
-        role: "user" as const, // 기본 사용자 역할
-      };
-    }
-
-    return null;
-  });
 
   /**
    * 사용자 로그인
@@ -78,11 +103,15 @@ export function useAuth() {
         // 서버 응답이 {success, message, user} 구조인 경우
         const userData = loginResponse.user || loginResponse;
 
+        // loginId가 'admin'이거나 'admin123'인 경우 자동으로 관리자 권한 부여
+        const isAdminAccount = userData.loginId === 'admin' || userData.loginId === 'admin123';
+
         user = {
           id: userData.id,
           username: userData.username,
           loginId: userData.loginId,
           subscribers: "0명", // 기본값
+          role: isAdminAccount ? 'admin' : (userData.role || 'user'), // 백엔드에서 role 정보가 있으면 사용, 없으면 기본 'user'
         };
         console.log("✅ 프로덕션 모드: 실제 사용자 정보 사용", user);
       }
@@ -92,12 +121,14 @@ export function useAuth() {
           ? loginResponse
           : loginResponse.user?.loginId;
 
+        const isAdminAccount = loginId === 'admin' || loginId === 'admin123';
+
         user = {
           id: authConfig.defaultUserId,
-          username: loginId === 'admin' ? "관리자" : "김준성",
+          username: isAdminAccount ? "관리자" : "김준성",
           loginId: loginId,
-          subscribers: loginId === 'admin' ? "관리자" : "8.71천명",
-          role: loginId === 'admin' ? 'admin' : 'user',
+          subscribers: isAdminAccount ? "관리자" : "8.71천명",
+          role: isAdminAccount ? 'admin' : 'user',
         };
         console.log("⚠️ 개발 모드: 하드코딩된 사용자 정보 사용", user);
       }
@@ -136,27 +167,6 @@ export function useAuth() {
 
     console.log("로그아웃 완료");
   }
-
-  /**
-   * 사용자 로그인 여부 확인
-   */
-  const isAuthenticated = computed(() => {
-    return currentUser.value !== null;
-  });
-
-  /**
-   * 현재 사용자 ID 가져오기
-   */
-  const userId = computed(() => {
-    return currentUser.value?.id || null;
-  });
-
-  /**
-   * 관리자 권한 확인
-   */
-  const isAdmin = computed(() => {
-    return currentUser.value?.role === 'admin';
-  });
 
   /**
    * 사용자 정보 수동 설정 (테스트용)

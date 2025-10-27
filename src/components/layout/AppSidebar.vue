@@ -66,7 +66,7 @@ import { useAuth } from '../../composables/useAuth';
 
 const ui = useUiStore();
 const route = useRoute();
-const { logout, isAuthenticated, isAdmin } = useAuth();
+const { logout, isAuthenticated, isAdmin, currentUser } = useAuth();
 
 const isOpen = computed(() => ui.isSidebarOpen);
 const toggleSidebar = () => ui.toggleSidebar();

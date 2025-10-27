@@ -30,6 +30,7 @@ export interface LoginResponse {
     loginId: string;
     createdAt: number[] | string;
     updatedAt: number[] | string;
+    role?: 'user' | 'admin'; // 사용자 역할 (백엔드에서 반환)
   };
 }
 

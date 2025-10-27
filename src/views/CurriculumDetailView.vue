@@ -14,12 +14,30 @@
 
             <div v-if="curriculum">
               <h1 class="text-2xl font-bold" style="color: rgb(var(--figma-color-2))">{{ curriculum.title }}</h1>
-              <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">{{ curriculum.instructor }} • {{ curriculum.category }}</p>
+              <p class="text-sm mt-1" style="color: rgb(var(--figma-color-5))">
+                <button 
+                  v-if="curriculum.authorId"
+                  @click.stop="goToCreatorProfile(curriculum.authorId)"
+                  class="hover:text-blue-600 hover:underline transition-colors"
+                >
+                  {{ curriculum.instructor }}
+                </button>
+                <span v-else>{{ curriculum.instructor }}</span>
+                • {{ curriculum.category }}
+              </p>
             </div>
           </div>
 
           <!-- 액션 버튼들 -->
           <div class="flex items-center space-x-3">
+            <button 
+              @click="goToInquiry"
+              class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer" 
+              style="border-color: rgb(var(--figma-color-4)); color: rgb(var(--figma-color-2))"
+              type="button"
+            >
+              문의하기
+            </button>
             <button 
               @click="goToReview"
               class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer" 
@@ -170,7 +188,15 @@
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))">강의자</span>
                 <div class="flex items-center space-x-2">
-                  <span class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
+                  <button 
+                    v-if="curriculum.authorId"
+                    @click.stop="goToCreatorProfile(curriculum.authorId)"
+                    class="text-sm font-medium hover:text-blue-600 hover:underline transition-colors"
+                    style="color: rgb(var(--figma-color-2))"
+                  >
+                    {{ curriculum.instructor }}
+                  </button>
+                  <span v-else class="text-sm font-medium" style="color: rgb(var(--figma-color-2))">{{ curriculum.instructor }}</span>
                   <button
                     @click="toggleSubscribe"
                     class="px-3 py-1 text-xs rounded-full transition-colors"
@@ -343,6 +369,7 @@ async function loadCurriculumDetail() {
     curriculum.value = {
       ...data,
       instructor: data.author?.username || '알 수 없음',
+      authorId: data.author?.id, // 작성자 ID 추가
       category: data.category || '미분류',
       tags: data.tags || []
     };
@@ -384,6 +411,22 @@ function goToLecture(lectureId: number) {
   router.push({
     name: 'lecture',
     params: { lectureId },
+    query: { curriculumId }
+  });
+}
+
+function goToCreatorProfile(authorId: number) {
+  router.push({
+    name: 'creator-profile',
+    params: { id: authorId }
+  });
+}
+
+// 문의하기 페이지로 이동
+function goToInquiry() {
+  const curriculumId = route.params.id;
+  router.push({
+    name: 'qna-write',
     query: { curriculumId }
   });
 }

@@ -20,9 +20,13 @@ import AppHeader from './components/layout/AppHeader.vue';
 import AppFooter from './components/layout/AppFooter.vue';
 import AppSidebar from './components/layout/AppSidebar.vue';
 import { useUiStore } from './stores/ui';
+import { useAuth } from './composables/useAuth';
 
 const ui = useUiStore();
 const route = useRoute();
+
+// useAuth를 호출하여 초기화
+useAuth();
 
 const isBareLayout = computed(() => route.name === 'editor-popout');
 
