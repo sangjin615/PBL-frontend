@@ -12,7 +12,8 @@ import type {
   TestCase,
 } from "@/types/lecture";
 import { LectureType } from "@/types/lecture";
-import { apiConfig, getCurrentUserId } from "@/config/api";
+import { apiConfig } from "@/config/api";
+import { request } from "./utils";
 
 class LectureApiService {
   private readonly baseURL: string;
@@ -21,52 +22,6 @@ class LectureApiService {
     this.baseURL = apiConfig.backend.baseUrl;
   }
 
-  /**
-   * HTTP 요청을 위한 공통 fetch 래퍼
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-
-    const currentUserId = getCurrentUserId();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    // 사용자 ID가 있을 때만 헤더에 추가
-    if (currentUserId !== null) {
-      (headers as Record<string, string>)['X-User-Id'] = String(currentUserId);
-    }
-
-    const config: RequestInit = {
-      headers,
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        );
-      }
-
-      // 204 No Content인 경우 빈 객체 반환
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`API 요청 실패 [${endpoint}]:`, error);
-      throw error;
-    }
-  }
 
   // === 기본 CRUD API ===
 
@@ -75,7 +30,7 @@ class LectureApiService {
    * GET /api/lectures
    */
   async getAllLectures(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/api/lectures");
+    return request<Lecture[]>("/api/lectures", {}, this.baseURL);
   }
 
   /**
@@ -83,7 +38,7 @@ class LectureApiService {
    * GET /api/lectures/{id}
    */
   async getLecture(id: number): Promise<Lecture> {
-    return this.request<Lecture>(`/api/lectures/${id}`);
+    return request<Lecture>(`/api/lectures/${id}`, {}, this.baseURL);
   }
 
   /**
@@ -91,10 +46,10 @@ class LectureApiService {
    * POST /api/lectures
    */
   async createLecture(lectureData: CreateLectureRequest): Promise<Lecture> {
-    return this.request<Lecture>("/api/lectures", {
+    return request<Lecture>("/api/lectures", {
       method: "POST",
       body: JSON.stringify(lectureData),
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -105,10 +60,10 @@ class LectureApiService {
     id: number,
     lectureData: CreateLectureRequest
   ): Promise<Lecture> {
-    return this.request<Lecture>(`/api/lectures/${id}`, {
+    return request<Lecture>(`/api/lectures/${id}`, {
       method: "PUT",
       body: JSON.stringify(lectureData),
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -116,9 +71,9 @@ class LectureApiService {
    * DELETE /api/lectures/{id}
    */
   async deleteLecture(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/lectures/${id}`, {
+    return request<{ message: string }>(`/api/lectures/${id}`, {
       method: "DELETE",
-    });
+    }, this.baseURL);
   }
 
   // === 검색 및 필터링 API ===
@@ -144,7 +99,7 @@ class LectureApiService {
       : "/api/lectures/search";
 
     try {
-      return this.request<LectureSearchResponse>(endpoint);
+      return request<LectureSearchResponse>(endpoint, {}, this.baseURL);
     } catch (error) {
       // 검색 API가 구현되지 않은 경우 기본 강의 목록 반환
       console.warn("검색 API 실패, 기본 목록으로 대체:", error);
@@ -165,7 +120,7 @@ class LectureApiService {
    * GET /api/lectures/type/{type}
    */
   async getLecturesByType(type: LectureType): Promise<Lecture[]> {
-    return this.request<Lecture[]>(`/api/lectures/type/${type}`);
+    return request<Lecture[]>(`/api/lectures/type/${type}`, {}, this.baseURL);
   }
 
   /**
@@ -173,7 +128,7 @@ class LectureApiService {
    * GET /api/lectures/recent
    */
   async getRecentLectures(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/api/lectures/recent");
+    return request<Lecture[]>("/api/lectures/recent", {}, this.baseURL);
   }
 
   // === 테스트케이스 관리 API ===
@@ -183,13 +138,13 @@ class LectureApiService {
    * POST /api/lectures/{id}/testcases
    */
   async addTestCase(lectureId: number, testCase: TestCase): Promise<Lecture> {
-    return this.request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
+    return request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
       method: "POST",
       body: JSON.stringify({
         input: testCase.input,
         expectedOutput: testCase.expectedOutput,
       }),
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -197,9 +152,9 @@ class LectureApiService {
    * DELETE /api/lectures/{id}/testcases
    */
   async clearTestCases(lectureId: number): Promise<Lecture> {
-    return this.request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
+    return request<Lecture>(`/api/lectures/${lectureId}/testcases`, {
       method: "DELETE",
-    });
+    }, this.baseURL);
   }
 
   // === 통계 API ===
@@ -209,7 +164,7 @@ class LectureApiService {
    * GET /api/lectures/stats
    */
   async getLectureStats(): Promise<LectureStats> {
-    return this.request<LectureStats>("/api/lectures/stats");
+    return request<LectureStats>("/api/lectures/stats", {}, this.baseURL);
   }
 
   // === 편의 메서드 ===
@@ -253,9 +208,9 @@ class LectureApiService {
    * PUT /api/lectures/{id}/publish
    */
   async publishLecture(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/lectures/${id}/publish`, {
+    return request<{ message: string }>(`/api/lectures/${id}/publish`, {
       method: "PUT",
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -263,9 +218,9 @@ class LectureApiService {
    * PUT /api/lectures/{id}/unpublish
    */
   async unpublishLecture(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/lectures/${id}/unpublish`, {
+    return request<{ message: string }>(`/api/lectures/${id}/unpublish`, {
       method: "PUT",
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -276,8 +231,10 @@ class LectureApiService {
     page: number = 0,
     size: number = 10
   ): Promise<PaginatedLectureResponse> {
-    return this.request<PaginatedLectureResponse>(
-      `/api/lectures/public?page=${page}&size=${size}`
+    return request<PaginatedLectureResponse>(
+      `/api/lectures/public?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 
@@ -304,7 +261,7 @@ class LectureApiService {
       ? `/api/lectures/public/search?${queryString}`
       : "/api/lectures/public/search";
 
-    return this.request<Lecture[]>(endpoint);
+    return request<Lecture[]>(endpoint, {}, this.baseURL);
   }
 
   // === 사용자별 강의 관리 API ===
@@ -318,8 +275,10 @@ class LectureApiService {
     page: number = 0,
     size: number = 10
   ): Promise<PaginatedLectureResponse> {
-    return this.request<PaginatedLectureResponse>(
-      `/api/lectures/user/${userId}?page=${page}&size=${size}`
+    return request<PaginatedLectureResponse>(
+      `/api/lectures/user/${userId}?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 
@@ -332,8 +291,10 @@ class LectureApiService {
     page: number = 0,
     size: number = 10
   ): Promise<PaginatedLectureResponse> {
-    return this.request<PaginatedLectureResponse>(
-      `/api/lectures/user/${userId}/public?page=${page}&size=${size}`
+    return request<PaginatedLectureResponse>(
+      `/api/lectures/user/${userId}/public?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 }

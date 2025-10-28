@@ -9,14 +9,14 @@
       <!-- 필터 탭 -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex space-x-1">
-          <button 
-            v-for="tab in tabs" 
+          <button
+            v-for="tab in tabs"
             :key="tab.id"
-            @click="activeTab = tab.id"
+            @click="setActiveTab(tab.id)"
             :class="[
               'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === tab.id 
-                ? 'bg-blue-600 text-white' 
+              activeTab === tab.id
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             ]"
           >
@@ -30,16 +30,18 @@
         <!-- 검색 및 생성 버튼 -->
         <div class="flex items-center space-x-4">
           <div class="relative">
-            <input 
-              type="text" 
-              placeholder="Search" 
+            <input
+              v-model="searchKeyword"
+              type="text"
+              placeholder="Search"
+              @input="handleSearch"
               class="w-64 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
             <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
           </div>
-          <button 
+          <button
             @click="goToWrite"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -48,8 +50,21 @@
         </div>
       </div>
 
+      <!-- 로딩 스피너 -->
+      <div v-if="loading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+
+      <!-- 에러 메시지 -->
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-red-700">{{ error }}</p>
+        <button @click="fetchQuestions" class="mt-2 text-red-600 hover:text-red-800 underline">
+          다시 시도
+        </button>
+      </div>
+
       <!-- 질문 목록 테이블 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div v-else class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <table class="w-full">
           <thead class="bg-gray-50">
             <tr>
@@ -70,15 +85,15 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="question in currentPageQuestions" :key="question.id" class="hover:bg-gray-50 cursor-pointer" @click="goToQuestion(question.id)">
+            <tr v-for="question in questions" :key="question.id" class="hover:bg-gray-50 cursor-pointer" @click="goToQuestion(question.id)">
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="[
                   'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                  question.status === 'unresolved' 
-                    ? 'bg-blue-100 text-blue-800' 
+                  question.status === 'UNRESOLVED'
+                    ? 'bg-blue-100 text-blue-800'
                     : 'bg-green-100 text-green-800'
                 ]">
-                  {{ question.status === 'unresolved' ? '미해결' : '해결' }}
+                  {{ question.status === 'UNRESOLVED' ? '미해결' : '해결' }}
                 </span>
               </td>
               <td class="px-6 py-4">
@@ -86,21 +101,22 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {{ question.category }}
+                  {{ getCategoryLabel(question.category) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ question.course }}
+                {{ question.course || '-' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                <span v-if="question.language" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                   {{ question.language }}
                 </span>
+                <span v-else class="text-gray-400">-</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="w-6 h-6 bg-gray-300 rounded-full mr-2"></div>
-                  <span class="text-sm text-gray-900">{{ question.author }}</span>
+                  <span class="text-sm text-gray-900">{{ question.authorName }}</span>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
@@ -108,7 +124,7 @@
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                   </svg>
-                  {{ question.comments }}
+                  {{ question.commentCount }}
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
@@ -120,56 +136,61 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ question.createdAt }}
+                {{ formatDate(question.createdAt) }}
               </td>
             </tr>
           </tbody>
         </table>
+
+        <!-- 데이터 없음 -->
+        <div v-if="!loading && questions.length === 0" class="text-center py-12 text-gray-500">
+          질문이 없습니다. 첫 번째 질문을 작성해보세요!
+        </div>
       </div>
 
       <!-- 페이지네이션 -->
-      <div class="flex items-center justify-between mt-6">
+      <div v-if="!loading && totalPages > 0" class="flex items-center justify-between mt-6">
         <div class="flex items-center space-x-2">
-          <button 
+          <button
             @click="changePage(currentPage - 1)"
-            :disabled="currentPage === 1"
+            :disabled="currentPage === 0"
             class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             이전
           </button>
-          <button 
-            v-for="page in pages" 
+          <button
+            v-for="page in visiblePages"
             :key="page"
             @click="changePage(page)"
             :class="[
               'px-3 py-2 text-sm rounded',
-              page === currentPage 
-                ? 'bg-blue-600 text-white' 
+              page === currentPage
+                ? 'bg-blue-600 text-white'
                 : 'text-gray-500 hover:text-gray-700'
             ]"
           >
-            {{ page }}
+            {{ page + 1 }}
           </button>
-          <button 
+          <button
             @click="changePage(currentPage + 1)"
-            :disabled="currentPage === totalPages"
+            :disabled="currentPage >= totalPages - 1"
             class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             다음
           </button>
         </div>
         <div class="text-sm text-gray-500">
-          총 {{ questions.length }}개 질문 중 {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, questions.length) }}개 표시
+          총 {{ totalElements }}개 질문
         </div>
       </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { qnaQuestions } from '../mock/qna'
-import type { QnAQuestion } from '../types/qna'
+import qnaApiService from '@/services/qnaApi'
+import type { QuestionListResponse, QuestionStatus, QuestionCategory } from '@/types/qna'
 
 const router = useRouter()
 
@@ -186,33 +207,136 @@ function goToWrite() {
 // 탭 데이터
 const tabs = ref([
   { id: 'all', name: '전체' },
-  { id: 'questions', name: '질문', badge: '99+' },
-  { id: 'answered', name: '답변완료' },
-  { id: 'admin', name: 'Admin' }
+  { id: 'unresolved', name: '미해결' },
+  { id: 'resolved', name: '해결' },
 ])
 
 const activeTab = ref('all')
 
-// 질문 데이터 (새로운 더미데이터 사용)
-const questions = ref<QnAQuestion[]>(qnaQuestions)
+// 상태 관리
+const questions = ref<QuestionListResponse[]>([])
+const loading = ref(false)
+const error = ref('')
+const searchKeyword = ref('')
 
 // 페이지네이션 설정
-const itemsPerPage = 4 // 페이지당 4개 항목
-const totalPages = Math.ceil(questions.value.length / itemsPerPage)
-const pages = ref(Array.from({ length: totalPages }, (_, i) => i + 1))
-const currentPage = ref(1)
+const currentPage = ref(0) // 0-based
+const totalPages = ref(0)
+const totalElements = ref(0)
+const pageSize = 20
 
-// 현재 페이지의 질문들
-const currentPageQuestions = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return questions.value.slice(start, end)
+// 보이는 페이지 번호 계산 (최대 5개)
+const visiblePages = computed(() => {
+  const pages: number[] = []
+  const maxVisible = 5
+  let start = Math.max(0, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible)
+
+  if (end - start < maxVisible) {
+    start = Math.max(0, end - maxVisible)
+  }
+
+  for (let i = start; i < end; i++) {
+    pages.push(i)
+  }
+
+  return pages
 })
+
+// 질문 목록 조회
+async function fetchQuestions() {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const filterStatus: QuestionStatus | undefined =
+      activeTab.value === 'unresolved' ? 'UNRESOLVED' :
+      activeTab.value === 'resolved' ? 'RESOLVED' :
+      undefined
+
+    const response = await qnaApiService.searchQuestions({
+      keyword: searchKeyword.value || undefined,
+      status: filterStatus,
+      page: currentPage.value,
+      size: pageSize,
+      sort: 'createdAt,DESC'
+    })
+
+    questions.value = response.content
+    totalPages.value = response.totalPages
+    totalElements.value = response.totalElements
+  } catch (err: any) {
+    error.value = err.message || '질문 목록을 불러오는데 실패했습니다.'
+    console.error('질문 목록 조회 실패:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 탭 변경
+function setActiveTab(tabId: string) {
+  activeTab.value = tabId
+  currentPage.value = 0 // 페이지 초기화
+  fetchQuestions()
+}
+
+// 검색 처리 (디바운스 적용)
+let searchTimeout: number | null = null
+function handleSearch() {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+
+  searchTimeout = window.setTimeout(() => {
+    currentPage.value = 0 // 페이지 초기화
+    fetchQuestions()
+  }, 300) // 300ms 디바운스
+}
 
 // 페이지 변경 함수
 function changePage(page: number) {
-  if (page >= 1 && page <= totalPages) {
+  if (page >= 0 && page < totalPages.value) {
     currentPage.value = page
+    fetchQuestions()
   }
 }
+
+// 카테고리 한글 라벨
+function getCategoryLabel(category: QuestionCategory): string {
+  const labels: Record<QuestionCategory, string> = {
+    'QUESTION': '질문',
+    'TIP': '팁',
+    'BUG_REPORT': '버그 리포트',
+    'FEATURE_REQUEST': '기능 요청',
+    'GENERAL': '일반'
+  }
+  return labels[category] || category
+}
+
+// 날짜 포맷팅
+function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '방금 전'
+  if (minutes < 60) return `${minutes}분 전`
+  if (hours < 24) return `${hours}시간 전`
+  if (days < 7) return `${days}일 전`
+
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+// 컴포넌트 마운트 시 질문 목록 조회
+onMounted(() => {
+  fetchQuestions()
+})
 </script>

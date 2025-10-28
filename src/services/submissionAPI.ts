@@ -4,6 +4,7 @@
  */
 
 import { apiConfig } from '../config/api';
+import { request } from './utils';
 
 export interface SubmissionRequest {
   source_code: string;
@@ -46,36 +47,25 @@ export class SubmissionAPI {
 
   /**
    * 코드를 실행하고 결과를 반환합니다.
-   * @param request 코드 실행 요청 데이터
+   * @param submissionRequest 코드 실행 요청 데이터
    * @returns Promise<SubmissionResult> 실행 결과
    */
-  async executeCode(request: SubmissionRequest): Promise<SubmissionResult> {
+  async executeCode(submissionRequest: SubmissionRequest): Promise<SubmissionResult> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(`${this.baseUrl}${apiConfig.judge0.endpoints.submissions}?wait=true`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const result = await request<any>(
+        `${apiConfig.judge0.endpoints.submissions}?wait=true`,
+        {
+          method: 'POST',
+          body: JSON.stringify(submissionRequest),
+          includeAuth: false,
+          timeout: this.timeout
         },
-        body: JSON.stringify(request),
-        signal: controller.signal
-      });
+        this.baseUrl
+      );
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
       return this.processExecutionResult(result);
     } catch (error: any) {
       console.error('코드 실행 오류:', error);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다.');
-      }
       throw new Error(`코드 실행 실패: ${error.message}`);
     }
   }

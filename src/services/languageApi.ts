@@ -5,6 +5,7 @@
 
 import type { Language, LanguageResponse, MonacoLanguage } from '@/types/language';
 import { apiConfig } from '../config/api';
+import { request } from './utils';
 
 class LanguageApiService {
   private readonly baseURL: string;
@@ -14,46 +15,12 @@ class LanguageApiService {
   }
 
   /**
-   * HTTP 요청을 위한 공통 fetch 래퍼
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`언어 API 요청 실패 [${endpoint}]:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * 지원하는 모든 언어 목록 조회
    * GET /languages
    */
   async getLanguages(): Promise<Language[]> {
     try {
-      const response = await this.request<Language[]>('/languages');
+      const response = await request<Language[]>('/languages', { includeAuth: false }, this.baseURL);
       return response || [];
     } catch (error) {
       console.error('언어 목록 조회 실패:', error);
@@ -68,7 +35,7 @@ class LanguageApiService {
    */
   async getLanguage(id: number): Promise<Language | null> {
     try {
-      return await this.request<Language>(`/languages/${id}`);
+      return await request<Language>(`/languages/${id}`, { includeAuth: false }, this.baseURL);
     } catch (error) {
       console.error(`언어 ${id} 조회 실패:`, error);
       return null;

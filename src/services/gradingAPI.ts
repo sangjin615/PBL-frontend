@@ -4,6 +4,7 @@
  */
 
 import { apiConfig } from '../config/api';
+import { request } from './utils';
 
 export interface GradingRequest {
   source_code: string;
@@ -100,47 +101,34 @@ export class GradingAPI {
 
   /**
    * 코드를 채점을 위해 제출합니다.
-   * @param request 채점 요청 데이터
+   * @param gradingRequest 채점 요청 데이터
    * @returns Promise<GradingResponse> 채점 결과 (토큰 포함)
    */
-  async submitForGrading(request: GradingRequest): Promise<GradingResponse> {
+  async submitForGrading(gradingRequest: GradingRequest): Promise<GradingResponse> {
     try {
       console.log('=== GradingAPI.submitForGrading 시작 ===');
-      console.log('요청 URL:', `${this.baseUrl}/grading/${request.problem_id}`);
+      console.log('요청 URL:', `${this.baseUrl}/grading/${gradingRequest.problem_id}`);
       console.log('요청 데이터:', {
-        source_code: request.source_code,
-        language_id: request.language_id
+        source_code: gradingRequest.source_code,
+        language_id: gradingRequest.language_id
       });
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(`${this.baseUrl}/grading/${request.problem_id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const result = await request<GradingResponse>(
+        `/grading/${gradingRequest.problem_id}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            source_code: gradingRequest.source_code,
+            language_id: gradingRequest.language_id
+          }),
+          includeAuth: false,
+          timeout: this.timeout
         },
-        body: JSON.stringify({
-          source_code: request.source_code,
-          language_id: request.language_id
-        }),
-        signal: controller.signal
-      });
+        this.baseUrl
+      );
 
-      clearTimeout(timeoutId);
-
-      console.log('응답 상태:', response.status);
-      console.log('응답 헤더:', response.headers);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('HTTP 오류 응답:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
       console.log('응답 데이터:', result);
-      
+
       if (!result.token) {
         throw new Error('채점 토큰을 받지 못했습니다.');
       }
@@ -149,9 +137,6 @@ export class GradingAPI {
       return result;
     } catch (error: any) {
       console.error('채점 제출 오류:', error);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다.');
-      }
       throw new Error(`채점 제출 실패: ${error.message}`);
     }
   }
@@ -174,55 +159,40 @@ export class GradingAPI {
   ): Promise<GradingListResponse> {
     try {
       console.log('=== GradingAPI.getGradingList 시작 ===');
-      
+
       // 쿼리 파라미터 구성
       const params = new URLSearchParams({
         page: page.toString(),
         per_page: perPage.toString(),
         base64_encoded: base64Encoded.toString()
       });
-      
+
       if (problemId) {
         params.append('problem_id', problemId.toString());
       }
-      
+
       if (fields) {
         params.append('fields', fields);
       }
-      
-      const url = `${this.baseUrl}/grading?${params.toString()}`;
-      console.log('요청 URL:', url);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      const endpoint = `/grading?${params.toString()}`;
+      console.log('요청 URL:', `${this.baseUrl}${endpoint}`);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      const result = await request<GradingListResponse>(
+        endpoint,
+        {
+          method: 'GET',
+          includeAuth: false,
+          timeout: this.timeout
         },
-        signal: controller.signal
-      });
+        this.baseUrl
+      );
 
-      clearTimeout(timeoutId);
-
-      console.log('응답 상태:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('HTTP 오류 응답:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
       console.log('채점 목록 응답:', result);
-      
+
       return result;
     } catch (error: any) {
       console.error('채점 목록 조회 오류:', error);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다.');
-      }
       throw new Error(`채점 목록 조회 실패: ${error.message}`);
     }
   }
@@ -235,31 +205,17 @@ export class GradingAPI {
    */
   async getGradingResult(token: string, progress: boolean = true): Promise<GradingResponse> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      // 백엔드 API 엔드포인트 사용
-      const url = `${this.baseUrl}/grading/${token}?progress=${progress}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      return await request<GradingResponse>(
+        `/grading/${token}?progress=${progress}`,
+        {
+          method: 'GET',
+          includeAuth: false,
+          timeout: this.timeout
         },
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+        this.baseUrl
+      );
     } catch (error: any) {
       console.error('채점 결과 조회 오류:', error);
-      if (error.name === 'AbortError') {
-        throw new Error('요청 시간이 초과되었습니다.');
-      }
       throw new Error(`채점 결과 조회 실패: ${error.message}`);
     }
   }

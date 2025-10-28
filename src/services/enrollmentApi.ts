@@ -3,7 +3,8 @@
  * 수강 신청 및 진도 관리 API 호출
  */
 
-import { apiConfig, getCurrentUserId } from '@/config/api';
+import { apiConfig } from '@/config/api';
+import { request } from './utils';
 import type {
   EnrollRequest,
   EnrollmentResponse,
@@ -24,44 +25,6 @@ class EnrollmentApiService {
     this.baseUrl = apiConfig.backend.baseUrl;
   }
 
-  /**
-   * API 요청 헬퍼 함수
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    // 인증 헤더 추가 (동적 사용자 ID 사용)
-    const currentUserId = getCurrentUserId();
-    if (currentUserId !== null) {
-      headers[apiConfig.auth.headerName] = String(currentUserId);
-    }
-
-    const url = `${this.baseUrl}${endpoint}`;
-    console.log(`[EnrollmentAPI] ${options.method || 'GET'} ${url}`);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`[EnrollmentAPI] 요청 실패 [${endpoint}]:`, error);
-      throw error;
-    }
-  }
 
   // === 수강 신청/취소 ===
 
@@ -70,10 +33,10 @@ class EnrollmentApiService {
    * POST /api/enrollments
    */
   async enrollCurriculum(curriculumId: number): Promise<EnrollmentResponse> {
-    return this.request<EnrollmentResponse>('/api/enrollments', {
+    return request<EnrollmentResponse>('/api/enrollments', {
       method: 'POST',
       body: JSON.stringify({ curriculumId }),
-    });
+    }, this.baseUrl);
   }
 
   /**
@@ -81,9 +44,9 @@ class EnrollmentApiService {
    * DELETE /api/enrollments/{enrollmentId}
    */
   async cancelEnrollment(enrollmentId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/enrollments/${enrollmentId}`, {
+    return request<{ message: string }>(`/api/enrollments/${enrollmentId}`, {
       method: 'DELETE',
-    });
+    }, this.baseUrl);
   }
 
   // === 조회 기능 ===
@@ -93,7 +56,7 @@ class EnrollmentApiService {
    * GET /api/enrollments/user/{userId}
    */
   async getUserEnrollments(userId: number): Promise<EnrollmentResponse[]> {
-    return this.request<EnrollmentResponse[]>(`/api/enrollments/user/${userId}`);
+    return request<EnrollmentResponse[]>(`/api/enrollments/user/${userId}`, {}, this.baseUrl);
   }
 
   /**
@@ -105,8 +68,10 @@ class EnrollmentApiService {
     status?: EnrollmentStatus
   ): Promise<EnrollmentResponse[]> {
     const statusParam = status ? `?status=${status}` : '';
-    return this.request<EnrollmentResponse[]>(
-      `/api/enrollments/user/${userId}/status${statusParam}`
+    return request<EnrollmentResponse[]>(
+      `/api/enrollments/user/${userId}/status${statusParam}`,
+      {},
+      this.baseUrl
     );
   }
 
@@ -115,7 +80,7 @@ class EnrollmentApiService {
    * GET /api/enrollments/{enrollmentId}
    */
   async getEnrollmentDetail(enrollmentId: number): Promise<EnrollmentDetailResponse> {
-    return this.request<EnrollmentDetailResponse>(`/api/enrollments/${enrollmentId}`);
+    return request<EnrollmentDetailResponse>(`/api/enrollments/${enrollmentId}`, {}, this.baseUrl);
   }
 
   /**
@@ -126,14 +91,16 @@ class EnrollmentApiService {
     userId: number,
     lectureId: number
   ): Promise<{ userId: number; lectureId: number; isCompleted: boolean }> {
-    return this.request<{ userId: number; lectureId: number; isCompleted: boolean }>(
-      `/api/enrollments/user/${userId}/lecture/${lectureId}/completed`
+    return request<{ userId: number; lectureId: number; isCompleted: boolean }>(
+      `/api/enrollments/user/${userId}/lecture/${lectureId}/completed`,
+      {},
+      this.baseUrl
     );
   }
 
   /**
    * 사용자별 특정 강의 진도 상세 조회
-   * GET /api/enrollments/user/{userId}/lecture/{lectureId}/progress
+   * GET /api/enrollments/user/${userId}/lecture/{lectureId}/progress
    */
   async getUserLectureProgress(
     userId: number,
@@ -143,11 +110,11 @@ class EnrollmentApiService {
     lectureId: number;
     progressList: LectureProgressResponse[];
   }> {
-    return this.request<{
+    return request<{
       userId: number;
       lectureId: number;
       progressList: LectureProgressResponse[];
-    }>(`/api/enrollments/user/${userId}/lecture/${lectureId}/progress`);
+    }>(`/api/enrollments/user/${userId}/lecture/${lectureId}/progress`, {}, this.baseUrl);
   }
 
   // === 진도 관리 ===
@@ -160,11 +127,12 @@ class EnrollmentApiService {
     enrollmentId: number,
     lectureId: number
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>(
+    return request<{ message: string }>(
       `/api/enrollments/${enrollmentId}/lectures/${lectureId}/read`,
       {
         method: 'PUT',
-      }
+      },
+      this.baseUrl
     );
   }
 
@@ -176,11 +144,12 @@ class EnrollmentApiService {
     enrollmentId: number,
     lectureId: number
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>(
+    return request<{ message: string }>(
       `/api/enrollments/${enrollmentId}/lectures/${lectureId}/solve`,
       {
         method: 'PUT',
-      }
+      },
+      this.baseUrl
     );
   }
 
@@ -191,8 +160,10 @@ class EnrollmentApiService {
    * GET /api/enrollments/curriculum/{curriculumId}/count
    */
   async getCurriculumEnrollmentCount(curriculumId: number): Promise<EnrollmentCountResponse> {
-    return this.request<EnrollmentCountResponse>(
-      `/api/enrollments/curriculum/${curriculumId}/count`
+    return request<EnrollmentCountResponse>(
+      `/api/enrollments/curriculum/${curriculumId}/count`,
+      {},
+      this.baseUrl
     );
   }
 
@@ -201,8 +172,10 @@ class EnrollmentApiService {
    * GET /api/enrollments/curriculum/{curriculumId}/completed-count
    */
   async getCurriculumCompletedCount(curriculumId: number): Promise<CompletedCountResponse> {
-    return this.request<CompletedCountResponse>(
-      `/api/enrollments/curriculum/${curriculumId}/completed-count`
+    return request<CompletedCountResponse>(
+      `/api/enrollments/curriculum/${curriculumId}/completed-count`,
+      {},
+      this.baseUrl
     );
   }
 }

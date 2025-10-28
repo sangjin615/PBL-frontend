@@ -14,7 +14,8 @@ import type {
 } from "@/types/curriculum";
 import type { Lecture, LectureType } from "@/types/lecture";
 import type { PaginationMeta } from './lectureApi';
-import { apiConfig, getCurrentUserId } from "@/config/api";
+import { apiConfig } from "@/config/api";
+import { request } from "./utils";
 
 class CurriculumApiService {
   private readonly baseURL: string;
@@ -23,52 +24,6 @@ class CurriculumApiService {
     this.baseURL = apiConfig.backend.baseUrl;
   }
 
-  /**
-   * HTTP 요청을 위한 공통 fetch 래퍼
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-
-    const currentUserId = getCurrentUserId();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
-    
-    // 사용자 ID가 있을 때만 헤더에 추가
-    if (currentUserId !== null) {
-      headers["X-User-Id"] = String(currentUserId);
-    }
-
-    const config: RequestInit = {
-      headers,
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        );
-      }
-
-      // 204 No Content인 경우 빈 객체 반환
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`API 요청 실패 [${endpoint}]:`, error);
-      throw error;
-    }
-  }
 
   // === 기본 CRUD API ===
 
@@ -77,7 +32,7 @@ class CurriculumApiService {
    * GET /api/curriculums
    */
   async getAllCurriculums(): Promise<CurriculumResponse[]> {
-    return this.request<CurriculumResponse[]>("/api/curriculums");
+    return request<CurriculumResponse[]>("/api/curriculums", {}, this.baseURL);
   }
 
   /**
@@ -85,7 +40,7 @@ class CurriculumApiService {
    * GET /api/curriculums/public
    */
   async getPublicCurriculums(): Promise<CurriculumResponse[]> {
-    return this.request<CurriculumResponse[]>("/api/curriculums/public");
+    return request<CurriculumResponse[]>("/api/curriculums/public", {}, this.baseURL);
   }
 
   /**
@@ -96,8 +51,10 @@ class CurriculumApiService {
     page: number = 0,
     size: number = 10
   ): Promise<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }> {
-    return this.request<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }>(
-      `/api/curriculums/public?page=${page}&size=${size}`
+    return request<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }>(
+      `/api/curriculums/public?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 
@@ -106,7 +63,7 @@ class CurriculumApiService {
    * GET /api/curriculums/{id}
    */
   async getCurriculumById(id: number): Promise<CurriculumDetailResponse> {
-    return this.request<CurriculumDetailResponse>(`/api/curriculums/${id}`);
+    return request<CurriculumDetailResponse>(`/api/curriculums/${id}`, {}, this.baseURL);
   }
 
   /**
@@ -116,10 +73,10 @@ class CurriculumApiService {
   async createCurriculum(
     data: CreateCurriculumRequest
   ): Promise<CurriculumResponse> {
-    return this.request<CurriculumResponse>("/api/curriculums", {
+    return request<CurriculumResponse>("/api/curriculums", {
       method: "POST",
       body: JSON.stringify(data),
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -130,10 +87,10 @@ class CurriculumApiService {
     id: number,
     data: UpdateCurriculumRequest
   ): Promise<CurriculumResponse> {
-    return this.request<CurriculumResponse>(`/api/curriculums/${id}`, {
+    return request<CurriculumResponse>(`/api/curriculums/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -141,9 +98,9 @@ class CurriculumApiService {
    * DELETE /api/curriculums/{id}
    */
   async deleteCurriculum(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/curriculums/${id}`, {
+    return request<{ message: string }>(`/api/curriculums/${id}`, {
       method: "DELETE",
-    });
+    }, this.baseURL);
   }
 
   // === 강의 연결 관리 API ===
@@ -156,12 +113,13 @@ class CurriculumApiService {
     curriculumId: number,
     lectureData: AddLectureRequest
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>(
+    return request<{ message: string }>(
       `/api/curriculums/${curriculumId}/lectures`,
       {
         method: "POST",
         body: JSON.stringify(lectureData),
-      }
+      },
+      this.baseURL
     );
   }
 
@@ -173,11 +131,12 @@ class CurriculumApiService {
     curriculumId: number,
     lectureId: number
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>(
+    return request<{ message: string }>(
       `/api/curriculums/${curriculumId}/lectures/${lectureId}`,
       {
         method: "DELETE",
-      }
+      },
+      this.baseURL
     );
   }
 
@@ -189,12 +148,13 @@ class CurriculumApiService {
     curriculumId: number,
     lectureOrders: Array<{ lectureId: number; order: number }>
   ): Promise<{ message: string }> {
-    return this.request<{ message: string }>(
+    return request<{ message: string }>(
       `/api/curriculums/${curriculumId}/lectures/reorder`,
       {
         method: "PUT",
         body: JSON.stringify({ lectureOrders }),
-      }
+      },
+      this.baseURL
     );
   }
 
@@ -205,9 +165,9 @@ class CurriculumApiService {
    * PUT /api/curriculums/{id}/publish
    */
   async publishCurriculum(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/curriculums/${id}/publish`, {
+    return request<{ message: string }>(`/api/curriculums/${id}/publish`, {
       method: "PUT",
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -215,9 +175,9 @@ class CurriculumApiService {
    * PUT /api/curriculums/{id}/unpublish
    */
   async unpublishCurriculum(id: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/curriculums/${id}/unpublish`, {
+    return request<{ message: string }>(`/api/curriculums/${id}/unpublish`, {
       method: "PUT",
-    });
+    }, this.baseURL);
   }
 
   // === 검색 기능 API ===
@@ -237,7 +197,7 @@ class CurriculumApiService {
       ? `/api/curriculums/search?${queryString}`
       : "/api/curriculums/search";
 
-    return this.request<CurriculumResponse[]>(endpoint);
+    return request<CurriculumResponse[]>(endpoint, {}, this.baseURL);
   }
 
   /**
@@ -255,7 +215,7 @@ class CurriculumApiService {
       ? `/api/curriculums/public/search?${queryString}`
       : "/api/curriculums/public/search";
 
-    return this.request<CurriculumResponse[]>(endpoint);
+    return request<CurriculumResponse[]>(endpoint, {}, this.baseURL);
   }
 
   // === 사용자별 커리큘럼 관리 API ===
@@ -269,8 +229,10 @@ class CurriculumApiService {
     page: number = 0,
     size: number = 10
   ): Promise<PaginatedCurriculumResponse> {
-    return this.request<PaginatedCurriculumResponse>(
-      `/api/curriculums/user/${userId}?page=${page}&size=${size}`
+    return request<PaginatedCurriculumResponse>(
+      `/api/curriculums/user/${userId}?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 
@@ -283,8 +245,10 @@ class CurriculumApiService {
     page: number = 0,
     size: number = 10
   ): Promise<PaginatedCurriculumResponse> {
-    return this.request<PaginatedCurriculumResponse>(
-      `/api/curriculums/user/${userId}/public?page=${page}&size=${size}`
+    return request<PaginatedCurriculumResponse>(
+      `/api/curriculums/user/${userId}/public?page=${page}&size=${size}`,
+      {},
+      this.baseURL
     );
   }
 
@@ -295,7 +259,7 @@ class CurriculumApiService {
    * GET /api/curriculums/lectures/public
    */
   async getPublicLecturesForCurriculum(): Promise<Lecture[]> {
-    return this.request<Lecture[]>("/api/curriculums/lectures/public");
+    return request<Lecture[]>("/api/curriculums/lectures/public", {}, this.baseURL);
   }
 
   /**
@@ -321,7 +285,7 @@ class CurriculumApiService {
       ? `/api/curriculums/lectures/public/search?${queryString}`
       : "/api/curriculums/lectures/public/search";
 
-    return this.request<Lecture[]>(endpoint);
+    return request<Lecture[]>(endpoint, {}, this.baseURL);
   }
 
   // === 커리큘럼 네비게이션 API ===
@@ -334,8 +298,10 @@ class CurriculumApiService {
     curriculumId: number,
     lectureId: number
   ): Promise<CurriculumNavigationResponse> {
-    return this.request<CurriculumNavigationResponse>(
-      `/api/curriculums/${curriculumId}/lectures/${lectureId}/navigation`
+    return request<CurriculumNavigationResponse>(
+      `/api/curriculums/${curriculumId}/lectures/${lectureId}/navigation`,
+      {},
+      this.baseURL
     );
   }
 }

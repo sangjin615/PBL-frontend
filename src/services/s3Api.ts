@@ -3,7 +3,8 @@
  * 백엔드 S3 모듈과 통신하는 API 클라이언트
  */
 
-import { apiConfig, getCurrentUserId } from '../config/api';
+import { apiConfig } from '../config/api';
+import { request } from './utils';
 
 export interface S3UploadResponse {
   id: number;
@@ -31,51 +32,6 @@ export class S3ApiService {
     this.baseURL = apiConfig.backend.baseUrl;
   }
 
-  /**
-   * HTTP 요청을 위한 공통 fetch 래퍼
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-
-    const currentUserId = getCurrentUserId();
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> || {}),
-    };
-    
-    // 사용자 ID가 있을 때만 헤더에 추가
-    if (currentUserId !== null) {
-      headers['X-User-Id'] = String(currentUserId);
-    }
-
-    const config: RequestInit = {
-      headers,
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        );
-      }
-
-      // 204 No Content인 경우 빈 객체 반환
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`S3 API 요청 실패 [${endpoint}]:`, error);
-      throw error;
-    }
-  }
 
   /**
    * 이미지 업로드
@@ -113,9 +69,9 @@ export class S3ApiService {
    * DELETE /api/s3/{imageId}
    */
   async deleteImage(imageId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/s3/${imageId}`, {
+    return request<{ message: string }>(`/api/s3/${imageId}`, {
       method: 'DELETE',
-    });
+    }, this.baseURL);
   }
 
   /**
@@ -123,11 +79,11 @@ export class S3ApiService {
    * GET /api/s3/stats
    */
   async getStats(userId?: number): Promise<S3StatsResponse> {
-    const endpoint = userId 
+    const endpoint = userId
       ? `/api/s3/stats?userId=${userId}`
       : '/api/s3/stats';
-    
-    return this.request<S3StatsResponse>(endpoint);
+
+    return request<S3StatsResponse>(endpoint, {}, this.baseURL);
   }
 
   /**
@@ -135,9 +91,9 @@ export class S3ApiService {
    * POST /api/s3/admin/set-public-policy
    */
   async setPublicPolicy(): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/s3/admin/set-public-policy', {
+    return request<{ message: string }>('/api/s3/admin/set-public-policy', {
       method: 'POST',
-    });
+    }, this.baseURL);
   }
 
   /**

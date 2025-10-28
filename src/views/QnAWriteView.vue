@@ -55,8 +55,8 @@
           </div>
         </div>
 
-        <!-- 카테고리 선택 (커리큘럼 문의가 아닐 때만 표시) -->
-        <div v-if="!curriculumId" class="mb-6">
+        <!-- 카테고리 선택 -->
+        <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">
             카테고리 <span class="text-red-500">*</span>
           </label>
@@ -66,13 +66,39 @@
             :class="{ 'border-red-300': categoryError }"
           >
             <option value="">카테고리를 선택하세요</option>
-            <option value="general">일반</option>
-            <option value="technical">기술</option>
-            <option value="curriculum">커리큘럼</option>
-            <option value="lecture">강의</option>
-            <option value="other">기타</option>
+            <option value="QUESTION">질문</option>
+            <option value="TIP">팁</option>
+            <option value="BUG_REPORT">버그 리포트</option>
+            <option value="FEATURE_REQUEST">기능 요청</option>
+            <option value="GENERAL">일반</option>
           </select>
           <p v-if="categoryError" class="text-red-500 text-sm mt-1">{{ categoryError }}</p>
+        </div>
+
+        <!-- 강의명 입력 (선택사항) -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            강의명 (선택사항)
+          </label>
+          <input
+            v-model="form.course"
+            type="text"
+            placeholder="관련 강의가 있다면 입력하세요"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- 프로그래밍 언어 입력 (선택사항) -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            프로그래밍 언어 (선택사항)
+          </label>
+          <input
+            v-model="form.language"
+            type="text"
+            placeholder="Java, Python, JavaScript 등"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
 
         <!-- 내용 입력 -->
@@ -90,44 +116,6 @@
           <p v-if="contentError" class="text-red-500 text-sm mt-1">{{ contentError }}</p>
         </div>
 
-        <!-- 이미지 첨부 (커리큘럼 문의가 아닐 때만 표시) -->
-        <div v-if="!curriculumId" class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            이미지 첨부 (선택사항)
-          </label>
-          <ImageUpload
-            v-model:files="form.images"
-            :max-files="3"
-            :max-file-size="5"
-          />
-        </div>
-
-        <!-- 공개 설정 -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            공개 설정
-          </label>
-          <div class="space-y-2">
-            <label class="flex items-center">
-              <input
-                v-model="form.isPublic"
-                type="radio"
-                :value="true"
-                class="mr-2"
-              />
-              <span>공개 (모든 사용자가 볼 수 있음)</span>
-            </label>
-            <label class="flex items-center">
-              <input
-                v-model="form.isPublic"
-                type="radio"
-                :value="false"
-                class="mr-2"
-              />
-              <span>비공개 (관리자만 볼 수 있음)</span>
-            </label>
-          </div>
-        </div>
 
         <!-- 작성 가이드 -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -144,9 +132,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { FormTextarea, ImageUpload } from '@/components/common';
+import { FormTextarea } from '@/components/common';
+import qnaApiService from '@/services/qnaApi';
+import type { QuestionCategory } from '@/types/qna';
 
 const router = useRouter();
 const route = useRoute();
@@ -158,16 +148,9 @@ const curriculumId = computed(() => route.query.curriculumId as string | undefin
 const form = reactive({
   title: '',
   content: '',
-  category: '',
-  images: [] as File[],
-  isPublic: true
-});
-
-// 페이지 로드 시 curriculumId가 있으면 카테고리를 curriculum으로 설정
-onMounted(() => {
-  if (curriculumId.value) {
-    form.category = 'curriculum';
-  }
+  category: '' as QuestionCategory | '',
+  course: '',
+  language: ''
 });
 
 // 상태 관리
@@ -180,8 +163,8 @@ const contentError = ref('');
 
 // 폼 유효성 검사
 const isFormValid = computed(() => {
-  return form.title.trim().length > 0 && 
-         (curriculumId.value || form.category.length > 0) && 
+  return form.title.trim().length > 0 &&
+         form.category.length > 0 &&
          form.content.trim().length > 0 &&
          form.title.length <= 100 &&
          form.content.length <= 2000;
@@ -201,8 +184,7 @@ function validateForm() {
     titleError.value = '제목은 100자 이하로 입력해주세요.';
     return false;
   }
-  // 커리큘럼 문의가 아닐 때만 카테고리 검사
-  if (!curriculumId.value && !form.category) {
+  if (!form.category) {
     categoryError.value = '카테고리를 선택해주세요.';
     return false;
   }
@@ -224,22 +206,24 @@ async function publishQuestion() {
 
   try {
     submitting.value = true;
-    
-    // TODO: 실제 API 호출
-    console.log('질문 등록:', {
-      ...form,
-      imageCount: form.images.length
+
+    // API 호출
+    const response = await qnaApiService.createQuestion({
+      title: form.title,
+      content: form.content,
+      category: form.category as QuestionCategory,
+      course: form.course || undefined,
+      language: form.language || undefined
     });
-    
-    // 임시로 성공 처리
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     alert('질문이 성공적으로 등록되었습니다!');
-    router.push('/qna');
-    
-  } catch (error) {
+
+    // 작성한 질문 상세 페이지로 이동
+    router.push({ name: 'qna-detail', params: { id: response.id.toString() } });
+
+  } catch (error: any) {
     console.error('질문 등록 실패:', error);
-    alert('질문 등록 중 오류가 발생했습니다.');
+    alert(error.message || '질문 등록 중 오류가 발생했습니다.');
   } finally {
     submitting.value = false;
   }
@@ -247,16 +231,21 @@ async function publishQuestion() {
 
 // 임시저장
 function saveDraft() {
-  // TODO: 임시저장 API 호출
-  console.log('임시저장:', {
-    ...form,
-    imageCount: form.images.length
-  });
+  // TODO: 임시저장 기능 (localStorage 활용)
+  localStorage.setItem('qna_draft', JSON.stringify({
+    title: form.title,
+    content: form.content,
+    category: form.category,
+    course: form.course,
+    language: form.language
+  }));
   alert('임시저장되었습니다.');
 }
 
 // 뒤로가기
 function goBack() {
-  router.back();
+  if (confirm('작성 중인 내용이 있습니다. 나가시겠습니까?')) {
+    router.back();
+  }
 }
 </script>
