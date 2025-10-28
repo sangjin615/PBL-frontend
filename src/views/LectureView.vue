@@ -749,6 +749,16 @@ onMounted(async () => {
   // 3. 강의 데이터 로드 (API에서)
   await loadLectureData();
 
+  // 3.5. 토큰이 없고 강의에 languageId가 있으면 적용
+  if (!tokenParam && lecture.value?.languageId) {
+    selectedLanguage.value = lecture.value.languageId;
+    editorConfig.value = languageApiService.createEditorConfig(
+      lecture.value.languageId,
+      '' // 빈 문자열로 시작
+    );
+    console.log('강의 기본 언어 적용:', lecture.value.languageId);
+  }
+
   // 4. 에디터 렌더링 허용
   isEditorReady.value = true;
 
