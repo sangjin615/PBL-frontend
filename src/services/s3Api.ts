@@ -42,7 +42,7 @@ export class S3ApiService {
 
     const currentUserId = getCurrentUserId();
     const headers: Record<string, string> = {
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
     
     // 사용자 ID가 있을 때만 헤더에 추가
@@ -142,10 +142,19 @@ export class S3ApiService {
 
   /**
    * 이미지 URL 생성 헬퍼
-   * 업로드된 이미지의 직접 접근 URL을 생성합니다.
+   * 경로를 받아 MinIO 전체 URL을 생성합니다.
    */
-  static getImageUrl(storedFilename: string): string {
-    return `http://localhost:9000/pbl-images/${storedFilename}`;
+  static getImageUrl(imagePath: string | null | undefined): string {
+    if (!imagePath) return '';
+
+    // 이미 전체 URL이면 그대로 반환 (하위 호환성)
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+
+    // 경로만 있으면 MinIO URL 조합
+    const { baseUrl, bucketName } = apiConfig.minio;
+    return `${baseUrl}/${bucketName}/${imagePath}`;
   }
 
   /**

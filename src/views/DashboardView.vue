@@ -137,10 +137,16 @@
         >
           <!-- 강의 썸네일 -->
           <div
-            class="h-48 rounded-t-lg flex items-center justify-center text-4xl font-bold text-white relative"
+            class="h-48 rounded-t-lg flex items-center justify-center text-4xl font-bold text-white relative overflow-hidden"
             :style="{ backgroundColor: item.thumbnailColor }"
           >
-            X
+            <img
+              v-if="item.thumbnailImageUrl"
+              :src="getImageUrl(item.thumbnailImageUrl)"
+              :alt="item.title"
+              class="w-full h-full object-cover absolute inset-0"
+            />
+            <span v-else class="relative z-10">X</span>
             <!-- 타입 배지 -->
             <div
               class="absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium"
@@ -373,6 +379,7 @@ import type { DashboardItem } from "@/types/lecture";
 import { LectureType } from "@/types/lecture";
 import type { Lecture } from "@/types/lecture";
 import type { CurriculumResponse } from "@/types/curriculum";
+import { S3ApiService } from "@/services/s3Api";
 
 const router = useRouter();
 const { currentUser } = useAuth();
@@ -537,6 +544,7 @@ const filteredItems = computed(() => {
     createdDate: parseArrayDate(lecture.createdAt),
     privacy: lecture.isPublic ? "공개" : "비공개",
     thumbnailColor: getThumbnailColor(lecture.type),
+    thumbnailImageUrl: lecture.thumbnailImageUrl,
     type: "lecture" as const,
     duration: "미정",
     tags: [lecture.category, lecture.type],
@@ -554,7 +562,8 @@ const filteredItems = computed(() => {
     title: curriculum.title,
     createdDate: parseArrayDate(curriculum.createdAt),
     privacy: curriculum.isPublic ? "공개" : "비공개",
-    thumbnailColor: curriculum.thumbnailImageUrl || getThumbnailColor('curriculum'),
+    thumbnailColor: getThumbnailColor('curriculum'),
+    thumbnailImageUrl: curriculum.thumbnailImageUrl,
     type: "curriculum" as const,
     duration: curriculum.durationMinutes ? `${curriculum.durationMinutes}분` : "미정",
     tags: curriculum.tags && curriculum.tags.length > 0 ? curriculum.tags : ["커리큘럼"],
@@ -746,6 +755,11 @@ async function refreshLectures() {
     loadPage(1),
     loadPublishedCourses()
   ]);
+}
+
+// 이미지 URL 생성 헬퍼
+function getImageUrl(path: string | null | undefined): string {
+  return S3ApiService.getImageUrl(path);
 }
 
 // 채널 관리 함수

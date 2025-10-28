@@ -6,11 +6,17 @@
 const PROTOCOL = 'http://';
 export const URL_PREFIX = '158.180.73.5';
 export const URL_PORT = 2358;
+export const MINIO_PORT = 9000;
 
 // 환경변수에서 API URL 가져오기, 없으면 기본값 사용
 const getApiBaseUrl = (): string => {
   // Vite 환경변수는 VITE_ 접두사가 필요
   return import.meta.env.VITE_API_BASE_URL || `${PROTOCOL}${URL_PREFIX}:${URL_PORT}`;
+};
+
+// MinIO URL 가져오기
+const getMinioBaseUrl = (): string => {
+  return import.meta.env.VITE_MINIO_BASE_URL || `${PROTOCOL}${URL_PREFIX}:${MINIO_PORT}`;
 };
 
 // Judge0 API 설정
@@ -76,6 +82,10 @@ export const apiConfig = {
   judge0: judge0Config,
   backend: backendConfig,
   auth: authConfig,
+  minio: {
+    baseUrl: getMinioBaseUrl(),
+    bucketName: 'pbl-images'
+  },
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD
 };

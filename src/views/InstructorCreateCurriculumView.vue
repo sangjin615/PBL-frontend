@@ -694,8 +694,8 @@ async function uploadThumbnail(file: File) {
   try {
     // S3에 업로드
     const response = await s3ApiService.uploadImage(file, 'thumbnails')
-    curriculum.value.thumbnailImageUrl = response.imageUrl
-    thumbnailPreview.value = response.imageUrl
+    curriculum.value.thumbnailImageUrl = response.imageUrl  // 경로만 저장 (예: "thumbnails/filename.png")
+    thumbnailPreview.value = S3ApiService.getImageUrl(response.imageUrl)  // 미리보기용 전체 URL
     console.log('썸네일 업로드 완료:', response.imageUrl)
   } catch (error) {
     console.error('썸네일 업로드 실패:', error)

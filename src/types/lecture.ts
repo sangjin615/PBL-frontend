@@ -104,6 +104,7 @@ export interface DashboardItem {
   createdDate: string;
   privacy: string;
   thumbnailColor: string;
+  thumbnailImageUrl?: string; // 썸네일 이미지 URL
   type: "lecture" | "curriculum"; // 기존 코드와의 호환성을 위해
   duration?: string;
   tags: string[];

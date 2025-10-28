@@ -3,8 +3,14 @@
     class="group relative rounded-lg border bg-white overflow-hidden hover:shadow transition-shadow cursor-pointer"
     @click="onClick"
   >
-    <div class="aspect-video bg-gray-100 flex items-center justify-center">
-      <div class="w-16 h-16 bg-gray-300 rounded" />
+    <div class="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+      <img
+        v-if="course.thumbnailImageUrl"
+        :src="getImageUrl(course.thumbnailImageUrl)"
+        :alt="course.title"
+        class="w-full h-full object-cover"
+      />
+      <div v-else class="w-16 h-16 bg-gray-300 rounded" />
     </div>
     <div class="p-4 space-y-2">
       <div class="text-xs text-muted">{{ course.category }}</div>
@@ -46,9 +52,13 @@
 // import { ref, watchEffect } from 'vue'; // 북마크 기능 사용 시 필요
 import type { Course } from '../../types/course';
 import { useRouter } from 'vue-router';
+import { S3ApiService } from '@/services/s3Api';
 
 const props = defineProps<{ course: Course }>();
 const router = useRouter();
+
+// 이미지 URL 생성 헬퍼
+const getImageUrl = (path: string | null | undefined) => S3ApiService.getImageUrl(path);
 
 // 북마크 기능 (추후 사용 가능)
 // const bookmarked = ref<boolean>(false);

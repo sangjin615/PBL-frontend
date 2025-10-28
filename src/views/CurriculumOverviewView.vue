@@ -69,7 +69,19 @@
           </div>
 
           <!-- 강의 썸네일 -->
-          <div 
+          <div
+            v-if="curriculum?.thumbnailImageUrl"
+            class="h-64 rounded-lg mb-6 overflow-hidden"
+          >
+            <img
+              :src="getImageUrl(curriculum.thumbnailImageUrl)"
+              :alt="curriculum.title"
+              class="w-full h-full object-cover"
+              @error="handleThumbnailError"
+            />
+          </div>
+          <div
+            v-else
             class="h-64 rounded-lg mb-6 flex items-center justify-center text-6xl font-bold text-gray-400"
             style="background-color: rgb(var(--figma-color-4))"
           >
@@ -341,6 +353,7 @@ import { Button, LoadingSpinner, ErrorMessage } from '@/components/common';
 import type { CurriculumDetailResponse, CurriculumLectureResponse } from '@/types/curriculum';
 import { CHAPTER_TITLES } from '@/constants';
 import { getCurrentUserId } from '@/config/api';
+import { S3ApiService } from '@/services/s3Api';
 
 const router = useRouter();
 const route = useRoute();
@@ -616,6 +629,20 @@ function toggleSubscribe() {
     }
   } catch (err) {
     console.error('구독 상태 변경 실패:', err);
+  }
+}
+
+// 이미지 URL 생성 헬퍼
+function getImageUrl(path: string | null | undefined): string {
+  return S3ApiService.getImageUrl(path);
+}
+
+// 썸네일 이미지 로드 에러 핸들링
+function handleThumbnailError(event: Event) {
+  console.warn('썸네일 이미지 로드 실패:', curriculum.value?.thumbnailImageUrl);
+  // 이미지 로드 실패 시 thumbnailImageUrl을 null로 설정하여 플레이스홀더 표시
+  if (curriculum.value) {
+    curriculum.value.thumbnailImageUrl = null;
   }
 }
 
