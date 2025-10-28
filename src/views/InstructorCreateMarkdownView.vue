@@ -253,6 +253,20 @@
                 </option>
               </select>
             </div>
+
+            <!-- 예상 소요시간 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">예상 소요시간 (분)</label>
+              <input
+                v-model.number="courseData.durationMinutes"
+                type="number"
+                min="1"
+                step="1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="예: 30"
+              />
+              <p class="mt-1 text-sm text-gray-500">강의를 완료하는데 걸리는 예상 시간 (분 단위)</p>
+            </div>
           </div>
         </div>
 
@@ -338,7 +352,8 @@ def hello_world():
   isPublic: true,
   tags: [] as string[],
   language: null as number | null,
-  thumbnailUrl: null as string | null
+  thumbnailUrl: null as string | null,
+  durationMinutes: 30
 })
 
 // 썸네일 관련
@@ -390,7 +405,7 @@ async function uploadThumbnail(file: File) {
     // S3에 업로드
     const response = await s3ApiService.uploadImage(file, 'thumbnails')
     courseData.thumbnailUrl = response.imageUrl
-    thumbnailPreview.value = response.imageUrl
+    thumbnailPreview.value = S3ApiService.getImageUrl(response.imageUrl)
     console.log('썸네일 업로드 완료:', response.imageUrl)
   } catch (error) {
     console.error('썸네일 업로드 실패:', error)
@@ -444,7 +459,7 @@ async function onUploadImg(files: File[], callback: (urls: string[]) => void) {
         // S3에 이미지 업로드
         const response = await s3ApiService.uploadImage(file, 'lectures')
         console.log('이미지 업로드 성공:', response)
-        return response.imageUrl
+        return S3ApiService.getImageUrl(response.imageUrl)
       } catch (error) {
         console.error('이미지 업로드 실패:', error)
         alert(`이미지 업로드 실패: ${file.name}`)
@@ -491,6 +506,19 @@ async function loadLectureData() {
 
     // 강의 간략 설명 (백엔드 description 필드)
     courseData.description = lecture.description || ''
+
+    // 언어 및 소요시간
+    courseData.language = lecture.languageId || null
+    courseData.durationMinutes = lecture.durationMinutes || 30
+
+    // 태그
+    courseData.tags = lecture.tags || []
+
+    // 썸네일
+    courseData.thumbnailUrl = lecture.thumbnailImageUrl || null
+    if (lecture.thumbnailImageUrl) {
+      thumbnailPreview.value = S3ApiService.getImageUrl(lecture.thumbnailImageUrl)
+    }
 
     console.log('강의 데이터 로드 완료')
   } catch (error) {
@@ -652,7 +680,8 @@ async function publishCourse() {
       isPublic: courseData.isPublic,
       tags: courseData.tags || [],
       thumbnailImageUrl: courseData.thumbnailUrl || '',
-      durationMinutes: 30  // TODO: 마크다운 강의 기본 소요시간 (추후 사용자 입력으로 변경 가능)
+      languageId: courseData.language,
+      durationMinutes: courseData.durationMinutes || 30
     }
 
     if (isEditMode.value && editLectureId.value) {

@@ -53,7 +53,7 @@ export interface Lecture {
   tags?: string[];
   thumbnailImageUrl?: string;  // 백엔드: thumbnailImageUrl
   durationMinutes: number;  // 강의 소요 시간 (분)
-  language?: number | null;
+  languageId?: number | null;  // 백엔드: languageId
 }
 
 export interface CreateLectureRequest {

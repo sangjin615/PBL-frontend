@@ -9,15 +9,29 @@ export const LECTURE_CATEGORIES = [
   '데이터베이스',
   '모바일',
   'AI/ML',
-  '기타'
+  '프로그래밍언어',
+  '알고리즘',
+  '기타',
 ] as const;
 
-// 난이도 레벨
+// 난이도 레벨 (마크다운 강의용)
 export const DIFFICULTY_LEVELS = [
   '입문',
-  '초급', 
+  '초급',
   '중급',
   '고급'
+] as const;
+
+// 문제 강의 난이도 레벨 (백준 스타일)
+export const PROBLEM_DIFFICULTY_LEVELS = [
+  '미등급',
+  '브론즈',
+  '실버',
+  '골드',
+  '플래티넘',
+  '다이아몬드',
+  '루비',
+  '마스터'
 ] as const;
 
 // 색상 팔레트
@@ -116,5 +130,6 @@ export const SUPPORTED_LANGUAGES_FALLBACK = [
 // 타입 정의
 export type LectureCategory = typeof LECTURE_CATEGORIES[number];
 export type DifficultyLevel = typeof DIFFICULTY_LEVELS[number];
+export type ProblemDifficultyLevel = typeof PROBLEM_DIFFICULTY_LEVELS[number];
 export type ColorKey = keyof typeof COLORS;
 export type ChapterTitle = typeof CHAPTER_TITLES[number];

@@ -116,7 +116,7 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="">난이도를 선택하세요</option>
-                <option v-for="level in DIFFICULTY_LEVELS" :key="level" :value="level">
+                <option v-for="level in PROBLEM_DIFFICULTY_LEVELS" :key="level" :value="level">
                   {{ level }}
                 </option>
               </select>
@@ -191,6 +191,20 @@
                   :disabled="isUploadingThumbnail"
                 />
               </div>
+            </div>
+
+            <!-- 예상 소요시간 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">예상 소요시간 (분)</label>
+              <input
+                v-model.number="problemData.durationMinutes"
+                type="number"
+                min="1"
+                step="1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="예: 15"
+              />
+              <p class="mt-1 text-sm text-gray-500">문제를 푸는데 걸리는 예상 시간 (분 단위)</p>
             </div>
 
             <!-- 공개 설정 -->
@@ -369,7 +383,7 @@ import { languageApiService } from '@/services/languageApi'
 import { s3ApiService, S3ApiService } from '@/services/s3Api'
 import { LectureType } from '@/types/lecture'
 import type { Language } from '@/types/language'
-import { LECTURE_CATEGORIES, DIFFICULTY_LEVELS } from '@/constants'
+import { LECTURE_CATEGORIES, PROBLEM_DIFFICULTY_LEVELS } from '@/constants'
 
 const router = useRouter()
 const route = useRoute()
@@ -438,7 +452,8 @@ const problemData = reactive({
   isPublic: true,
   tags: [] as string[],
   language: null as number | null,
-  thumbnailUrl: null as string | null
+  thumbnailUrl: null as string | null,
+  durationMinutes: 15
 })
 
 // 썸네일 관련
@@ -545,8 +560,9 @@ async function loadLectureData() {
     problemData.memoryLimit = lecture.constraints?.memory_limit ? Math.round(lecture.constraints.memory_limit / 1000) : 256
     problemData.isPublic = lecture.isPublic ?? true
     problemData.tags = lecture.tags || []
-    problemData.language = lecture.language || null
-    problemData.thumbnailUrl = lecture.thumbnailUrl || null
+    problemData.language = lecture.languageId || null
+    problemData.thumbnailUrl = lecture.thumbnailImageUrl || null
+    problemData.durationMinutes = lecture.durationMinutes || 15
 
     // 원본 공개 상태 저장 (변경사항 감지용)
     originalIsPublic.value = lecture.isPublic ?? true
@@ -566,8 +582,8 @@ async function loadLectureData() {
     }
 
     // 썸네일 미리보기
-    if (lecture.thumbnailUrl) {
-      thumbnailPreview.value = S3ApiService.getImageUrl(lecture.thumbnailUrl)
+    if (lecture.thumbnailImageUrl) {
+      thumbnailPreview.value = S3ApiService.getImageUrl(lecture.thumbnailImageUrl)
     }
 
     console.log('문제 데이터 로드 완료')
@@ -734,10 +750,10 @@ async function publishProblem() {
         expectedOutput: tc.output
       })),
       isPublic: problemData.isPublic,
-      language: problemData.language,
+      languageId: problemData.language,
       tags: problemData.tags || [],
       thumbnailImageUrl: problemData.thumbnailUrl || '',
-      durationMinutes: problemData.timeLimit || 1 // 문제 시간 제한을 소요시간으로 사용
+      durationMinutes: problemData.durationMinutes || 15
     }
 
     if (isEditMode.value && editLectureId.value) {

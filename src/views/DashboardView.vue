@@ -546,7 +546,7 @@ const filteredItems = computed(() => {
     thumbnailColor: getThumbnailColor(lecture.type),
     thumbnailImageUrl: lecture.thumbnailImageUrl,
     type: "lecture" as const,
-    duration: "미정",
+    duration: lecture.durationMinutes ? `${lecture.durationMinutes}분` : "미정",
     tags: [lecture.category, lecture.type],
     format: lecture.type,
     lectureType: lecture.type,
