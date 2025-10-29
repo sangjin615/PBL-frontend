@@ -43,12 +43,12 @@
           ]">
             {{ question.status === 'UNRESOLVED' ? '미해결' : '해결' }}
           </span>
-          <button
-            @click="() => alert('신고 기능은 준비 중입니다.')"
-            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
-          >
-            🚨 신고
-          </button>
+          <ReportButton
+            report-type="problem"
+            :target-id="question.id"
+            :target-title="question.title"
+            @reported="handleReported"
+          />
         </div>
       </div>
 
@@ -128,12 +128,11 @@
             >
               채택하기
             </button>
-            <button
-              @click="() => alert('신고 기능은 준비 중입니다.')"
-              class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
-            >
-              🚨 신고
-            </button>
+            <ReportButton
+              report-type="comment"
+              :target-id="answer.id"
+              @reported="handleReported"
+            />
           </div>
         </div>
 
@@ -198,6 +197,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import ReportButton from '@/components/common/ReportButton.vue'
 import qnaApiService from '@/services/qnaApi'
 import type { QuestionDetailResponse, QuestionCategory } from '@/types/qna'
 
@@ -243,7 +243,7 @@ async function fetchQuestion() {
 // 답변 작성
 async function submitAnswer() {
   if (!newAnswerContent.value.trim()) {
-    alert('답변 내용을 입력해주세요.')
+    window.alert('답변 내용을 입력해주세요.')
     return
   }
 
@@ -260,10 +260,10 @@ async function submitAnswer() {
     // 입력 필드 초기화
     newAnswerContent.value = ''
 
-    alert('답변이 성공적으로 등록되었습니다!')
+    window.alert('답변이 성공적으로 등록되었습니다!')
   } catch (err: any) {
     error.value = err.message || '답변 등록에 실패했습니다.'
-    alert(error.value)
+    window.alert(error.value)
     console.error('답변 등록 실패:', err)
   } finally {
     submitting.value = false
@@ -288,7 +288,7 @@ async function toggleQuestionLike() {
       question.value.likes--
     }
     console.error('좋아요 처리 실패:', err)
-    alert('좋아요 처리 중 오류가 발생했습니다.')
+    window.alert('좋아요 처리 중 오류가 발생했습니다.')
   } finally {
     liking.value = false
   }
@@ -310,13 +310,13 @@ async function toggleAnswerLike(answerId: number) {
     // 실패 시 롤백
     answer.likes--
     console.error('좋아요 처리 실패:', err)
-    alert('좋아요 처리 중 오류가 발생했습니다.')
+    window.alert('좋아요 처리 중 오류가 발생했습니다.')
   }
 }
 
 // 답변 채택
 async function acceptAnswer(answerId: number) {
-  if (!confirm('이 답변을 채택하시겠습니까?')) {
+  if (!window.confirm('이 답변을 채택하시겠습니까?')) {
     return
   }
 
@@ -328,14 +328,19 @@ async function acceptAnswer(answerId: number) {
     // 답변 채택 후 질문 재조회
     await fetchQuestion()
 
-    alert('답변이 채택되었습니다!')
+    window.alert('답변이 채택되었습니다!')
   } catch (err: any) {
     error.value = err.message || '답변 채택에 실패했습니다.'
-    alert(error.value)
+    window.alert(error.value)
     console.error('답변 채택 실패:', err)
   } finally {
     accepting.value = false
   }
+}
+
+// 신고 완료 핸들러
+function handleReported() {
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.')
 }
 
 // 목록으로 돌아가기
@@ -355,9 +360,18 @@ function getCategoryLabel(category: QuestionCategory): string {
   return labels[category] || category
 }
 
-// 날짜 포맷팅
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
+// 날짜 포맷팅 (배열 형태 지원 + 상대 시간)
+function formatDate(dateValue: string | number[]): string {
+  let date: Date
+
+  if (Array.isArray(dateValue)) {
+    // 백엔드 배열 형태: [year, month, day, hour, minute, second, nano]
+    const [year, month, day, hour = 0, minute = 0] = dateValue
+    date = new Date(year, month - 1, day, hour, minute)
+  } else {
+    date = new Date(dateValue)
+  }
+
   const now = new Date()
   const diff = now.getTime() - date.getTime()
 

@@ -16,13 +16,13 @@
         </div>
         <div class="flex items-center space-x-4">
           <!-- 신고 버튼 -->
-          <button 
-            @click="() => alert('문제 신고: ' + problem.title)"
-            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
-          >
-            🚨 신고
-          </button>
-          
+          <ReportButton
+            report-type="problem"
+            :target-id="problem.id"
+            :target-title="problem.title"
+            @reported="handleReported"
+          />
+
           <!-- 다음 강의 버튼 -->
           <Button 
             v-if="nextLesson"
@@ -277,6 +277,11 @@ const changeLanguage = (newLanguageId: number) => {
   editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
   console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
 };
+
+// 신고 완료 핸들러
+function handleReported() {
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+}
 
 // 특정 테스트케이스 입력으로 실행
 const runTestCase = async (index: number): Promise<void> => {

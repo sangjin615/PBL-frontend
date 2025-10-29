@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import ReportModal from '../modal/ReportModal.vue';
-import type { ReportType } from '../types/report';
+import type { ReportType } from '../../types/report';
 
 interface Props {
   reportType: ReportType;

@@ -17,12 +17,12 @@
               <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
             </div>
             <!-- 신고 버튼 -->
-            <button 
-              @click="() => alert('강의 신고: ' + lessonData.title)"
-              class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
-            >
-              🚨 신고
-            </button>
+            <ReportButton
+              report-type="lecture"
+              :target-id="lessonData.id || 1"
+              :target-title="lessonData.title"
+              @reported="handleReported"
+            />
           </div>
         </div>
         
@@ -404,6 +404,11 @@ const changeLanguage = (newLanguageId: number) => {
   editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
   console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
 };
+
+// 신고 완료 핸들러
+function handleReported() {
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+}
 
 // -----------------------------
 // 레이아웃: 분할바 드래그 (좌/우)

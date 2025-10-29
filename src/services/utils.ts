@@ -197,3 +197,44 @@ export async function patch<T>(
     baseURL
   );
 }
+
+/**
+ * 날짜 포맷팅 유틸리티
+ * 백엔드 LocalDateTime 배열 형태와 ISO 문자열을 모두 처리합니다.
+ *
+ * @param date - 날짜 (배열 형태 [year, month, day, hour, minute, second, nano] 또는 ISO 문자열)
+ * @returns 포맷된 날짜 문자열 (YYYY-MM-DD HH:mm)
+ *
+ * @example
+ * formatDateTime([2025, 10, 29, 16, 7, 44, 437862000]) // "2025-10-29 16:07"
+ * formatDateTime("2025-10-29T16:07:44") // "2025-10-29 16:07"
+ */
+export function formatDateTime(date: number[] | string | null | undefined): string {
+  if (!date) return '-';
+
+  let d: Date;
+
+  if (Array.isArray(date)) {
+    // 백엔드 LocalDateTime 배열 형태: [year, month, day, hour, minute, second, nanoseconds]
+    const [year, month, day, hour = 0, minute = 0] = date;
+    // JavaScript Date의 month는 0부터 시작하므로 -1 필요
+    d = new Date(year, month - 1, day, hour, minute);
+  } else if (typeof date === 'string') {
+    d = new Date(date);
+  } else {
+    return '-';
+  }
+
+  // Invalid Date 체크
+  if (isNaN(d.getTime())) {
+    return '-';
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+}

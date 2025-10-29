@@ -22,14 +22,14 @@
         
         <div class="flex items-center space-x-4">
           <!-- 신고 버튼 -->
-          <button 
+          <ReportButton
             v-if="lecture"
-            @click="() => alert('강의 신고: ' + lecture.title)"
-            class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors border border-red-200 hover:border-red-300"
-          >
-            🚨 신고
-          </button>
-          
+            report-type="lecture"
+            :target-id="lecture.id"
+            :target-title="lecture.title"
+            @reported="handleReported"
+          />
+
           <div class="text-sm text-gray-600">
             진행률: {{ progress }}%
           </div>
@@ -282,6 +282,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
+import ReportButton from '@/components/common/ReportButton.vue';
 import { languageApiService } from '../services/languageApi';
 import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
 import type { MonacoEditorConfig } from '../services/extendedClient';
@@ -422,7 +423,12 @@ function goToNextLesson() {
 function copyCode(codeText: string) {
   navigator.clipboard.writeText(codeText);
   // 간단한 알림 (실제로는 토스트 메시지 사용)
-  alert('코드가 클립보드에 복사되었습니다!');
+  window.alert('코드가 클립보드에 복사되었습니다!');
+}
+
+// 신고 완료 핸들러
+function handleReported() {
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
 }
 
 function openEditorPopout() {
@@ -540,9 +546,9 @@ async function runCustomInput() {
 // 코드 제출 함수 (PROBLEM 타입용)
 async function submitCode() {
   const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
-  
+
   if (!currentCode.trim()) {
-    alert('제출할 코드가 없습니다.');
+    window.alert('제출할 코드가 없습니다.');
     return;
   }
 
