@@ -321,7 +321,7 @@
       <div v-if="allSortedItems.length > 0" class="flex justify-center items-center py-8">
         <div class="flex items-center space-x-4">
           <span class="text-sm text-gray-600">
-            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, allSortedItems.length) }} / {{ allSortedItems.length }}개
+            {{ pageRangeStart }}-{{ pageRangeEnd }} / {{ totalItemsCount }}개
           </span>
           <div class="flex items-center space-x-2">
             <button
@@ -404,7 +404,7 @@ const showCreateMenu = ref(false);
 
 // 페이지네이션 관련 상태
 const currentPage = ref(1);
-const itemsPerPage = ref(10); // 페이지당 아이템 수
+const itemsPerPage = ref(20); // 페이지당 아이템 수 고정
 
 // 발행된 강의 데이터 (localStorage에서 불러옴 - 기존 로직 유지)
 const publishedCourses = ref<DashboardItem[]>([]);
@@ -434,25 +434,9 @@ const curriculumMeta = ref({
   prev_page: null as number | null
 });
 
-// localStorage에서 발행된 강의 불러오기 (기존 로직 유지)
+// 로컬 임시 강의 병합 로직 제거 (반복/중복 노출 방지)
 function loadPublishedCourses() {
-  const storedCourses = JSON.parse(
-    localStorage.getItem("instructorCourses") || "[]"
-  );
-  if (storedCourses.length > 0) {
-    publishedCourses.value = storedCourses.map((course: any) => ({
-      id: course.id,
-      title: course.title,
-      createdDate: new Date(course.createdAt).toLocaleDateString("ko-KR"),
-      privacy: "공개",
-      thumbnailColor: course.format === "문제" ? "#E3F2FD" : "#E8F5E8",
-      type: "lecture" as const,
-      duration: "미정",
-      tags: [course.category, course.format],
-      format: course.format,
-      status: course.status,
-    }));
-  }
+  publishedCourses.value = [];
 }
 
 
@@ -469,8 +453,8 @@ async function loadPage(page: number) {
 
     // 탭에 따라 필요한 데이터만 가져오기
     if (activeTab.value === 'curriculum') {
-      // 커리큘럼 탭: 커리큘럼만 가져오기
-      const curriculumResponse = await curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 10);
+      // 커리큘럼 탭: 커리큘럼만 가져오기 (20개씩)
+      const curriculumResponse = await curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 20);
       curricula.value = curriculumResponse.curriculums;
       curriculumMeta.value = curriculumResponse.meta;
 
@@ -480,8 +464,8 @@ async function loadPage(page: number) {
         meta: curriculumResponse.meta
       });
     } else if (activeTab.value === 'materials') {
-      // 강의물 탭: 강의만 가져오기
-      const lectureResponse = await lectureApiService.getUserLectures(currentUser.value.id, backendPage, 10);
+      // 강의물 탭: 강의만 가져오기 (20개씩)
+      const lectureResponse = await lectureApiService.getUserLectures(currentUser.value.id, backendPage, 20);
       lectures.value = lectureResponse.lectures;
       lectureMeta.value = lectureResponse.meta;
 
@@ -493,8 +477,8 @@ async function loadPage(page: number) {
     } else {
       // 전체 탭: 강의와 커리큘럼 둘 다 가져오기
       const [lectureResponse, curriculumResponse] = await Promise.all([
-        lectureApiService.getUserLectures(currentUser.value.id, backendPage, 10),
-        curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 10)
+        lectureApiService.getUserLectures(currentUser.value.id, backendPage, 20),
+        curriculumApiService.getUserCurriculums(currentUser.value.id, backendPage, 20)
       ]);
 
       lectures.value = lectureResponse.lectures;
@@ -576,32 +560,13 @@ const filteredItems = computed(() => {
     case "curriculum":
       return apiCurriculums; // API에서 가져온 커리큘럼
     case "materials":
-      // API 강의 + localStorage 강의 합치기 (중복 제거)
-      const combinedMaterials = [...apiLectures];
-      localCourses.forEach((localCourse: DashboardItem) => {
-        // API에 없는 localStorage 강의만 추가
-        if (
-          !apiLectures.find(
-            (apiLecture: DashboardItem) => apiLecture.id === localCourse.id
-          )
-        ) {
-          combinedMaterials.push(localCourse);
-        }
-      });
-      return combinedMaterials;
+      // 백엔드 데이터만 사용
+      return apiLectures;
     case "all":
     default:
       // 모든 데이터 합치기
+      // 백엔드 데이터만 사용
       const allItems = [...apiCurriculums, ...apiLectures];
-      localCourses.forEach((localCourse: DashboardItem) => {
-        if (
-          !apiLectures.find(
-            (apiLecture: DashboardItem) => apiLecture.id === localCourse.id
-          )
-        ) {
-          allItems.push(localCourse);
-        }
-      });
       return allItems;
   }
 });
@@ -639,7 +604,7 @@ const allSortedItems = computed(() => {
   }
 });
 
-// 현재 표시할 아이템들 (백엔드에서 받은 데이터를 그대로 표시)
+// 현재 표시할 아이템들 (백엔드 페이지 결과 그대로 표시)
 const paginatedItems = computed(() => {
   return allSortedItems.value;
 });
@@ -677,14 +642,37 @@ const visiblePages = computed(() => {
 function getTabCount(tabId: string) {
   switch (tabId) {
     case "curriculum":
-      return curricula.value.length;
+      return curriculumMeta.value.total_count;
     case "materials":
-      return lectures.value.length + publishedCourses.value.length;
+      return lectureMeta.value.total_count;
     case "all":
     default:
-      return curricula.value.length + lectures.value.length + publishedCourses.value.length;
+      return curriculumMeta.value.total_count + lectureMeta.value.total_count;
   }
 }
+
+// 페이지 상단 범위/총계 표시를 메타 기반으로 계산
+const totalItemsCount = computed(() => {
+  if (activeTab.value === 'curriculum') return curriculumMeta.value.total_count;
+  if (activeTab.value === 'materials') return lectureMeta.value.total_count;
+  return curriculumMeta.value.total_count + lectureMeta.value.total_count;
+});
+
+const perPage = computed(() => {
+  if (activeTab.value === 'curriculum') return curriculumMeta.value.per_page;
+  if (activeTab.value === 'materials') return lectureMeta.value.per_page;
+  // 'all' 탭은 강의+커리큘럼 합산
+  return (lectureMeta.value.per_page || 0) + (curriculumMeta.value.per_page || 0);
+});
+
+const pageRangeStart = computed(() => {
+  if (totalItemsCount.value === 0) return 0;
+  return (currentPage.value - 1) * perPage.value + 1;
+});
+
+const pageRangeEnd = computed(() => {
+  return Math.min(currentPage.value * perPage.value, totalItemsCount.value);
+});
 
 // 탭 변경 시 페이지 초기화 및 데이터 다시 로드
 function handleTabChange(tabId: string) {

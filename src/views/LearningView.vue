@@ -27,16 +27,6 @@
         </div>
         
         <div class="flex items-center space-x-4">
-          <div class="text-sm text-gray-600">
-            진행률: {{ progress }}%
-          </div>
-          <div class="w-32 bg-gray-200 rounded-full h-2">
-            <div 
-              class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-              :style="{ width: progress + '%' }"
-            ></div>
-          </div>
-          
           <!-- 다음 강의 버튼 -->
           <Button 
             v-if="nextLesson"
@@ -212,7 +202,6 @@ const route = useRoute();
 const router = useRouter();
 
 // 반응형 데이터
-const progress = ref(25);
 const isRunning = ref(false);
 const executionResult = ref<SubmissionResult | null>(null);
 const monacoEditorRef = ref<any>(null);

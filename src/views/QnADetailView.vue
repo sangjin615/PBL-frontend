@@ -118,10 +118,10 @@
               <p class="text-sm text-gray-500">{{ formatDate(answer.createdAt) }}</p>
             </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <!-- 채택 버튼 (질문 작성자만, 아직 채택된 답변이 없을 때) -->
-            <button
-              v-if="!answer.isAccepted && !hasAcceptedAnswer"
+        <div class="flex items-center space-x-2">
+          <!-- 채택 버튼 (질문 작성자만, 아직 채택된 답변이 없을 때) -->
+          <button
+            v-if="isQuestionAuthor && !answer.isAccepted && !hasAcceptedAnswer"
               @click="acceptAnswer(answer.id)"
               :disabled="accepting"
               class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
@@ -200,9 +200,11 @@ import { useRouter, useRoute } from 'vue-router'
 import ReportButton from '@/components/common/ReportButton.vue'
 import qnaApiService from '@/services/qnaApi'
 import type { QuestionDetailResponse, QuestionCategory } from '@/types/qna'
+import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const route = useRoute()
+const { currentUser } = useAuth()
 
 // 현재 질문 데이터
 const question = ref<QuestionDetailResponse | null>(null)
@@ -223,6 +225,13 @@ const questionId = computed(() => Number(route.params.id))
 // 채택된 답변이 있는지 확인
 const hasAcceptedAnswer = computed(() => {
   return question.value?.answers.some(answer => answer.isAccepted) || false
+})
+
+// 현재 로그인 사용자가 질문 작성자인지 여부
+const isQuestionAuthor = computed(() => {
+  if (!currentUser.value || !question.value) return false
+  // 서버에서 authorName(문자열)만 내려오므로 username 비교
+  return currentUser.value.username === question.value.authorName
 })
 
 // 질문 데이터 로드
@@ -316,6 +325,11 @@ async function toggleAnswerLike(answerId: number) {
 
 // 답변 채택
 async function acceptAnswer(answerId: number) {
+  // 방어적 체크: 질문 작성자가 아니면 차단
+  if (!isQuestionAuthor.value) {
+    window.alert('질문 작성자만 답변을 채택할 수 있습니다.')
+    return
+  }
   if (!window.confirm('이 답변을 채택하시겠습니까?')) {
     return
   }
