@@ -29,15 +29,24 @@ export interface UnifiedRecommendationItem {
   lectureType?: 'MARKDOWN' | 'PROBLEM';
 }
 
+// 추천 API 페이징 메타데이터 (API 명세서 기준)
+export interface RecommendationPaginationMeta {
+  currentPage: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 export interface UnifiedRecommendationResponse {
   recommendations: UnifiedRecommendationItem[];
-  meta: PaginationMeta;
+  meta: RecommendationPaginationMeta;
 }
 
 // 개인화된 커리큘럼 추천 응답 타입
 export interface CurriculumRecommendationResponse {
   curriculums: CurriculumResponse[];
-  meta: PaginationMeta;
+  meta: RecommendationPaginationMeta;
 }
 
 class RecommendationApiService {
