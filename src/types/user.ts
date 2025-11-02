@@ -79,3 +79,35 @@ export interface UpdatePasswordResponse {
   message: string;
 }
 
+export interface UploadProfileImageResponse {
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    username: string;
+    loginId: string;
+    profileImageUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface GetProfileImageResponse {
+  success: boolean;
+  userId: number;
+  profileImageUrl: string;
+}
+
+export interface DeleteProfileImageResponse {
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    username: string;
+    loginId: string;
+    profileImageUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+

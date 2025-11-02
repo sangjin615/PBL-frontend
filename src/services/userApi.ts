@@ -1,4 +1,4 @@
-import { apiConfig } from '../config/api';
+import { apiConfig, getCurrentUserId } from '../config/api';
 import { request } from './utils';
 import type {
   User,
@@ -11,7 +11,10 @@ import type {
   UpdateUsernameRequest,
   UpdateUsernameResponse,
   UpdatePasswordRequest,
-  UpdatePasswordResponse
+  UpdatePasswordResponse,
+  UploadProfileImageResponse,
+  GetProfileImageResponse,
+  DeleteProfileImageResponse
 } from '../types/user';
 
 class UserApiService {
@@ -102,6 +105,66 @@ class UserApiService {
       {
         method: 'PUT',
         body: JSON.stringify(passwordRequest),
+      },
+      this.baseUrl
+    );
+  }
+
+  /**
+   * 프로필 이미지 업로드/수정
+   * PUT /api/auth/user/profile/image
+   * multipart/form-data 형식으로 파일 업로드
+   */
+  async uploadProfileImage(file: File): Promise<UploadProfileImageResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const userId = getCurrentUserId();
+    if (!userId) {
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    const url = `${this.baseUrl}/api/auth/user/profile/image`;
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'X-User-Id': String(userId),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+      const error = new Error(errorMessage) as Error & { status: number };
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * 프로필 이미지 조회
+   * GET /api/auth/user/{userId}/profile/image
+   */
+  async getProfileImage(userId: number): Promise<GetProfileImageResponse> {
+    return request<GetProfileImageResponse>(
+      `/api/auth/user/${userId}/profile/image`,
+      {},
+      this.baseUrl
+    );
+  }
+
+  /**
+   * 프로필 이미지 삭제
+   * DELETE /api/auth/user/profile/image
+   */
+  async deleteProfileImage(): Promise<DeleteProfileImageResponse> {
+    return request<DeleteProfileImageResponse>(
+      '/api/auth/user/profile/image',
+      {
+        method: 'DELETE',
       },
       this.baseUrl
     );

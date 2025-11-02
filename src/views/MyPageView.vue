@@ -73,14 +73,30 @@
                   <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
                 </svg>
               </div>
-              <div>
-                <button
-                  @click="selectProfileImage"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-                >
-                  사진 변경
-                </button>
-                <p class="text-xs text-gray-500 mt-1">JPG, PNG 파일만 업로드 가능</p>
+              <div class="flex flex-col space-y-2">
+                <div class="flex space-x-2">
+                  <button
+                    @click="selectProfileImage"
+                    :disabled="isUploadingImage"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ isUploadingImage ? '업로드 중...' : '사진 변경' }}
+                  </button>
+                  <button
+                    v-if="profileImageUrl"
+                    @click="deleteProfileImage"
+                    :disabled="isDeletingImage"
+                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ isDeletingImage ? '삭제 중...' : '삭제' }}
+                  </button>
+                </div>
+                <p v-if="imageError" class="text-xs text-red-600">
+                  {{ imageError }}
+                </p>
+                <p v-else class="text-xs text-gray-500">
+                  JPEG, PNG, GIF, WEBP, BMP (최대 10MB)
+                </p>
               </div>
             </div>
             <input
@@ -202,6 +218,7 @@ import { useRoute } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
 import { userApiService } from '@/services/userApi';
 import { getCurrentUserId } from '@/config/api';
+import { S3ApiService } from '@/services/s3Api';
 
 const { currentUser, setUser } = useAuth();
 const route = useRoute();
@@ -215,11 +232,14 @@ const tabs = [
 const activeTab = ref('profile');
 
 // 쿼리 파라미터에서 탭 설정
-onMounted(() => {
+onMounted(async () => {
   const tabParam = route.query.tab as string;
   if (tabParam && tabs.some(tab => tab.id === tabParam)) {
     activeTab.value = tabParam;
   }
+  
+  // 프로필 이미지 로드
+  await loadProfileImage();
 });
 
 function handleTabChange(tabId: string) {
@@ -229,6 +249,7 @@ function handleTabChange(tabId: string) {
 // 프로필 수정 관련
 const username = ref(currentUser.value?.username || '');
 const profileImage = ref<string | null>(null);
+const profileImageUrl = ref<string | null>(null); // 서버의 이미지 URL (objectKey)
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
@@ -237,33 +258,164 @@ const fileInput = ref<HTMLInputElement | null>(null);
 // 에러 메시지 및 로딩 상태
 const usernameError = ref('');
 const passwordError = ref('');
+const imageError = ref('');
 const isSaving = ref(false);
+const isUploadingImage = ref(false);
+const isDeletingImage = ref(false);
+
+// 프로필 이미지 로드
+async function loadProfileImage() {
+  if (!currentUser.value?.id) return;
+  
+  try {
+    const response = await userApiService.getProfileImage(currentUser.value.id);
+    if (response.profileImageUrl) {
+      profileImageUrl.value = response.profileImageUrl;
+      // MinIO URL로 변환하여 표시
+      profileImage.value = S3ApiService.getImageUrl(response.profileImageUrl);
+    } else {
+      profileImageUrl.value = null;
+      profileImage.value = null;
+    }
+  } catch (error: any) {
+    console.error('프로필 이미지 로드 실패:', error);
+    // 에러가 발생해도 기본 아이콘 표시
+    profileImageUrl.value = null;
+    profileImage.value = null;
+  }
+}
 
 function selectProfileImage() {
   fileInput.value?.click();
 }
 
-function handleImageUpload(event: Event) {
+async function handleImageUpload(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
   
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      profileImage.value = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+  if (!file) return;
+
+  // 파일 검증
+  const validation = S3ApiService.validateImageFile(file);
+  if (!validation.isValid) {
+    imageError.value = validation.error || '파일 검증에 실패했습니다.';
+    // 파일 입력 초기화
+    if (target) {
+      target.value = '';
+    }
+    return;
+  }
+
+  // 미리보기 표시
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    profileImage.value = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+
+  // 업로드 시작
+  isUploadingImage.value = true;
+  imageError.value = '';
+
+  try {
+    const response = await userApiService.uploadProfileImage(file);
+    
+    // 성공 시 서버 응답 업데이트
+    if (response.user && currentUser.value) {
+      // 사용자 정보 업데이트 (profileImageUrl 포함)
+      setUser({
+        ...currentUser.value,
+        username: response.user.username,
+      });
+      
+      // 프로필 이미지 URL 업데이트
+      if (response.user.profileImageUrl) {
+        profileImageUrl.value = response.user.profileImageUrl;
+        profileImage.value = S3ApiService.getImageUrl(response.user.profileImageUrl);
+      }
+    }
+    
+    alert('프로필 이미지가 업로드되었습니다.');
+  } catch (error: any) {
+    console.error('프로필 이미지 업로드 실패:', error);
+    
+    // 에러 처리
+    if (error.status === 400) {
+      imageError.value = error.message || '잘못된 파일 형식이거나 크기가 초과되었습니다.';
+    } else if (error.status === 401) {
+      imageError.value = '로그인이 필요합니다.';
+    } else if (error.status === 404) {
+      imageError.value = '사용자를 찾을 수 없습니다.';
+    } else if (error.status === 503) {
+      imageError.value = '이미지 서비스가 일시적으로 사용할 수 없습니다.';
+    } else {
+      imageError.value = '프로필 이미지 업로드 중 오류가 발생했습니다.';
+    }
+    
+    // 실패 시 미리보기 제거
+    profileImage.value = profileImageUrl.value 
+      ? S3ApiService.getImageUrl(profileImageUrl.value)
+      : null;
+  } finally {
+    isUploadingImage.value = false;
+    // 파일 입력 초기화
+    if (target) {
+      target.value = '';
+    }
+  }
+}
+
+async function deleteProfileImage() {
+  if (!profileImageUrl.value) return;
+  
+  if (!confirm('프로필 이미지를 삭제하시겠습니까?')) {
+    return;
+  }
+
+  isDeletingImage.value = true;
+  imageError.value = '';
+
+  try {
+    const response = await userApiService.deleteProfileImage();
+    
+    // 성공 시 사용자 정보 업데이트
+    if (response.user && currentUser.value) {
+      setUser({
+        ...currentUser.value,
+        username: response.user.username,
+      });
+    }
+    
+    // 프로필 이미지 제거
+    profileImageUrl.value = null;
+    profileImage.value = null;
+    
+    alert('프로필 이미지가 삭제되었습니다.');
+  } catch (error: any) {
+    console.error('프로필 이미지 삭제 실패:', error);
+    
+    if (error.status === 400) {
+      imageError.value = error.message || '프로필 이미지가 없습니다.';
+    } else if (error.status === 401) {
+      imageError.value = '로그인이 필요합니다.';
+    } else {
+      imageError.value = '프로필 이미지 삭제 중 오류가 발생했습니다.';
+    }
+  } finally {
+    isDeletingImage.value = false;
   }
 }
 
 function resetForm() {
   username.value = currentUser.value?.username || '';
-  profileImage.value = null;
+  // 프로필 이미지는 다시 로드 (삭제 취소)
+  loadProfileImage();
   currentPassword.value = '';
   newPassword.value = '';
   confirmPassword.value = '';
   usernameError.value = '';
   passwordError.value = '';
+  imageError.value = '';
 }
 
 async function saveChanges() {
