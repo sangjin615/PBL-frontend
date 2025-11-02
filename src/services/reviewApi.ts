@@ -139,8 +139,13 @@ class ReviewApiService {
   }
 
   /**
-   * 커리큘럼 공개 문의 목록 조회
+   * 커리큘럼 문의 목록 조회
    * GET /api/curriculums/{curriculumId}/reviews/inquiries?page=0&size=10
+   *
+   * 권한별 조회 가능 범위:
+   * - 일반 사용자: 공개 문의만 조회 가능
+   * - 관리자(userId=1) 또는 커리큘럼 작성자: 공개 및 비공개 문의 모두 조회 가능
+   * X-User-Id 헤더를 통해 자동으로 권한 확인됨
    */
   async getInquiries(
     curriculumId: number,
@@ -174,6 +179,9 @@ class ReviewApiService {
   /**
    * 문의에 답변 작성
    * POST /api/curriculums/{curriculumId}/reviews/inquiries/{inquiryId}/replies
+   *
+   * 비공개 문의에 답글을 작성하려면 관리자(userId=1) 또는 커리큘럼 작성자여야 함
+   * X-User-Id 헤더를 통해 자동으로 권한 확인됨
    */
   async createReply(
     curriculumId: number,
@@ -193,6 +201,9 @@ class ReviewApiService {
   /**
    * 문의의 답변 목록 조회
    * GET /api/curriculums/{curriculumId}/reviews/inquiries/{inquiryId}/replies
+   *
+   * 비공개 문의의 답글은 관리자(userId=1) 또는 커리큘럼 작성자만 조회 가능
+   * X-User-Id 헤더를 통해 자동으로 권한 확인됨
    */
   async getReplies(
     curriculumId: number,
@@ -201,6 +212,116 @@ class ReviewApiService {
     return request<ReplyResponse[]>(
       `/api/curriculums/${curriculumId}/reviews/inquiries/${inquiryId}/replies`,
       {},
+      this.baseURL
+    );
+  }
+
+  /**
+   * 리뷰 답글 목록 조회
+   * GET /api/curriculums/{curriculumId}/reviews/{reviewId}/replies
+   */
+  async getReviewReplies(
+    curriculumId: number,
+    reviewId: number
+  ): Promise<ReplyResponse[]> {
+    return request<ReplyResponse[]>(
+      `/api/curriculums/${curriculumId}/reviews/${reviewId}/replies`,
+      {},
+      this.baseURL
+    );
+  }
+
+  /**
+   * 리뷰 답글 작성
+   * POST /api/curriculums/{curriculumId}/reviews/{reviewId}/replies
+   */
+  async createReviewReply(
+    curriculumId: number,
+    reviewId: number,
+    replyRequest: CreateReplyRequest
+  ): Promise<ReplyResponse> {
+    return request<ReplyResponse>(
+      `/api/curriculums/${curriculumId}/reviews/${reviewId}/replies`,
+      {
+        method: "POST",
+        body: JSON.stringify(replyRequest),
+      },
+      this.baseURL
+    );
+  }
+
+  /**
+   * 리뷰 답글 수정
+   * PUT /api/curriculums/{curriculumId}/reviews/{reviewId}/replies/{replyId}
+   */
+  async updateReviewReply(
+    curriculumId: number,
+    reviewId: number,
+    replyId: number,
+    replyRequest: CreateReplyRequest
+  ): Promise<ReplyResponse> {
+    return request<ReplyResponse>(
+      `/api/curriculums/${curriculumId}/reviews/${reviewId}/replies/${replyId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(replyRequest),
+      },
+      this.baseURL
+    );
+  }
+
+  /**
+   * 리뷰 답글 삭제
+   * DELETE /api/curriculums/{curriculumId}/reviews/{reviewId}/replies/{replyId}
+   */
+  async deleteReviewReply(
+    curriculumId: number,
+    reviewId: number,
+    replyId: number
+  ): Promise<void> {
+    await request<void>(
+      `/api/curriculums/${curriculumId}/reviews/${reviewId}/replies/${replyId}`,
+      {
+        method: "DELETE",
+      },
+      this.baseURL
+    );
+  }
+
+  /**
+   * 문의 답글 수정
+   * PUT /api/curriculums/{curriculumId}/reviews/inquiries/{inquiryId}/replies/{replyId}
+   */
+  async updateReply(
+    curriculumId: number,
+    inquiryId: number,
+    replyId: number,
+    replyRequest: CreateReplyRequest
+  ): Promise<ReplyResponse> {
+    return request<ReplyResponse>(
+      `/api/curriculums/${curriculumId}/reviews/inquiries/${inquiryId}/replies/${replyId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(replyRequest),
+      },
+      this.baseURL
+    );
+  }
+
+  /**
+   * 문의 답글 삭제
+   * DELETE /api/curriculums/{curriculumId}/reviews/inquiries/{inquiryId}/replies/{replyId}
+   */
+  async deleteReply(
+    curriculumId: number,
+    inquiryId: number,
+    replyId: number
+  ): Promise<void> {
+    await request<void>(
+      `/api/curriculums/${curriculumId}/reviews/inquiries/${inquiryId}/replies/${replyId}`,
+      {
+        method: "DELETE",
+      },
       this.baseURL
     );
   }
