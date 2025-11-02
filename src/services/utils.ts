@@ -90,7 +90,10 @@ export async function request<T>(
         errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
       }
 
-      throw new Error(errorMessage);
+      // status 정보를 포함한 에러 객체 생성
+      const error = new Error(errorMessage) as Error & { status: number };
+      error.status = response.status;
+      throw error;
     }
 
     // 204 No Content 응답 처리

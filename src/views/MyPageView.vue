@@ -99,10 +99,20 @@
               <input
                 v-model="username"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                :class="[
+                  'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                  usernameError
+                    ? 'border-red-500 focus:ring-red-500'
+                    : 'border-gray-300 focus:ring-blue-500'
+                ]"
                 placeholder="닉네임을 입력하세요"
               />
-              <p class="text-xs text-gray-500 mt-1">2-20자 사이로 입력해주세요</p>
+              <p v-if="usernameError" class="text-xs text-red-600 mt-1">
+                {{ usernameError }}
+              </p>
+              <p v-else class="text-xs text-gray-500 mt-1">
+                2자 이상 50자 이하로 입력해주세요
+              </p>
             </div>
           </div>
 
@@ -115,7 +125,12 @@
                 <input
                   v-model="currentPassword"
                   type="password"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  :class="[
+                    'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                    passwordError && passwordError.includes('현재 비밀번호')
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  ]"
                   placeholder="현재 비밀번호를 입력하세요"
                 />
               </div>
@@ -124,7 +139,12 @@
                 <input
                   v-model="newPassword"
                   type="password"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  :class="[
+                    'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                    passwordError && (passwordError.includes('새 비밀번호') || passwordError.includes('비밀번호는'))
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  ]"
                   placeholder="새 비밀번호를 입력하세요"
                 />
               </div>
@@ -133,10 +153,21 @@
                 <input
                   v-model="confirmPassword"
                   type="password"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  :class="[
+                    'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                    passwordError && passwordError.includes('일치')
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  ]"
                   placeholder="새 비밀번호를 다시 입력하세요"
                 />
               </div>
+              <p v-if="passwordError" class="text-xs text-red-600">
+                {{ passwordError }}
+              </p>
+              <p v-else class="text-xs text-gray-500">
+                6자 이상 50자 이하로 입력해주세요
+              </p>
             </div>
           </div>
 
@@ -146,14 +177,16 @@
               <button
                 @click="resetForm"
                 class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                :disabled="isSaving"
               >
                 취소
               </button>
               <button
                 @click="saveChanges"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="isSaving"
               >
-                저장
+                {{ isSaving ? '저장 중...' : '저장' }}
               </button>
             </div>
           </div>
@@ -167,8 +200,10 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
+import { userApiService } from '@/services/userApi';
+import { getCurrentUserId } from '@/config/api';
 
-const { currentUser } = useAuth();
+const { currentUser, setUser } = useAuth();
 const route = useRoute();
 
 // 탭 관리
@@ -199,6 +234,11 @@ const newPassword = ref('');
 const confirmPassword = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
+// 에러 메시지 및 로딩 상태
+const usernameError = ref('');
+const passwordError = ref('');
+const isSaving = ref(false);
+
 function selectProfileImage() {
   fileInput.value?.click();
 }
@@ -222,21 +262,127 @@ function resetForm() {
   currentPassword.value = '';
   newPassword.value = '';
   confirmPassword.value = '';
+  usernameError.value = '';
+  passwordError.value = '';
 }
 
-function saveChanges() {
-  // TODO: 실제 API 호출로 변경
-  console.log('프로필 수정 저장:', {
-    username: username.value,
-    profileImage: profileImage.value,
-    passwordChange: {
-      current: currentPassword.value,
-      new: newPassword.value,
-      confirm: confirmPassword.value
-    }
-  });
+async function saveChanges() {
+  // 에러 초기화
+  usernameError.value = '';
+  passwordError.value = '';
   
-  // 임시로 성공 메시지 표시
-  alert('변경사항이 저장되었습니다.');
+  // 로그인 확인
+  const userId = getCurrentUserId();
+  if (!userId) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+
+  isSaving.value = true;
+
+  try {
+    // 1. 닉네임 변경 처리
+    if (username.value && username.value !== currentUser.value?.username) {
+      try {
+        // 클라이언트 측 검증
+        if (username.value.length < 2 || username.value.length > 50) {
+          usernameError.value = '닉네임은 2자 이상 50자 이하여야 합니다.';
+          isSaving.value = false;
+          return;
+        }
+
+        const usernameResponse = await userApiService.updateUsername({
+          username: username.value,
+        });
+
+        // 성공 시 사용자 정보 업데이트
+        if (usernameResponse.user && currentUser.value) {
+          setUser({
+            ...currentUser.value,
+            username: usernameResponse.user.username,
+          });
+        }
+      } catch (error: any) {
+        // API 에러 처리
+        if (error.status === 400) {
+          const errorMessage = error.message || '닉네임 변경에 실패했습니다.';
+          usernameError.value = errorMessage;
+        } else if (error.status === 401) {
+          usernameError.value = '로그인이 필요합니다.';
+        } else {
+          usernameError.value = '닉네임 변경 중 오류가 발생했습니다.';
+        }
+        isSaving.value = false;
+        return;
+      }
+    }
+
+    // 2. 비밀번호 변경 처리
+    if (currentPassword.value || newPassword.value || confirmPassword.value) {
+      try {
+        // 클라이언트 측 검증
+        if (!currentPassword.value) {
+          passwordError.value = '현재 비밀번호를 입력해주세요.';
+          isSaving.value = false;
+          return;
+        }
+
+        if (!newPassword.value) {
+          passwordError.value = '새 비밀번호를 입력해주세요.';
+          isSaving.value = false;
+          return;
+        }
+
+        if (newPassword.value.length < 6 || newPassword.value.length > 50) {
+          passwordError.value = '비밀번호는 6자 이상 50자 이하여야 합니다.';
+          isSaving.value = false;
+          return;
+        }
+
+        if (newPassword.value !== confirmPassword.value) {
+          passwordError.value = '새 비밀번호와 확인 비밀번호가 일치하지 않습니다.';
+          isSaving.value = false;
+          return;
+        }
+
+        if (currentPassword.value === newPassword.value) {
+          passwordError.value = '새 비밀번호는 현재 비밀번호와 달라야 합니다.';
+          isSaving.value = false;
+          return;
+        }
+
+        await userApiService.updatePassword({
+          currentPassword: currentPassword.value,
+          newPassword: newPassword.value,
+        });
+
+        // 성공 시 비밀번호 필드 초기화
+        currentPassword.value = '';
+        newPassword.value = '';
+        confirmPassword.value = '';
+      } catch (error: any) {
+        // API 에러 처리
+        if (error.status === 400) {
+          const errorMessage = error.message || '비밀번호 변경에 실패했습니다.';
+          passwordError.value = errorMessage;
+        } else if (error.status === 401) {
+          passwordError.value = '로그인이 필요합니다.';
+        } else {
+          passwordError.value = '비밀번호 변경 중 오류가 발생했습니다.';
+        }
+        isSaving.value = false;
+        return;
+      }
+    }
+
+    // 모두 성공한 경우
+    alert('변경사항이 저장되었습니다.');
+    resetForm();
+  } catch (error: any) {
+    console.error('프로필 수정 실패:', error);
+    alert('변경사항 저장 중 오류가 발생했습니다.');
+  } finally {
+    isSaving.value = false;
+  }
 }
 </script>

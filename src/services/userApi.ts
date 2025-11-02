@@ -7,7 +7,11 @@ import type {
   LoginRequest,
   LoginResponse,
   CheckAvailabilityResponse,
-  UserInfoResponse
+  UserInfoResponse,
+  UpdateUsernameRequest,
+  UpdateUsernameResponse,
+  UpdatePasswordRequest,
+  UpdatePasswordResponse
 } from '../types/user';
 
 class UserApiService {
@@ -71,6 +75,36 @@ class UserApiService {
    */
   async getUserByLoginId(loginId: string): Promise<UserInfoResponse> {
     return request<UserInfoResponse>(`/api/auth/user/loginId/${loginId}`, {}, this.baseUrl);
+  }
+
+  /**
+   * 닉네임 변경
+   * PUT /api/auth/user/profile/username
+   */
+  async updateUsername(usernameRequest: UpdateUsernameRequest): Promise<UpdateUsernameResponse> {
+    return request<UpdateUsernameResponse>(
+      '/api/auth/user/profile/username',
+      {
+        method: 'PUT',
+        body: JSON.stringify(usernameRequest),
+      },
+      this.baseUrl
+    );
+  }
+
+  /**
+   * 비밀번호 변경
+   * PUT /api/auth/user/profile/password
+   */
+  async updatePassword(passwordRequest: UpdatePasswordRequest): Promise<UpdatePasswordResponse> {
+    return request<UpdatePasswordResponse>(
+      '/api/auth/user/profile/password',
+      {
+        method: 'PUT',
+        body: JSON.stringify(passwordRequest),
+      },
+      this.baseUrl
+    );
   }
 }
 
