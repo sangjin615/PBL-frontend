@@ -35,13 +35,30 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <span :class="[
-            'px-3 py-1 text-sm font-semibold rounded-full',
-            question.status === 'UNRESOLVED'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-green-100 text-green-800'
-          ]">
-            {{ question.status === 'UNRESOLVED' ? '미해결' : '해결' }}
+          <!-- 해결/미해결 상태 배지 (질문 작성자만 클릭 가능) -->
+          <button
+            v-if="isQuestionAuthor"
+            @click="toggleQuestionResolve"
+            :disabled="resolving"
+            :class="[
+              'px-3 py-1 text-sm font-semibold rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+              question.status === 'RESOLVED'
+                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+            ]"
+          >
+            {{ resolving ? '처리 중...' : (question.status === 'RESOLVED' ? '해결' : '미해결') }}
+          </button>
+          <span
+            v-else
+            :class="[
+              'px-3 py-1 text-sm font-semibold rounded-full',
+              question.status === 'RESOLVED'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-blue-100 text-blue-800'
+            ]"
+          >
+            {{ question.status === 'RESOLVED' ? '해결' : '미해결' }}
           </span>
           <ReportButton
             report-type="problem"
@@ -97,8 +114,10 @@
         v-for="answer in question.answers"
         :key="answer.id"
         :class="[
-          'bg-white rounded-lg shadow-sm border p-4',
-          answer.isAccepted ? 'border-green-500 border-2' : 'border-gray-200'
+          'rounded-lg shadow-sm border p-4 transition-colors',
+          answer.isAccepted
+            ? 'bg-green-50 border-green-300 border-2'
+            : 'bg-white border-gray-200'
         ]"
       >
         <!-- 채택 배지 -->
@@ -127,6 +146,15 @@
               class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               채택하기
+            </button>
+          <!-- 채택 취소 버튼 (질문 작성자만, 채택된 답변에만 표시) -->
+          <button
+            v-if="isQuestionAuthor && answer.isAccepted"
+              @click="unacceptAnswer(answer.id)"
+              :disabled="accepting"
+              class="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              채택 취소
             </button>
             <ReportButton
               report-type="comment"
@@ -215,9 +243,10 @@ const error = ref('')
 const newAnswerContent = ref('')
 const submitting = ref(false)
 
-// 좋아요/채택 상태
+// 좋아요/채택/해결 상태
 const liking = ref(false)
 const accepting = ref(false)
+const resolving = ref(false)
 
 // 질문 ID 가져오기
 const questionId = computed(() => Number(route.params.id))
@@ -330,7 +359,7 @@ async function acceptAnswer(answerId: number) {
     window.alert('질문 작성자만 답변을 채택할 수 있습니다.')
     return
   }
-  if (!window.confirm('이 답변을 채택하시겠습니까?')) {
+  if (!window.confirm('이 답변을 채택하시겠습니까? 채택 시 질문이 자동으로 해결 상태로 변경됩니다.')) {
     return
   }
 
@@ -339,16 +368,87 @@ async function acceptAnswer(answerId: number) {
   try {
     await qnaApiService.acceptAnswer(answerId)
 
-    // 답변 채택 후 질문 재조회
+    // 답변 채택 후 질문 재조회 (백엔드에서 자동으로 해결 상태로 변경)
     await fetchQuestion()
 
-    window.alert('답변이 채택되었습니다!')
+    // 재조회 후 상태 확인하여 사용자에게 알림
+    if (question.value) {
+      if (question.value.status === 'RESOLVED') {
+        window.alert('답변이 채택되었고 질문이 해결 상태로 변경되었습니다!')
+      } else {
+        window.alert('답변이 채택되었습니다.')
+      }
+    }
   } catch (err: any) {
     error.value = err.message || '답변 채택에 실패했습니다.'
     window.alert(error.value)
     console.error('답변 채택 실패:', err)
   } finally {
     accepting.value = false
+  }
+}
+
+// 답변 채택 취소
+async function unacceptAnswer(answerId: number) {
+  // 방어적 체크: 질문 작성자가 아니면 차단
+  if (!isQuestionAuthor.value) {
+    window.alert('질문 작성자만 채택을 취소할 수 있습니다.')
+    return
+  }
+  if (!window.confirm('채택을 취소하시겠습니까? 취소 시 질문이 자동으로 미해결 상태로 변경됩니다.')) {
+    return
+  }
+
+  accepting.value = true
+
+  try {
+    await qnaApiService.unacceptAnswer(answerId)
+
+    // 채택 취소 후 질문 재조회 (채택 취소 시 자동으로 미해결 상태로 변경됨)
+    await fetchQuestion()
+
+    window.alert('채택이 취소되었고 질문이 미해결 상태로 변경되었습니다.')
+  } catch (err: any) {
+    error.value = err.message || '채택 취소에 실패했습니다.'
+    window.alert(error.value)
+    console.error('채택 취소 실패:', err)
+  } finally {
+    accepting.value = false
+  }
+}
+
+// 질문 해결/미해결 토글
+async function toggleQuestionResolve() {
+  if (!isQuestionAuthor.value || !question.value) {
+    window.alert('질문 작성자만 해결 상태를 변경할 수 있습니다.')
+    return
+  }
+
+  resolving.value = true
+
+  try {
+    await qnaApiService.resolveQuestion(questionId.value)
+
+    // 해결 상태 변경 후 질문 재조회
+    await fetchQuestion()
+
+    // 재조회 후 최신 상태 확인
+    if (question.value) {
+      const newStatus = question.value.status === 'RESOLVED' ? '해결' : '미해결'
+      window.alert(`질문이 ${newStatus} 상태로 변경되었습니다.`)
+    }
+  } catch (err: any) {
+    // 400 에러인 경우 특별 처리 (채택된 답변이 있어 미해결로 변경 불가)
+    if (err.status === 400) {
+      const errorMessage = err.message || '채택된 답변이 있어 질문을 미해결 상태로 변경할 수 없습니다. 먼저 답변 채택을 취소해주세요.'
+      window.alert(errorMessage)
+    } else {
+      error.value = err.message || '해결 상태 변경에 실패했습니다.'
+      window.alert(error.value)
+    }
+    console.error('해결 상태 변경 실패:', err)
+  } finally {
+    resolving.value = false
   }
 }
 
