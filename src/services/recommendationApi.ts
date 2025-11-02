@@ -49,6 +49,12 @@ export interface CurriculumRecommendationResponse {
   meta: RecommendationPaginationMeta;
 }
 
+// 개인화된 강의 추천 응답 타입
+export interface LectureRecommendationResponse {
+  lectures: Lecture[];
+  meta: RecommendationPaginationMeta;
+}
+
 class RecommendationApiService {
   private readonly baseURL: string;
 
@@ -81,6 +87,21 @@ class RecommendationApiService {
   ): Promise<CurriculumRecommendationResponse> {
     return request<CurriculumRecommendationResponse>(
       `/api/recommendations/curriculums?page=${page}&size=${size}`,
+      {},
+      this.baseURL
+    );
+  }
+
+  /**
+   * 개인화된 강의 추천
+   * GET /api/recommendations/lectures?page=0&size=10
+   */
+  async getLectureRecommendations(
+    page: number = 0,
+    size: number = 10
+  ): Promise<LectureRecommendationResponse> {
+    return request<LectureRecommendationResponse>(
+      `/api/recommendations/lectures?page=${page}&size=${size}`,
       {},
       this.baseURL
     );
