@@ -2,7 +2,10 @@
   <div class="bg-white border-t border-gray-200 p-4">
     <!-- 헤더 -->
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-900">AI 맞춤형 강의 추천</h3>
+      <div class="flex items-center space-x-3">
+        <h3 class="text-lg font-semibold text-gray-900">AI 맞춤형 강의 추천</h3>
+        <p class="text-sm text-gray-500">현재 강의와 비슷한 강의를 추천해드립니다</p>
+      </div>
       <div class="flex items-center space-x-2">
         <button 
           @click="scrollLeft" 
@@ -43,17 +46,18 @@
             :class="getCardStyle(lecture)"
             @click="goToLecture(lecture)"
           >
-            <div class="h-full flex flex-col justify-center items-center text-white p-4">
+            <div class="h-full flex flex-col justify-center items-center text-white p-4 overflow-hidden">
               <!-- 카드 내용 -->
-              <div class="text-center">
-                <div class="text-lg font-bold">{{ lecture.title }}</div>
+              <div class="text-center w-full px-2">
+                <div 
+                  class="text-base font-bold line-clamp-3 break-words leading-tight"
+                  :title="getDisplayTitle(lecture)"
+                  style="min-height: 3rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;"
+                >
+                  {{ getDisplayTitle(lecture) }}
+                </div>
               </div>
             </div>
-          </div>
-          
-          <!-- 카드 하단 설명 -->
-          <div class="mt-2 text-center">
-            <div class="text-xs text-gray-500">{{ lecture.category }} · {{ lecture.difficulty }}</div>
           </div>
         </div>
       </div>
@@ -97,11 +101,20 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import type { Lecture } from '@/types/lecture'
 import { lectureApiService } from '@/services/lectureApi'
 
+interface Props {
+  lectureId?: number // 선택적 prop: 현재 강의 ID
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  lectureId: undefined
+})
+
 const router = useRouter()
+const route = useRoute()
 
 // 반응형 데이터
 const recommendedLectures = ref<Lecture[]>([])
@@ -142,6 +155,86 @@ const scrollRight = () => {
   }
 }
 
+// 표시할 제목 가져오기 (실제 강의 제목만 표시)
+const getDisplayTitle = (lecture: Lecture): string => {
+  const category = lecture.category || ''
+  const difficulty = lecture.difficulty || ''
+  
+  // "알고리즘 다이아몬드" 형식의 패턴들을 모두 정의
+  const difficultyLevels = ['브론즈', '실버', '골드', '플래티넘', '다이아몬드', '루비', '마스터', '미등급']
+  const categories = ['알고리즘', '웹', '데이터베이스', '인공지능', '게임 개발', '개발·프로그래밍']
+  
+  // 모든 가능한 패턴 조합 생성
+  const patterns: string[] = []
+  
+  // category + difficulty 조합
+  if (category && difficulty) {
+    patterns.push(`${category} ${difficulty}`)
+    patterns.push(`${category}·${difficulty}`)
+    patterns.push(`${category} · ${difficulty}`)
+    patterns.push(`${category}-${difficulty}`)
+    patterns.push(`${category} - ${difficulty}`)
+  }
+  
+  // 알고리즘 + 난이도 조합
+  difficultyLevels.forEach(level => {
+    patterns.push(`알고리즘 ${level}`)
+    patterns.push(`알고리즘·${level}`)
+    patterns.push(`알고리즘 · ${level}`)
+  })
+  
+  // 단독 카테고리나 난이도
+  if (category) patterns.push(category)
+  if (difficulty) patterns.push(difficulty)
+  categories.forEach(cat => patterns.push(cat))
+  difficultyLevels.forEach(level => patterns.push(level))
+  
+  // title이 있는 경우
+  if (lecture.title && lecture.title.trim() !== '') {
+    const title = lecture.title.trim()
+    const titleLower = title.toLowerCase()
+    
+    // 패턴과 정확히 일치하거나 포함되는지 확인
+    const isPattern = patterns.some(pattern => {
+      const patternLower = pattern.toLowerCase()
+      return title === pattern || 
+             titleLower === patternLower ||
+             title === pattern.replace(/\s+/g, ' ') ||
+             (title.length <= 20 && (
+               titleLower.includes(patternLower) && 
+               (titleLower === patternLower || titleLower.split(' ').length <= 3)
+             ))
+    })
+    
+    // 패턴이 아니면 실제 제목으로 사용
+    if (!isPattern) {
+      return title
+    }
+  }
+  
+  // title이 패턴이거나 없으면 description 확인
+  if (lecture.description && lecture.description.trim() !== '') {
+    const desc = lecture.description.trim()
+    const descLower = desc.toLowerCase()
+    
+    // description도 패턴인지 확인
+    const isDescPattern = patterns.some(pattern => {
+      const patternLower = pattern.toLowerCase()
+      return desc === pattern || 
+             descLower === patternLower ||
+             (desc.length <= 20 && descLower.includes(patternLower))
+    })
+    
+    // description이 패턴이 아니고 충분히 긴 경우만 사용
+    if (!isDescPattern && desc.length > 5) {
+      return desc
+    }
+  }
+  
+  // 둘 다 패턴이거나 없으면 기본 메시지
+  return '제목 없음'
+}
+
 // 강의로 이동
 const goToLecture = (lecture: Lecture) => {
   router.push({
@@ -153,11 +246,92 @@ const goToLecture = (lecture: Lecture) => {
 // AI 추천 강의 로드
 const loadRecommendedLectures = async () => {
   try {
-    // 현재는 최근 강의들을 가져오지만, 실제로는 AI 추천 API를 호출해야 함
-    const lectures = await lectureApiService.getRecentLectures()
+    let lectures: Lecture[] = []
+    
+    // 문제 결과 페이지에서 사용하는 경우: 현재 문제와 비슷한 강의 추천
+    if (props.lectureId || route.params.problemId) {
+      const currentLectureId = props.lectureId || Number(route.params.problemId)
+      
+      if (currentLectureId) {
+        try {
+          // 현재 강의 정보 가져오기
+          const currentLecture = await lectureApiService.getLecture(currentLectureId)
+          
+          // 같은 카테고리와 난이도의 강의 검색 (현재 강의 제외)
+          const similarLecturesResponse = await lectureApiService.searchPublicLectures({
+            category: currentLecture.category,
+            difficulty: currentLecture.difficulty,
+            type: currentLecture.type
+          })
+          
+          // 응답이 배열인지 확인하고 배열로 변환
+          const similarLectures = Array.isArray(similarLecturesResponse) 
+            ? similarLecturesResponse 
+            : (similarLecturesResponse?.lectures || [])
+          
+          // 현재 강의와 다른 강의들만 필터링
+          lectures = similarLectures
+            .filter(lecture => lecture.id !== currentLectureId)
+            .slice(0, 6)
+          
+          console.log('[강의 추천] 비슷한 강의 찾음:', lectures.length, '개')
+          console.log('[강의 추천] 강의 데이터:', lectures.map(l => ({ id: l.id, title: l.title })))
+        } catch (error) {
+          console.error('[강의 추천] 현재 강의 정보 가져오기 실패:', error)
+          // 실패 시 최근 강의 사용
+          lectures = await lectureApiService.getRecentLectures()
+        }
+      }
+    }
+    
+    // 비슷한 강의가 없거나 문제 결과 페이지가 아닌 경우 최근 강의 사용
+    if (lectures.length === 0) {
+      lectures = await lectureApiService.getRecentLectures()
+      console.log('[강의 추천] 최근 강의 사용:', lectures.length, '개')
+      console.log('[강의 추천] 최근 강의 데이터:', lectures.map(l => ({ id: l.id, title: l.title })))
+    }
     
     // 최대 6개까지만 표시
     recommendedLectures.value = lectures.slice(0, 6)
+    
+    // API 응답의 title이 패턴인 경우 description으로 대체
+    recommendedLectures.value = recommendedLectures.value.map(lecture => {
+      const category = lecture.category || ''
+      const difficulty = lecture.difficulty || ''
+      const title = lecture.title?.trim() || ''
+      
+      // title이 category + difficulty 패턴인지 확인
+      const isPattern = (
+        title === `${category} ${difficulty}` ||
+        title === `${category}·${difficulty}` ||
+        title === `${category} · ${difficulty}` ||
+        title === category ||
+        title === difficulty ||
+        (title.includes('알고리즘') && (title.includes('다이아몬드') || title.includes('브론즈') || title.includes('실버') || title.includes('골드')))
+      )
+      
+      // 패턴이면 description을 title로 사용 (description이 있는 경우)
+      if (isPattern && lecture.description && lecture.description.trim() !== '') {
+        return {
+          ...lecture,
+          title: lecture.description.trim()
+        }
+      }
+      
+      return lecture
+    })
+    
+    // 데이터 확인 로그 (디버깅용)
+    console.log('[강의 추천] 최종 추천 강의:', recommendedLectures.value.map(l => ({ 
+      id: l.id, 
+      originalTitle: lectures.find(lec => lec.id === l.id)?.title,
+      title: l.title,
+      category: l.category,
+      difficulty: l.difficulty,
+      description: l.description,
+      displayTitle: getDisplayTitle(l),
+      fullData: l
+    })))
     
     // 강의가 없으면 더미 데이터 추가
     if (recommendedLectures.value.length === 0) {

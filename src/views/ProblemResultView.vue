@@ -90,7 +90,7 @@
         
         <!-- 하단: AI 강의 추천 -->
         <div class="flex-shrink-0">
-          <AiLectureRecommendation />
+          <AiLectureRecommendation :lecture-id="parseInt(route.params.problemId as string)" />
         </div>
       </div>
 
@@ -269,6 +269,8 @@ import type { CurriculumNavigationResponse } from '@/types/curriculum'
 import { MdPreview } from 'md-editor-v3-ko'
 import 'md-editor-v3-ko/lib/style.css'
 import AiLectureRecommendation from '@/components/course/AiLectureRecommendation.vue'
+import { enrollmentApiService } from '@/services/enrollmentApi'
+import { getCurrentUserId } from '@/config/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -554,7 +556,7 @@ const startGradingProgress = async (token: string): Promise<void> => {
     // 채점이 완료되었는지 확인
     if (result.status && result.status.id >= 3) {
       // 완료된 경우 결과 표시
-      displayFinalResult(result);
+      await displayFinalResult(result);
       isGrading.value = false;
     } else {
       // 아직 진행 중인 경우 프로그레스로 전환
@@ -602,7 +604,7 @@ const setupSSEHandlers = (): void => {
       
       if (data.current_status === 'COMPLETED' || data.status?.id >= 3) {
         console.log('채점 완료, 최종 결과 표시');
-        displayFinalResult(data);
+        displayFinalResult(data).catch(err => console.error('최종 결과 표시 오류:', err));
         closeSSEConnection();
         isGrading.value = false;
       } else {
@@ -620,7 +622,7 @@ const setupSSEHandlers = (): void => {
       console.log('Error 이벤트 수신:', data);
       
       // error 이벤트로 받은 데이터를 최종 결과로 처리
-      displayFinalResult(data);
+      displayFinalResult(data).catch(err => console.error('최종 결과 표시 오류:', err));
       closeSSEConnection();
       isGrading.value = false;
     } catch (error) {
@@ -675,8 +677,56 @@ const updateProgressDisplay = (data: any): void => {
   currentStatus.value = statusMessages[progress.current_status] || progress.message || '채점 중...';
 };
 
+// enrollmentId 찾기 함수
+async function findEnrollmentId(curriculumIdNum: number): Promise<number | null> {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('[진행률 업데이트] 사용자 ID를 찾을 수 없습니다.');
+      return null;
+    }
+
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+    const enrollment = enrollments.find(e => 
+      e.curriculumId === curriculumIdNum && e.status === 'ENROLLED'
+    );
+
+    if (enrollment) {
+      console.log('[진행률 업데이트] enrollmentId 찾음:', enrollment.id);
+      return enrollment.id;
+    } else {
+      console.log('[진행률 업데이트] enrollment를 찾을 수 없습니다.');
+      return null;
+    }
+  } catch (err) {
+    console.error('[진행률 업데이트] enrollmentId 찾기 실패:', err);
+    return null;
+  }
+}
+
+// 강의 완료 처리 (문제 강의)
+async function markLectureComplete(lectureId: number, curriculumIdNum: number | null) {
+  if (!curriculumIdNum) {
+    console.log('[진행률 업데이트] curriculumId가 없어 진행률을 업데이트할 수 없습니다.');
+    return;
+  }
+
+  try {
+    const enrollmentId = await findEnrollmentId(curriculumIdNum);
+    if (!enrollmentId) {
+      console.log('[진행률 업데이트] enrollmentId를 찾을 수 없어 진행률을 업데이트할 수 없습니다.');
+      return;
+    }
+
+    await enrollmentApiService.markLectureAsSolved(enrollmentId, lectureId);
+    console.log('[진행률 업데이트] ✅ 강의 완료 처리 성공:', lectureId);
+  } catch (err) {
+    console.error('[진행률 업데이트] 강의 완료 처리 실패:', err);
+  }
+}
+
 // 최종 결과 표시
-const displayFinalResult = (result: any): void => {
+const displayFinalResult = async (result: any): Promise<void> => {
   isGrading.value = false;
   progressPercentage.value = 100;
   
@@ -689,6 +739,13 @@ const displayFinalResult = (result: any): void => {
     testResults.value = []; // 성공 시에는 상세 결과 표시하지 않음
     totalTestCase.value = result.progress?.total_test_case || 1;
     doneTestCase.value = result.progress?.current_test_case || 1;
+    
+    // 정답을 맞췄을 때 진행률 업데이트
+    const lectureId = parseInt(route.params.problemId as string);
+    const curriculumIdNum = curriculumId.value ? parseInt(curriculumId.value) : null;
+    if (lectureId && curriculumIdNum) {
+      await markLectureComplete(lectureId, curriculumIdNum);
+    }
   } else if (result.status?.id === 4) {
     // Wrong Answer - 오답
     currentStatus.value = '입출력 값이 다릅니다! 코드를 확인해주세요.';

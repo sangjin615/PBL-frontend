@@ -63,6 +63,7 @@ import type { Course } from '../types/course';
 import { useSearchStore } from '../stores/search';
 import { useUiStore } from '../stores/ui';
 import { curriculumApiService } from '../services/curriculumApi';
+import { getCurrentUserId } from '../config/api';
 
 const searchStore = useSearchStore();
 const ui = useUiStore();
@@ -122,7 +123,7 @@ function formatDate(date: string | number[]): string {
   return date;
 }
 
-// 백엔드에서 커리큘럼 데이터 로드 (페이징)
+// 백엔드에서 커리큘럼 데이터 로드 (페이징) - 사용자 맞춤 추천 우선
 async function loadCourses() {
   if (loading.value || !hasMore.value) return;
 
@@ -130,7 +131,37 @@ async function loadCourses() {
     loading.value = true;
     error.value = null;
 
-    const response = await curriculumApiService.getPublicCurriculumsPaginated(currentPage.value, pageSize);
+    let response;
+    const userId = getCurrentUserId();
+    let useRecommended = false;
+
+    // 로그인된 사용자이고 첫 페이지인 경우 사용자 맞춤 추천 API 사용 시도
+    if (userId && currentPage.value === 0) {
+      try {
+        console.log('[홈 화면] 사용자 맞춤 추천 커리큘럼 로드 시도');
+        response = await curriculumApiService.getRecommendedCurriculums(currentPage.value, pageSize);
+        if (response && response.curriculums && Array.isArray(response.curriculums)) {
+          console.log('[홈 화면] 사용자 맞춤 추천 성공:', response.curriculums.length, '개');
+          useRecommended = true;
+        } else {
+          throw new Error('추천 API 응답 형식이 올바르지 않습니다.');
+        }
+      } catch (recommendError: any) {
+        console.warn('[홈 화면] 사용자 맞춤 추천 실패, 일반 목록 사용:', recommendError?.message || recommendError);
+        useRecommended = false;
+      }
+    }
+
+    // 추천 API를 사용하지 않거나 실패한 경우 일반 목록 사용
+    if (!useRecommended) {
+      response = await curriculumApiService.getPublicCurriculumsPaginated(currentPage.value, pageSize);
+    }
+
+    // 응답이 올바른지 확인
+    if (!response || !response.curriculums || !Array.isArray(response.curriculums)) {
+      console.error('[홈 화면] 잘못된 응답 형식:', response);
+      throw new Error('잘못된 응답 형식입니다.');
+    }
 
     // CurriculumResponse를 Course로 직접 변환
     const newCourses = response.curriculums.map(curriculum => ({
@@ -158,11 +189,13 @@ async function loadCourses() {
     courses.value = [...courses.value, ...newCourses];
 
     // 다음 페이지가 있는지 확인
-    hasMore.value = response.meta.next_page !== null;
+    hasMore.value = response.meta?.next_page !== null && response.meta?.next_page !== undefined;
     currentPage.value++;
-  } catch (err) {
+  } catch (err: any) {
     console.error('커리큘럼 로드 실패:', err);
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
+    // 에러 발생 시 hasMore를 false로 설정하여 무한 로딩 방지
+    hasMore.value = false;
   } finally {
     loading.value = false;
   }

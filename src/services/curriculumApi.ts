@@ -304,6 +304,23 @@ class CurriculumApiService {
       this.baseURL
     );
   }
+
+  // === 사용자 맞춤 추천 API ===
+
+  /**
+   * 사용자 맞춤 추천 커리큘럼 조회 (페이징)
+   * GET /api/curriculums/recommended?page=0&size=10
+   */
+  async getRecommendedCurriculums(
+    page: number = 0,
+    size: number = 10
+  ): Promise<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }> {
+    return request<{ curriculums: CurriculumResponse[]; meta: PaginationMeta }>(
+      `/api/curriculums/recommended?page=${page}&size=${size}`,
+      {},
+      this.baseURL
+    );
+  }
 }
 
 // === 페이징 응답 타입 정의 ===

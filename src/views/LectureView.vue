@@ -284,6 +284,8 @@ import { MdPreview } from 'md-editor-v3-ko';
 import 'md-editor-v3-ko/lib/style.css';
 import { gradingAPI, type GradingRequest } from '../services/gradingAPI';
 import { SUPPORTED_LANGUAGES_FALLBACK } from '@/constants';
+import { enrollmentApiService } from '@/services/enrollmentApi';
+import { getCurrentUserId } from '@/config/api';
 
 const route = useRoute();
 const router = useRouter();
@@ -319,6 +321,54 @@ const nextLesson = ref<{id: number} | null>(null);
 
 // lessonData 제거 - lecture를 직접 사용
 
+// enrollmentId 찾기 함수
+async function findEnrollmentId(curriculumIdNum: number): Promise<number | null> {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('[진행률 업데이트] 사용자 ID를 찾을 수 없습니다.');
+      return null;
+    }
+
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+    const enrollment = enrollments.find(e => 
+      e.curriculumId === curriculumIdNum && e.status === 'ENROLLED'
+    );
+
+    if (enrollment) {
+      console.log('[진행률 업데이트] enrollmentId 찾음:', enrollment.id);
+      return enrollment.id;
+    } else {
+      console.log('[진행률 업데이트] enrollment를 찾을 수 없습니다.');
+      return null;
+    }
+  } catch (err) {
+    console.error('[진행률 업데이트] enrollmentId 찾기 실패:', err);
+    return null;
+  }
+}
+
+// 강의 완료 처리 (마크다운 강의)
+async function markMarkdownLectureAsRead(lectureId: number, curriculumIdNum: number | null) {
+  if (!curriculumIdNum) {
+    console.log('[진행률 업데이트] curriculumId가 없어 진행률을 업데이트할 수 없습니다.');
+    return;
+  }
+
+  try {
+    const enrollmentId = await findEnrollmentId(curriculumIdNum);
+    if (!enrollmentId) {
+      console.log('[진행률 업데이트] enrollmentId를 찾을 수 없어 진행률을 업데이트할 수 없습니다.');
+      return;
+    }
+
+    await enrollmentApiService.markLectureAsRead(enrollmentId, lectureId);
+    console.log('[진행률 업데이트] ✅ 마크다운 강의 읽기 완료 처리 성공:', lectureId);
+  } catch (err) {
+    console.error('[진행률 업데이트] 마크다운 강의 완료 처리 실패:', err);
+  }
+}
+
 // Lecture API에서 강의 정보 로드
 async function loadLectureData() {
   try {
@@ -332,6 +382,17 @@ async function loadLectureData() {
 
     // Lecture API 호출 - 직접 lecture ref에 저장
     lecture.value = await lectureApiService.getLecture(lectureId);
+
+    // 마크다운 강의인 경우 읽기 완료 처리
+    if (lecture.value?.type === 'MARKDOWN') {
+      const curriculumIdNum = route.query.curriculumId ? Number(route.query.curriculumId) : null;
+      if (curriculumIdNum) {
+        // 비동기로 처리하되 에러가 발생해도 강의 로드에는 영향 없음
+        markMarkdownLectureAsRead(lectureId, curriculumIdNum).catch(err => {
+          console.error('[마크다운 강의 완료 처리] 실패:', err);
+        });
+      }
+    }
 
   } catch (err) {
     console.error('강의 데이터 로드 실패:', err);

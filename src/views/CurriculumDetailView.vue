@@ -30,6 +30,21 @@
 
           <!-- 액션 버튼들 -->
           <div class="flex items-center space-x-3">
+            <!-- 진행률 바 -->
+            <div v-if="isEnrolled" class="flex items-center space-x-3 px-4 py-2">
+              <div class="w-32">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span style="color: rgb(var(--figma-color-5))">진행률</span>
+                  <span class="font-medium" style="color: rgb(var(--figma-color-2))">{{ progressPercentage }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="h-2 rounded-full transition-all duration-300"
+                    :style="{ backgroundColor: 'rgb(var(--figma-color-6))', width: progressPercentage + '%' }"
+                  ></div>
+                </div>
+              </div>
+            </div>
             <button 
               @click="goToInquiry"
               class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer" 
@@ -305,6 +320,7 @@ const isSubscribed = ref(false);
 const isEnrolled = ref(false);
 const enrollmentId = ref<number | null>(null);
 const isCanceling = ref(false);
+const progressPercentage = ref(0); // 진행률 (0-100)
 
 // 탭 상태
 const activeTab = ref('lectures');
@@ -356,16 +372,19 @@ async function checkEnrollmentStatus() {
     if (enrollment) {
       isEnrolled.value = true;
       enrollmentId.value = enrollment.id;
-      console.log('[수강 상태 확인] ✅ 수강 중 - enrollmentId:', enrollment.id);
+      progressPercentage.value = enrollment.progressPercentage || 0;
+      console.log('[수강 상태 확인] ✅ 수강 중 - enrollmentId:', enrollment.id, '진행률:', progressPercentage.value + '%');
     } else {
       isEnrolled.value = false;
       enrollmentId.value = null;
+      progressPercentage.value = 0;
       console.log('[수강 상태 확인] ❌ 미수강');
     }
   } catch (err) {
     console.error('수강 상태 확인 실패:', err);
     isEnrolled.value = false;
     enrollmentId.value = null;
+    progressPercentage.value = 0;
   }
 }
 
