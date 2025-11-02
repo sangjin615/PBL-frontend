@@ -87,13 +87,40 @@
 
         <!-- 추천 모드: 강의 섹션 + 커리큘럼 섹션 -->
         <template v-else>
+          <!-- 카테고리 탭 -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4 overflow-x-auto">
+              <button
+                v-for="cat in categories"
+                :key="cat"
+                class="px-3 py-2 text-sm rounded-md border"
+                :class="
+                  activeTab === cat
+                    ? 'bg-gray-100 border-gray-300'
+                    : 'border-transparent hover:bg-gray-50'
+                "
+                @click="setTab(cat)"
+              >
+                {{ cat }}
+              </button>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <select v-model="sortBy" class="h-9 rounded-md border px-2">
+                <option value="popular">인기순</option>
+                <option value="latest">최신순</option>
+                <option value="rating">평점순</option>
+                <option value="reviews">리뷰순</option>
+              </select>
+            </div>
+          </div>
+
           <!-- 커리큘럼 추천 섹션 (강의 섹션을 중간에 삽입) -->
-          <div v-if="curriculums.length > 0">
+          <div v-if="curriculums.length > 0 || filteredCurriculums.length > 0">
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold">추천 커리큘럼</h2>
-              <span class="text-sm text-gray-600"
-                >{{ curriculums.length }}개</span
-              >
+              <span v-if="activeTab !== '전체'" class="text-sm text-gray-600">
+                {{ filteredCurriculums.length }}개
+              </span>
             </div>
 
             <!-- 통합 그리드: 커리큘럼 + 강의 섹션 -->
@@ -102,16 +129,19 @@
             >
               <!-- 커리큘럼 아이템들을 순회하면서 강의 섹션을 중간에 삽입 -->
               <template
-                v-for="(curriculum, index) in curriculums"
+                v-for="(curriculum, index) in filteredCurriculums"
                 :key="`curriculum-${curriculum.id}`"
               >
                 <!-- 커리큘럼 카드 -->
                 <CourseCard :course="curriculum" />
 
                 <!-- 강의 섹션 삽입 (그리드 3~6번째 행 사이, xl 기준 12~24번째 아이템 뒤) -->
+                <!-- 커리큘럼이 충분할 때만 그리드 내부에 삽입 -->
+                <!-- 로딩 중이거나 강의가 있을 때 표시 -->
                 <div
                   v-if="
-                    lectures.length > 0 &&
+                    (lectureLoading || filteredLectures.length > 0) &&
+                    canInsertLectureInGrid &&
                     lectureInsertRow >= 3 &&
                     lectureInsertRow <= 6 &&
                     index + 1 === lectureInsertIndex
@@ -121,6 +151,12 @@
                   <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-bold">추천 강의</h2>
                     <div class="flex items-center gap-2">
+                      <span
+                        v-if="activeTab !== '전체'"
+                        class="text-sm text-gray-600"
+                      >
+                        {{ filteredLectures.length }}개
+                      </span>
                       <span v-if="lectureLoading" class="text-sm text-gray-600">
                         로딩 중...
                       </span>
@@ -131,11 +167,36 @@
                     </div>
                   </div>
 
+                  <!-- 로딩 중 스켈레톤 -->
+                  <div
+                    v-if="lectureLoading && filteredLectures.length === 0"
+                    class="relative w-full"
+                  >
+                    <div class="flex gap-4 overflow-hidden">
+                      <div
+                        v-for="i in 4"
+                        :key="`skeleton-lecture-${i}`"
+                        class="flex-shrink-0 w-64"
+                      >
+                        <div
+                          class="bg-white rounded-lg shadow-md overflow-hidden animate-pulse"
+                        >
+                          <div class="aspect-video bg-gray-200"></div>
+                          <div class="p-4 space-y-3">
+                            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                            <div class="h-3 bg-gray-200 rounded w-2/3"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- 수평 스크롤 컨테이너 -->
-                  <div class="relative w-full">
+                  <div v-else class="relative w-full">
                     <!-- 좌우 스크롤 버튼 -->
                     <button
-                      v-if="lectures.length > 4"
+                      v-if="filteredLectures.length > 4"
                       @click="scrollLecturesLeft"
                       class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg hover:bg-gray-50 flex items-center justify-center transition-all"
                       :disabled="lectureScrollIndex === 0"
@@ -199,7 +260,7 @@
                     >
                       <div class="flex gap-4" style="min-width: max-content">
                         <div
-                          v-for="lecture in lectures"
+                          v-for="lecture in filteredLectures"
                           :key="`lecture-${lecture.id}`"
                           class="flex-shrink-0 w-64"
                         >
@@ -271,23 +332,239 @@
               </template>
             </div>
 
-            <!-- 로딩 중 -->
+            <!-- 강의 섹션 (커리큘럼이 적을 때 그리드 아래에 표시) -->
+            <!-- 로딩 중이거나 강의가 있을 때 표시 -->
             <div
-              v-if="curriculumLoading && curriculums.length > 0"
-              class="flex justify-center mt-8"
+              v-if="
+                (lectureLoading || filteredLectures.length > 0) &&
+                !canInsertLectureInGrid &&
+                (curriculums.length > 0 || filteredCurriculums.length > 0)
+              "
+              class="mt-8 mb-8"
             >
-              <div class="text-gray-600">로딩 중...</div>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold">추천 강의</h2>
+                <div class="flex items-center gap-2">
+                  <span v-if="lectureLoading" class="text-sm text-gray-600">
+                    로딩 중...
+                  </span>
+                  <div
+                    v-if="lectureLoading"
+                    class="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- 로딩 중 스켈레톤 -->
+              <div
+                v-if="lectureLoading && filteredLectures.length === 0"
+                class="relative w-full"
+              >
+                <div class="flex gap-4 overflow-hidden">
+                  <div
+                    v-for="i in 4"
+                    :key="`skeleton-lecture-standalone-${i}`"
+                    class="flex-shrink-0 w-64"
+                  >
+                    <div
+                      class="bg-white rounded-lg shadow-md overflow-hidden animate-pulse"
+                    >
+                      <div class="aspect-video bg-gray-200"></div>
+                      <div class="p-4 space-y-3">
+                        <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                        <div class="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 수평 스크롤 컨테이너 -->
+              <div v-else class="relative w-full">
+                <!-- 좌우 스크롤 버튼 -->
+                <button
+                  v-if="lectures.length > 4"
+                  @click="scrollLecturesLeft"
+                  class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg hover:bg-gray-50 flex items-center justify-center transition-all"
+                  :disabled="lectureScrollIndex === 0"
+                  :class="
+                    lectureScrollIndex === 0
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  "
+                >
+                  <svg
+                    class="w-6 h-6 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 19l-7-7 7-7"
+                    ></path>
+                  </svg>
+                </button>
+
+                <button
+                  v-if="filteredLectures.length > 4"
+                  @click="scrollLecturesRight"
+                  class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg hover:bg-gray-50 flex items-center justify-center transition-all"
+                  :disabled="
+                    lectureScrollIndex >= maxLectureScrollIndex &&
+                    !lectureHasMore
+                  "
+                  :class="
+                    lectureScrollIndex >= maxLectureScrollIndex &&
+                    !lectureHasMore
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  "
+                >
+                  <svg
+                    class="w-6 h-6 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5l7 7-7 7"
+                    ></path>
+                  </svg>
+                </button>
+
+                <!-- 스크롤 가능한 강의 목록 -->
+                <div
+                  ref="lectureScrollContainer"
+                  class="overflow-x-auto scrollbar-hide pb-4"
+                  style="scroll-behavior: smooth"
+                  @scroll="onLectureScroll"
+                >
+                  <div class="flex gap-4" style="min-width: max-content">
+                    <div
+                      v-for="lecture in filteredLectures"
+                      :key="`lecture-${lecture.id}`"
+                      class="flex-shrink-0 w-64"
+                    >
+                      <!-- 강의 카드 (세로형) -->
+                      <div
+                        class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+                        @click.stop="goToLecture(lecture)"
+                      >
+                        <!-- 썸네일 영역 -->
+                        <div
+                          class="aspect-video bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center"
+                        >
+                          <div class="text-white text-center p-4">
+                            <div
+                              class="text-sm font-semibold mb-2 line-clamp-2"
+                            >
+                              {{ lecture.title }}
+                            </div>
+                            <div class="text-xs opacity-80">
+                              {{ lecture.category }}
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- 정보 영역 -->
+                        <div class="p-4">
+                          <div class="flex items-center justify-between mb-2">
+                            <span
+                              class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium"
+                            >
+                              강의
+                            </span>
+                            <span class="text-xs text-gray-500">{{
+                              lecture.difficulty
+                            }}</span>
+                          </div>
+                          <h3 class="text-sm font-semibold line-clamp-2 mb-1">
+                            {{ lecture.title }}
+                          </h3>
+                          <p class="text-xs text-gray-600">
+                            {{ lecture.instructor }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 로딩 표시 (마지막 강의 근처) -->
+                    <div
+                      v-if="lectureLoading && lectureHasMore"
+                      class="flex-shrink-0 w-64 flex items-center justify-center"
+                    >
+                      <div class="flex flex-col items-center gap-2">
+                        <div
+                          class="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+                        ></div>
+                        <span class="text-xs text-gray-600">로딩 중...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- 스크롤 감지를 위한 sentinel 요소 -->
+            <!-- 커리큘럼 로딩 중 스켈레톤 (2줄) -->
+            <div
+              v-if="curriculumLoading && curriculums.length > 0"
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8"
+            >
+              <!-- 스켈레톤 카드 8개 (2줄: xl 기준 4개씩) -->
+              <div
+                v-for="i in 8"
+                :key="`skeleton-${i}`"
+                class="bg-white rounded-lg shadow-md overflow-hidden animate-pulse"
+              >
+                <!-- 썸네일 스켈레톤 -->
+                <div class="aspect-video bg-gray-200"></div>
+                <!-- 정보 영역 스켈레톤 -->
+                <div class="p-4 space-y-3">
+                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                  <div class="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 하단 스크롤 로딩 표시 -->
+            <div
+              v-if="curriculumLoading && curriculums.length > 0"
+              class="flex justify-center items-center py-8 mt-4"
+            >
+              <div class="flex flex-col items-center gap-3">
+                <div
+                  class="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+                ></div>
+                <span class="text-sm text-gray-600"
+                  >커리큘럼을 불러오는 중...</span
+                >
+              </div>
+            </div>
+
+            <!-- 스크롤 감지를 위한 sentinel 요소 (로딩 표시 아래에 위치) -->
             <div ref="curriculumSentinel" class="h-4"></div>
           </div>
 
           <!-- 강의만 있는 경우 (커리큘럼이 없을 때) -->
-          <div v-else-if="lectures.length > 0" class="mb-12">
+          <!-- 로딩 중이거나 강의가 있을 때 표시 -->
+          <div
+            v-else-if="lectureLoading || filteredLectures.length > 0"
+            class="mb-12"
+          >
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold">추천 강의</h2>
               <div class="flex items-center gap-2">
+                <span v-if="activeTab !== '전체'" class="text-sm text-gray-600">
+                  {{ filteredLectures.length }}개
+                </span>
                 <span v-if="lectureLoading" class="text-sm text-gray-600">
                   로딩 중...
                 </span>
@@ -298,8 +575,33 @@
               </div>
             </div>
 
+            <!-- 로딩 중 스켈레톤 -->
+            <div
+              v-if="lectureLoading && filteredLectures.length === 0"
+              class="relative w-full"
+            >
+              <div class="flex gap-4 overflow-hidden">
+                <div
+                  v-for="i in 4"
+                  :key="`skeleton-lecture-only-${i}`"
+                  class="flex-shrink-0 w-64"
+                >
+                  <div
+                    class="bg-white rounded-lg shadow-md overflow-hidden animate-pulse"
+                  >
+                    <div class="aspect-video bg-gray-200"></div>
+                    <div class="p-4 space-y-3">
+                      <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div class="h-3 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 수평 스크롤 컨테이너 -->
-            <div class="relative w-full">
+            <div v-else class="relative w-full">
               <!-- 좌우 스크롤 버튼 -->
               <button
                 v-if="lectures.length > 4"
@@ -357,7 +659,7 @@
 
               <!-- 스크롤 가능한 강의 목록 -->
               <div
-                ref="lectureScrollContainer"
+                ref="lectureScrollContainerStandalone"
                 class="overflow-x-auto scrollbar-hide pb-4"
                 style="scroll-behavior: smooth"
                 @scroll="onLectureScroll"
@@ -426,17 +728,26 @@
             </div>
           </div>
 
-          <!-- 결과 없음 메시지 -->
+          <!-- 결과 없음 메시지 (커리큘럼과 강의 둘 다 없을 때만 표시) -->
           <div
             v-if="
-              lectures.length === 0 &&
-              curriculums.length === 0 &&
+              filteredLectures.length === 0 &&
+              filteredCurriculums.length === 0 &&
               !lectureLoading &&
-              !curriculumLoading
+              !curriculumLoading &&
+              !isSearchMode
             "
-            class="flex justify-center items-center py-12"
+            class="flex flex-col items-center justify-center py-16"
           >
-            <div class="text-gray-500">추천 콘텐츠가 없습니다.</div>
+            <div class="text-gray-500 text-lg mb-2">
+              <span v-if="activeTab !== '전체'">
+                추천되는 {{ activeTab }} 커리큘럼/강의를 찾을 수 없습니다.
+              </span>
+              <span v-else>추천 콘텐츠가 없습니다.</span>
+            </div>
+            <div v-if="activeTab !== '전체'" class="text-sm text-gray-400">
+              다른 카테고리를 선택해보세요.
+            </div>
           </div>
         </template>
       </template>
@@ -445,7 +756,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import CourseCard from "../components/course/CourseCard.vue";
 import type { Course } from "../types/course";
@@ -472,15 +783,17 @@ const courses = ref<Course[]>([]);
 const lectures = ref<Course[]>([]);
 const curriculums = ref<Course[]>([]);
 
-// 강의 스크롤 관련
-const lectureScrollContainer = ref<HTMLElement | null>(null);
+// 강의 스크롤 관련 (두 개의 스크롤 컨테이너 지원)
+const lectureScrollContainer = ref<HTMLElement | null>(null); // 중간 삽입 버전
+const lectureScrollContainerStandalone = ref<HTMLElement | null>(null); // 독립 버전
 const lectureScrollIndex = ref<number>(0);
 const lecturesPerView = ref<number>(4); // 한 번에 보이는 강의 개수
 
 const maxLectureScrollIndex = computed(() => {
+  const lecturesToUse = filteredLectures.value;
   return Math.max(
     0,
-    Math.ceil(lectures.value.length / lecturesPerView.value) - 1
+    Math.ceil(lecturesToUse.length / lecturesPerView.value) - 1
   );
 });
 
@@ -529,35 +842,127 @@ const lectureInsertIndex = computed(() => {
   return lectureInsertRow.value * gridColumns.value;
 });
 
+// 강의 섹션이 그리드 내부에 삽입될 수 있는지 확인
+// 커리큘럼 개수가 lectureInsertIndex보다 많거나 같으면 그리드 내부에 삽입
+const canInsertLectureInGrid = computed(() => {
+  // 필터링이 적용되지 않았을 때는 원본 개수, 필터링 적용 시에는 필터링된 개수 사용
+  const curriculumsToCheck =
+    activeTab.value === "전체"
+      ? curriculums.value.length
+      : filteredCurriculums.value.length;
+  return curriculumsToCheck >= lectureInsertIndex.value;
+});
+
 // Intersection Observer를 위한 sentinel 요소
 const sentinel = ref<HTMLElement | null>(null);
 const curriculumSentinel = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 let curriculumObserver: IntersectionObserver | null = null;
 
-// 강의 스크롤 함수
-function scrollLecturesLeft() {
+// 강의 스크롤 함수 (두 컨테이너 모두 지원)
+function getLectureScrollContainer(): HTMLElement | null {
+  // 중간 삽입 버전이 있으면 우선 사용, 없으면 독립 버전 사용
+  let container =
+    lectureScrollContainer.value || lectureScrollContainerStandalone.value;
+
+  // DOM 요소인지 확인
+  if (container && container instanceof HTMLElement) {
+    return container;
+  }
+
+  // ref가 아직 할당되지 않았을 수 있으므로 직접 DOM에서 찾기 시도
+  // 클래스 기반으로 찾기 (ref는 DOM에 직접 노출되지 않음)
+  const containersByClass = document.querySelectorAll(
+    ".overflow-x-auto.scrollbar-hide"
+  );
+
+  // 먼저 "추천 강의" 제목을 가진 섹션 내부의 컨테이너 찾기
+  for (let i = 0; i < containersByClass.length; i++) {
+    const el = containersByClass[i] as HTMLElement;
+    // 부모 요소에서 "추천 강의" 텍스트를 포함하는지 확인
+    const parentSection = el.closest('div[class*="col-span"]');
+    if (parentSection) {
+      const sectionText = parentSection.textContent || "";
+      if (sectionText.includes("추천 강의") || sectionText.includes("강의")) {
+        return el;
+      }
+    }
+  }
+
+  // 위에서 찾지 못한 경우 첫 번째 스크롤 컨테이너 반환
+  if (containersByClass.length > 0) {
+    return containersByClass[0] as HTMLElement;
+  }
+
+  console.warn("[홈 화면] 스크롤 컨테이너를 찾을 수 없음:", {
+    lectureScrollContainer: lectureScrollContainer.value,
+    lectureScrollContainerStandalone: lectureScrollContainerStandalone.value,
+    containersFound: containersByClass.length,
+  });
+
+  return null;
+}
+
+async function scrollLecturesLeft() {
   if (lectureScrollIndex.value > 0) {
     lectureScrollIndex.value--;
-    if (lectureScrollContainer.value) {
+    // DOM이 업데이트되도록 기다림
+    await nextTick();
+    const container = getLectureScrollContainer();
+    if (container) {
       const cardWidth = 256 + 16; // 카드 너비 + gap
-      lectureScrollContainer.value.scrollTo({
-        left: lectureScrollIndex.value * cardWidth * lecturesPerView.value,
-        behavior: "smooth",
-      });
+      const scrollLeft =
+        lectureScrollIndex.value * cardWidth * lecturesPerView.value;
+
+      // scrollTo가 있으면 사용, 없으면 scrollLeft 직접 설정
+      if (typeof container.scrollTo === "function") {
+        try {
+          container.scrollTo({
+            left: scrollLeft,
+            behavior: "smooth",
+          });
+        } catch (e) {
+          console.warn("[홈 화면] scrollTo 실패, scrollLeft 사용:", e);
+          container.scrollLeft = scrollLeft;
+        }
+      } else {
+        // scrollTo가 없으면 scrollLeft 직접 설정
+        container.scrollLeft = scrollLeft;
+      }
+    } else {
+      console.warn("[홈 화면] 스크롤 컨테이너를 찾을 수 없음");
     }
   }
 }
 
-function scrollLecturesRight() {
+async function scrollLecturesRight() {
   if (lectureScrollIndex.value < maxLectureScrollIndex.value) {
     lectureScrollIndex.value++;
-    if (lectureScrollContainer.value) {
+    // DOM이 업데이트되도록 기다림
+    await nextTick();
+    const container = getLectureScrollContainer();
+    if (container) {
       const cardWidth = 256 + 16; // 카드 너비 + gap
-      lectureScrollContainer.value.scrollTo({
-        left: lectureScrollIndex.value * cardWidth * lecturesPerView.value,
-        behavior: "smooth",
-      });
+      const scrollLeft =
+        lectureScrollIndex.value * cardWidth * lecturesPerView.value;
+
+      // scrollTo가 있으면 사용, 없으면 scrollLeft 직접 설정
+      if (typeof container.scrollTo === "function") {
+        try {
+          container.scrollTo({
+            left: scrollLeft,
+            behavior: "smooth",
+          });
+        } catch (e) {
+          console.warn("[홈 화면] scrollTo 실패, scrollLeft 사용:", e);
+          container.scrollLeft = scrollLeft;
+        }
+      } else {
+        // scrollTo가 없으면 scrollLeft 직접 설정
+        container.scrollLeft = scrollLeft;
+      }
+    } else {
+      console.warn("[홈 화면] 스크롤 컨테이너를 찾을 수 없음");
     }
   }
 }
@@ -617,33 +1022,57 @@ function setupObserver() {
 
 // 커리큘럼 Observer 설정
 function setupCurriculumObserver() {
+  // 기존 observer 제거
   if (curriculumObserver) {
     curriculumObserver.disconnect();
     curriculumObserver = null;
   }
 
-  if (
-    curriculumSentinel.value &&
-    !isSearchMode.value &&
-    curriculumHasMore.value
-  ) {
+  // 검색 모드가 아니고, sentinel 요소가 존재할 때 observer 설정
+  // curriculumHasMore는 observer 콜백 내에서 체크하므로 여기서는 체크하지 않음
+  if (curriculumSentinel.value && !isSearchMode.value) {
+    console.log("[홈 화면] 커리큘럼 Observer 설정:", {
+      hasSentinel: !!curriculumSentinel.value,
+      isSearchMode: isSearchMode.value,
+      hasMore: curriculumHasMore.value,
+      isLoading: curriculumLoading.value,
+      sentinelElement: curriculumSentinel.value,
+    });
+
     curriculumObserver = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
+        console.log("[홈 화면] 커리큘럼 Sentinel 감지:", {
+          isIntersecting: entry.isIntersecting,
+          intersectionRatio: entry.intersectionRatio,
+          hasMore: curriculumHasMore.value,
+          isLoading: curriculumLoading.value,
+          isSearchMode: isSearchMode.value,
+        });
+
         if (
           entry.isIntersecting &&
           curriculumHasMore.value &&
           !curriculumLoading.value &&
           !isSearchMode.value
         ) {
+          console.log("[홈 화면] 커리큘럼 다음 페이지 로드 시작");
           loadCurriculums();
         }
       },
       {
-        rootMargin: "100px",
+        rootMargin: "200px", // 더 일찍 감지하도록 여유 공간 증가
+        threshold: 0.1, // 10%만 보여도 감지
       }
     );
     curriculumObserver.observe(curriculumSentinel.value);
+  } else {
+    console.log("[홈 화면] 커리큘럼 Observer 설정 건너뜀:", {
+      hasSentinel: !!curriculumSentinel.value,
+      isSearchMode: isSearchMode.value,
+      hasMore: curriculumHasMore.value,
+      isLoading: curriculumLoading.value,
+    });
   }
 }
 
@@ -702,9 +1131,11 @@ onMounted(async () => {
 
   if (isSearchMode.value) {
     await searchUnified();
+    await nextTick();
     setupObserver();
   } else {
     await loadRecommendations();
+    await nextTick();
     setupCurriculumObserver();
   }
 });
@@ -978,6 +1409,7 @@ async function loadCurriculums() {
           );
 
         console.log("[홈 화면] 커리큘럼 추천 API 응답:", response);
+        console.log("[홈 화면] 커리큘럼 추천 API 응답 meta:", response?.meta);
 
         if (
           response &&
@@ -992,11 +1424,34 @@ async function loadCurriculums() {
             curriculums.value = [...curriculums.value, ...newCurriculums];
           }
 
-          if (response.meta && "hasNext" in response.meta) {
-            curriculumHasMore.value = response.meta.hasNext === true;
+          // meta의 hasNext를 확인하되, 응답된 데이터 개수가 pageSize와 같으면 아직 더 있을 수 있음
+          if (response.meta) {
+            if ("hasNext" in response.meta) {
+              curriculumHasMore.value = response.meta.hasNext === true;
+            } else if (
+              "nextPage" in response.meta ||
+              "next_page" in response.meta
+            ) {
+              const nextPage =
+                (response.meta as any).nextPage ??
+                (response.meta as any).next_page;
+              curriculumHasMore.value =
+                nextPage !== null && nextPage !== undefined;
+            } else {
+              // meta에 명시적인 hasNext가 없으면 응답된 데이터 개수로 판단
+              curriculumHasMore.value = newCurriculums.length >= pageSize;
+            }
           } else {
-            curriculumHasMore.value = false;
+            // meta가 없으면 응답된 데이터 개수로 판단
+            curriculumHasMore.value = newCurriculums.length >= pageSize;
           }
+
+          console.log("[홈 화면] 커리큘럼 hasMore 설정:", {
+            metaHasNext: response.meta?.hasNext,
+            receivedCount: newCurriculums.length,
+            pageSize,
+            curriculumHasMore: curriculumHasMore.value,
+          });
 
           curriculumPage.value++;
           console.log("[홈 화면] 커리큘럼 추천 로드 완료:", {
@@ -1097,6 +1552,9 @@ async function loadCurriculums() {
     curriculumHasMore.value = false;
   } finally {
     curriculumLoading.value = false;
+    // DOM 업데이트 후 observer 재설정
+    await nextTick();
+    setupCurriculumObserver();
   }
 }
 
@@ -1177,6 +1635,24 @@ const filteredByTab = computed<Course[]>(() => {
     return list.filter((c: Course) => c.category === activeTab.value);
   }
   return list;
+});
+
+// 추천 모드용: 커리큘럼 필터링
+const filteredCurriculums = computed<Course[]>(() => {
+  if (activeTab.value !== "전체") {
+    return curriculums.value.filter(
+      (c: Course) => c.category === activeTab.value
+    );
+  }
+  return curriculums.value;
+});
+
+// 추천 모드용: 강의 필터링
+const filteredLectures = computed<Course[]>(() => {
+  if (activeTab.value !== "전체") {
+    return lectures.value.filter((c: Course) => c.category === activeTab.value);
+  }
+  return lectures.value;
 });
 
 const filteredBySearch = computed<Course[]>(() => {
