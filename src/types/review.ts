@@ -27,6 +27,8 @@ export interface ReviewResponse {
   isPublic: boolean;
   createdAt: string;
   updatedAt: string;
+  parentReviewId?: number | null; // 답변인 경우 부모 문의 ID
+  replies?: ReviewResponse[]; // 답변 목록 (재귀 구조)
 }
 
 /**
@@ -55,4 +57,24 @@ export interface AverageRatingResponse {
 export interface UpdateReviewRequest {
   rating?: number;
   content?: string;
+}
+
+/**
+ * 문의 답글 작성 요청 (명세서 기준)
+ */
+export interface CreateReplyRequest {
+  content: string;
+}
+
+/**
+ * 문의 답글 응답 (명세서 기준)
+ */
+export interface ReplyResponse {
+  id: number;
+  inquiryId: number;
+  authorId: number;
+  authorUsername: string;
+  content: string;
+  createdAt: string | number[]; // LocalDateTime 배열 또는 ISO 문자열
+  updatedAt: string | number[]; // LocalDateTime 배열 또는 ISO 문자열
 }

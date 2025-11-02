@@ -313,13 +313,457 @@
 
               <!-- 질문&답변 탭 -->
               <div v-else-if="activeTab === 'qa'">
-                <h3
-                  class="text-lg font-semibold mb-4"
-                  style="color: rgb(var(--figma-color-2))"
+                <div class="flex items-center justify-between mb-4">
+                  <h3
+                    class="text-lg font-semibold"
+                    style="color: rgb(var(--figma-color-2))"
+                  >
+                    질문&답변
+                  </h3>
+                  <Button
+                    v-if="getCurrentUserId()"
+                    @click="showInquiryForm = !showInquiryForm"
+                    class="text-sm"
+                  >
+                    {{ showInquiryForm ? "취소" : "질문 작성" }}
+                  </Button>
+                </div>
+
+                <!-- 문의 작성 폼 -->
+                <div
+                  v-if="showInquiryForm"
+                  class="mb-6 p-4 rounded-lg border"
+                  style="
+                    border-color: rgb(var(--figma-color-4));
+                    background-color: rgb(var(--figma-color-1));
+                  "
                 >
-                  질문&답변
-                </h3>
-                <p class="text-gray-600">질문이 아직 없습니다.</p>
+                  <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">
+                      질문 내용
+                    </label>
+                    <textarea
+                      v-model="inquiryContent"
+                      rows="4"
+                      class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style="border-color: rgb(var(--figma-color-4))"
+                      placeholder="질문 내용을 입력해주세요."
+                    ></textarea>
+                  </div>
+                  <div class="mb-4 flex items-center">
+                    <input
+                      v-model="inquiryIsPublic"
+                      type="checkbox"
+                      id="inquiryPublic"
+                      class="mr-2"
+                    />
+                    <label for="inquiryPublic" class="text-sm">
+                      공개로 작성하기
+                    </label>
+                  </div>
+                  <div class="flex justify-end space-x-2">
+                    <Button
+                      @click="showInquiryForm = false"
+                      variant="outline"
+                      class="text-sm"
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      @click="submitInquiry"
+                      :disabled="!inquiryContent.trim() || isSubmittingInquiry"
+                      class="text-sm"
+                    >
+                      {{ isSubmittingInquiry ? "작성 중..." : "작성하기" }}
+                    </Button>
+                  </div>
+                </div>
+
+                <!-- 내 문의 목록 (로그인한 경우만) -->
+                <div
+                  v-if="getCurrentUserId() && myInquiries.length > 0"
+                  class="mb-6"
+                >
+                  <h4 class="text-md font-semibold mb-3">내 질문</h4>
+                  <div class="space-y-4">
+                    <!-- 질문 항목 (트리 형태) -->
+                    <div
+                      v-for="inquiry in myInquiries"
+                      :key="inquiry.id"
+                      class="rounded-lg border"
+                      style="
+                        border-color: rgb(var(--figma-color-4));
+                        background-color: rgb(var(--figma-color-1));
+                      "
+                    >
+                      <!-- 질문 헤더 (클릭 가능) -->
+                      <button
+                        @click="toggleMyInquiry(inquiry.id)"
+                        class="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div class="flex items-center justify-between">
+                          <div class="flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                              <span class="text-sm font-medium">
+                                {{ getReviewAuthorName(inquiry) }}
+                              </span>
+                              <span class="text-xs text-gray-500">
+                                {{ formatReviewDate(inquiry.createdAt) }}
+                                <span
+                                  v-if="!inquiry.isPublic"
+                                  class="ml-2 text-gray-400"
+                                >
+                                  (비공개)
+                                </span>
+                              </span>
+                            </div>
+                            <p class="text-sm text-gray-700 line-clamp-2">
+                              {{ inquiry.content }}
+                            </p>
+                            <div class="mt-2 text-xs text-blue-600">
+                              답변
+                              {{
+                                inquiryRepliesMap.get(inquiry.id)?.length || 0
+                              }}개
+                              {{
+                                expandedMyInquiries.has(inquiry.id)
+                                  ? "접기"
+                                  : "보기"
+                              }}
+                            </div>
+                          </div>
+                          <svg
+                            class="w-5 h-5 text-gray-400 ml-4 transition-transform"
+                            :class="{
+                              'rotate-180': expandedMyInquiries.has(inquiry.id),
+                            }"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                      </button>
+
+                      <!-- 답변 목록 (접었다 펼치기) -->
+                      <div
+                        v-if="expandedMyInquiries.has(inquiry.id)"
+                        class="border-t px-4 py-3"
+                        style="border-color: rgb(var(--figma-color-4))"
+                      >
+                        <!-- 답변 로딩 중 -->
+                        <div
+                          v-if="loadingReplies.get(inquiry.id)"
+                          class="py-4 text-center text-sm text-gray-500"
+                        >
+                          답변을 불러오는 중...
+                        </div>
+
+                        <!-- 답변 목록 -->
+                        <div v-else class="space-y-3">
+                          <div
+                            v-for="reply in inquiryRepliesMap.get(inquiry.id) ||
+                            []"
+                            :key="reply.id"
+                            class="pl-4 py-2 border-l-2"
+                            style="border-color: rgb(var(--figma-color-4))"
+                          >
+                            <div class="flex items-center justify-between mb-1">
+                              <span class="text-xs font-medium text-gray-600">
+                                {{ getReviewAuthorName(reply) }}
+                              </span>
+                              <span class="text-xs text-gray-400">
+                                {{ formatReviewDate(reply.createdAt) }}
+                              </span>
+                            </div>
+                            <p
+                              class="text-sm text-gray-700 whitespace-pre-wrap"
+                            >
+                              {{ reply.content }}
+                            </p>
+                          </div>
+
+                          <!-- 답변 없음 -->
+                          <div
+                            v-if="
+                              !inquiryRepliesMap.get(inquiry.id) ||
+                              inquiryRepliesMap.get(inquiry.id)?.length === 0
+                            "
+                            class="text-sm text-gray-400 text-center py-2"
+                          >
+                            아직 답변이 없습니다.
+                          </div>
+                        </div>
+
+                        <!-- 답변 작성 폼 -->
+                        <div
+                          v-if="getCurrentUserId()"
+                          class="mt-4 pt-3 border-t"
+                          style="border-color: rgb(var(--figma-color-4))"
+                        >
+                          <textarea
+                            :value="replyContentMap.get(inquiry.id) || ''"
+                            @input="updateReplyContent(inquiry.id, $event)"
+                            rows="3"
+                            class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                            style="border-color: rgb(var(--figma-color-4))"
+                            placeholder="답변을 입력하세요..."
+                          ></textarea>
+                          <div class="flex justify-end">
+                            <Button
+                              @click="submitReply(inquiry.id)"
+                              :disabled="
+                                !replyContentMap.get(inquiry.id)?.trim() ||
+                                isSubmittingReply.get(inquiry.id)
+                              "
+                              size="sm"
+                            >
+                              {{
+                                isSubmittingReply.get(inquiry.id)
+                                  ? "작성 중..."
+                                  : "답변 작성"
+                              }}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 내 질문과 공개 문의 목록 사이 구분선 -->
+                <div
+                  v-if="
+                    getCurrentUserId() &&
+                    myInquiries.length > 0 &&
+                    inquiries.length > 0
+                  "
+                  class="my-6 border-t-2 border-solid"
+                  style="border-color: rgb(var(--figma-color-4))"
+                ></div>
+
+                <!-- 공개 문의 목록 -->
+                <div
+                  v-if="inquiriesLoading && inquiryPage === 0"
+                  class="flex justify-center py-8"
+                >
+                  <LoadingSpinner size="md" message="질문을 불러오는 중..." />
+                </div>
+                <div
+                  v-else-if="inquiriesError"
+                  class="text-red-600 text-sm py-4"
+                >
+                  {{ inquiriesError }}
+                </div>
+                <div v-else-if="inquiries.length > 0 || inquiryTotalPages > 0">
+                  <!-- "모든 질문" 제목 -->
+                  <h4 class="text-md font-semibold mb-3">모든 질문</h4>
+                  <div class="space-y-4">
+                    <!-- 질문 항목 (트리 형태) -->
+                    <div
+                      v-for="inquiry in inquiries"
+                      :key="inquiry.id"
+                      class="rounded-lg border"
+                      style="
+                        border-color: rgb(var(--figma-color-4));
+                        background-color: rgb(var(--figma-color-1));
+                      "
+                    >
+                      <!-- 질문 헤더 (클릭 가능) -->
+                      <button
+                        @click="togglePublicInquiry(inquiry.id)"
+                        class="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div class="flex items-center justify-between">
+                          <div class="flex-1">
+                            <div class="flex items-center justify-between mb-2">
+                              <span class="text-sm font-medium">
+                                {{ getReviewAuthorName(inquiry) }}
+                              </span>
+                              <span class="text-xs text-gray-500">
+                                {{ formatReviewDate(inquiry.createdAt) }}
+                              </span>
+                            </div>
+                            <p class="text-sm text-gray-700 line-clamp-2">
+                              {{ inquiry.content }}
+                            </p>
+                            <div class="mt-2 text-xs text-blue-600">
+                              답변
+                              {{
+                                inquiryRepliesMap.get(inquiry.id)?.length || 0
+                              }}개
+                              {{
+                                expandedPublicInquiries.has(inquiry.id)
+                                  ? "접기"
+                                  : "보기"
+                              }}
+                            </div>
+                          </div>
+                          <svg
+                            class="w-5 h-5 text-gray-400 ml-4 transition-transform"
+                            :class="{
+                              'rotate-180': expandedPublicInquiries.has(
+                                inquiry.id
+                              ),
+                            }"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </div>
+                      </button>
+
+                      <!-- 답변 목록 (접었다 펼치기) -->
+                      <div
+                        v-if="expandedPublicInquiries.has(inquiry.id)"
+                        class="border-t px-4 py-3"
+                        style="border-color: rgb(var(--figma-color-4))"
+                      >
+                        <!-- 답변 로딩 중 -->
+                        <div
+                          v-if="loadingReplies.get(inquiry.id)"
+                          class="py-4 text-center text-sm text-gray-500"
+                        >
+                          답변을 불러오는 중...
+                        </div>
+
+                        <!-- 답변 목록 -->
+                        <div v-else class="space-y-3">
+                          <div
+                            v-for="reply in inquiryRepliesMap.get(inquiry.id) ||
+                            []"
+                            :key="reply.id"
+                            class="pl-4 py-2 border-l-2"
+                            style="border-color: rgb(var(--figma-color-4))"
+                          >
+                            <div class="flex items-center justify-between mb-1">
+                              <span class="text-xs font-medium text-gray-600">
+                                {{ getReviewAuthorName(reply) }}
+                              </span>
+                              <span class="text-xs text-gray-400">
+                                {{ formatReviewDate(reply.createdAt) }}
+                              </span>
+                            </div>
+                            <p
+                              class="text-sm text-gray-700 whitespace-pre-wrap"
+                            >
+                              {{ reply.content }}
+                            </p>
+                          </div>
+
+                          <!-- 답변 없음 -->
+                          <div
+                            v-if="
+                              !inquiryRepliesMap.get(inquiry.id) ||
+                              inquiryRepliesMap.get(inquiry.id)?.length === 0
+                            "
+                            class="text-sm text-gray-400 text-center py-2"
+                          >
+                            아직 답변이 없습니다.
+                          </div>
+                        </div>
+
+                        <!-- 답변 작성 폼 -->
+                        <div
+                          v-if="getCurrentUserId()"
+                          class="mt-4 pt-3 border-t"
+                          style="border-color: rgb(var(--figma-color-4))"
+                        >
+                          <textarea
+                            :value="replyContentMap.get(inquiry.id) || ''"
+                            @input="updateReplyContent(inquiry.id, $event)"
+                            rows="3"
+                            class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                            style="border-color: rgb(var(--figma-color-4))"
+                            placeholder="답변을 입력하세요..."
+                          ></textarea>
+                          <div class="flex justify-end">
+                            <Button
+                              @click="submitReply(inquiry.id)"
+                              :disabled="
+                                !replyContentMap.get(inquiry.id)?.trim() ||
+                                isSubmittingReply.get(inquiry.id)
+                              "
+                              size="sm"
+                            >
+                              {{
+                                isSubmittingReply.get(inquiry.id)
+                                  ? "작성 중..."
+                                  : "답변 작성"
+                              }}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 페이지네이션 -->
+                  <div
+                    v-if="inquiryTotalPages > 0"
+                    class="flex justify-center items-center py-6 mt-4"
+                  >
+                    <div class="flex items-center space-x-2">
+                      <!-- 이전 페이지 버튼 -->
+                      <button
+                        @click="goToInquiryPage(inquiryPage - 1)"
+                        :disabled="inquiryPage === 0 || inquiriesLoading"
+                        class="px-3 py-2 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        style="border-color: rgb(var(--figma-color-4))"
+                      >
+                        이전
+                      </button>
+
+                      <!-- 페이지 번호 버튼들 -->
+                      <div class="flex items-center space-x-1">
+                        <button
+                          v-for="page in visibleInquiryPages"
+                          :key="page"
+                          @click="goToInquiryPage(page)"
+                          :disabled="inquiriesLoading"
+                          class="px-3 py-2 text-sm rounded-md border transition-colors"
+                          :class="
+                            page === inquiryPage
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                          "
+                          style="border-color: rgb(var(--figma-color-4))"
+                        >
+                          {{ page + 1 }}
+                        </button>
+                      </div>
+
+                      <!-- 다음 페이지 버튼 -->
+                      <button
+                        @click="goToInquiryPage(inquiryPage + 1)"
+                        :disabled="
+                          inquiryPage >= inquiryTotalPages - 1 ||
+                          inquiriesLoading
+                        "
+                        class="px-3 py-2 text-sm border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        style="border-color: rgb(var(--figma-color-4))"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-center py-8">
+                  <p class="text-gray-500">아직 작성된 질문이 없습니다.</p>
+                </div>
               </div>
 
               <!-- 나의 학습 탭 -->
@@ -574,7 +1018,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { curriculumApiService } from "@/services/curriculumApi";
 import { enrollmentApiService } from "@/services/enrollmentApi";
@@ -584,7 +1028,7 @@ import type {
   CurriculumDetailResponse,
   CurriculumLectureResponse,
 } from "@/types/curriculum";
-import type { ReviewResponse } from "@/types/review";
+import type { ReviewResponse, ReplyResponse } from "@/types/review";
 import { CHAPTER_TITLES } from "@/constants";
 import { getCurrentUserId } from "@/config/api";
 import { S3ApiService } from "@/services/s3Api";
@@ -610,6 +1054,31 @@ const averageRating = ref(0);
 const reviewCount = ref(0);
 const reviewsLoading = ref(false);
 const reviewsError = ref<string | null>(null);
+
+// 문의(질문&답변) 상태 관리
+const inquiries = ref<ReviewResponse[]>([]); // 공개 문의 목록
+const myInquiries = ref<ReviewResponse[]>([]); // 내 문의 목록
+const inquiriesLoading = ref(false);
+const inquiriesError = ref<string | null>(null);
+const inquiryPage = ref(0);
+const inquiryHasMore = ref(true);
+const inquiryTotalPages = ref(0);
+const inquiryTotalElements = ref(0);
+const inquiryPageSize = 10;
+
+// 문의 작성 폼 상태
+const showInquiryForm = ref(false);
+const inquiryContent = ref("");
+const inquiryIsPublic = ref(true);
+const isSubmittingInquiry = ref(false);
+
+// 답변 관련 상태
+const expandedMyInquiries = ref<Set<number>>(new Set()); // 펼쳐진 내 질문 ID 목록
+const expandedPublicInquiries = ref<Set<number>>(new Set()); // 펼쳐진 공개 질문 ID 목록
+const replyContentMap = ref<Map<number, string>>(new Map()); // 질문 ID -> 답변 내용
+const isSubmittingReply = ref<Map<number, boolean>>(new Map()); // 질문 ID -> 제출 중 여부
+const inquiryRepliesMap = ref<Map<number, any[]>>(new Map()); // 질문 ID -> 답변 목록 (ReplyResponse[])
+const loadingReplies = ref<Map<number, boolean>>(new Map()); // 질문 ID -> 답변 로딩 중 여부
 
 // 탭 상태
 const activeTab = ref("intro");
@@ -782,6 +1251,12 @@ async function loadCurriculumDetail() {
 
     // 리뷰 데이터 로드
     await loadReviews();
+
+    // 질문&답변 탭이 활성화된 경우 문의 데이터도 로드
+    if (activeTab.value === "qa") {
+      await loadInquiries();
+      await loadMyInquiries();
+    }
   } catch (err) {
     console.error("커리큘럼 로드 실패:", err);
     error.value = "커리큘럼 정보를 불러오는 중 오류가 발생했습니다.";
@@ -986,23 +1461,348 @@ function handleThumbnailError(event: Event) {
 }
 
 // 리뷰 날짜 포맷팅
-function formatReviewDate(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}.${month}.${day}`;
-  } catch {
-    return "";
+// 백엔드 LocalDateTime 배열 형태와 ISO 문자열을 모두 처리합니다.
+function formatReviewDate(date: number[] | string | null | undefined): string {
+  if (!date) return "-";
+
+  let d: Date;
+
+  if (Array.isArray(date)) {
+    // 백엔드 LocalDateTime 배열 형태: [year, month, day, hour, minute, second, nanoseconds]
+    const [year, month, day] = date;
+    // JavaScript Date의 month는 0부터 시작하므로 -1 필요
+    d = new Date(year, month - 1, day);
+  } else if (typeof date === "string") {
+    d = new Date(date);
+  } else {
+    return "-";
   }
+
+  // Invalid Date 체크
+  if (isNaN(d.getTime())) {
+    return "-";
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}.${month}.${day}`;
 }
 
 // 리뷰 작성자 이름 가져오기 (백엔드에서 authorUsername 반환)
-function getReviewAuthorName(review: ReviewResponse): string {
+// ReviewResponse와 ReplyResponse 모두 처리
+function getReviewAuthorName(
+  review: ReviewResponse | ReplyResponse | any
+): string {
   // 백엔드에서 올바른 authorUsername을 반환하므로 그대로 사용
-  return review.authorUsername || "익명";
+  return review?.authorUsername || "익명";
 }
+
+// 답변 내용 업데이트 헬퍼
+function updateReplyContent(inquiryId: number, event: Event) {
+  const target = event.target as HTMLTextAreaElement;
+  replyContentMap.value.set(inquiryId, target.value);
+}
+
+// 내 질문 접었다 펼치기
+function toggleMyInquiry(inquiryId: number) {
+  if (expandedMyInquiries.value.has(inquiryId)) {
+    expandedMyInquiries.value.delete(inquiryId);
+  } else {
+    expandedMyInquiries.value.add(inquiryId);
+    // 펼칠 때 답변 목록 로드
+    loadRepliesForInquiry(inquiryId);
+  }
+}
+
+// 공개 질문 접었다 펼치기
+function togglePublicInquiry(inquiryId: number) {
+  if (expandedPublicInquiries.value.has(inquiryId)) {
+    expandedPublicInquiries.value.delete(inquiryId);
+  } else {
+    expandedPublicInquiries.value.add(inquiryId);
+    // 펼칠 때 답변 목록 로드
+    loadRepliesForInquiry(inquiryId);
+  }
+}
+
+// 질문의 답변 목록 로드
+async function loadRepliesForInquiry(
+  inquiryId: number,
+  forceReload: boolean = false
+) {
+  if (!curriculum.value?.id) return;
+
+  // 이미 로드된 경우 스킵 (forceReload가 true면 강제 재로드)
+  if (!forceReload && inquiryRepliesMap.value.has(inquiryId)) return;
+
+  try {
+    loadingReplies.value.set(inquiryId, true);
+    const curriculumId = curriculum.value.id;
+    const replies = await reviewApiService.getReplies(curriculumId, inquiryId);
+
+    // 명세서에 따르면 replies는 ReplyResponse[]이므로 그대로 사용
+    inquiryRepliesMap.value.set(inquiryId, replies || []);
+  } catch (err: any) {
+    console.error(`답변 목록 로드 실패 (질문 ID: ${inquiryId}):`, err);
+    inquiryRepliesMap.value.set(inquiryId, []);
+  } finally {
+    loadingReplies.value.set(inquiryId, false);
+  }
+}
+
+// 답변 작성
+async function submitReply(inquiryId: number) {
+  if (!curriculum.value?.id || !replyContentMap.value.get(inquiryId)?.trim()) {
+    return;
+  }
+
+  try {
+    isSubmittingReply.value.set(inquiryId, true);
+
+    const curriculumId = curriculum.value.id;
+    const replyContent = replyContentMap.value.get(inquiryId)?.trim() || "";
+
+    // 명세서에 따르면 content만 필요
+    const replyRequest = {
+      content: replyContent,
+    };
+
+    await reviewApiService.createReply(curriculumId, inquiryId, replyRequest);
+
+    // 성공 후 입력 필드 초기화 및 답변 목록 새로고침
+    replyContentMap.value.set(inquiryId, "");
+    // 답변 목록 강제 새로고침 (forceReload=true)
+    await loadRepliesForInquiry(inquiryId, true);
+
+    alert("답변이 작성되었습니다.");
+  } catch (err: any) {
+    console.error("답변 작성 실패:", err);
+    alert("답변 작성 중 오류가 발생했습니다.");
+  } finally {
+    isSubmittingReply.value.set(inquiryId, false);
+  }
+}
+
+// 문의 목록 로드 (공개)
+async function loadInquiries(reset: boolean = false) {
+  if (!curriculum.value?.id) return;
+
+  try {
+    inquiriesLoading.value = true;
+    inquiriesError.value = null;
+
+    if (reset) {
+      inquiryPage.value = 0;
+      inquiries.value = [];
+      inquiryHasMore.value = true;
+    }
+
+    const curriculumId = curriculum.value.id;
+    const response = await reviewApiService.getInquiries(
+      curriculumId,
+      inquiryPage.value,
+      inquiryPageSize
+    );
+
+    if (response && response.content && Array.isArray(response.content)) {
+      // 문의만 필터링 (isReview: false)
+      const filteredInquiries = response.content.filter(
+        (item) => item.isReview === false
+      );
+
+      if (reset) {
+        inquiries.value = filteredInquiries;
+      } else {
+        inquiries.value = [...inquiries.value, ...filteredInquiries];
+      }
+
+      // 각 문의의 답변 개수를 미리 조회
+      const curriculumId = curriculum.value.id;
+      const replyCountPromises = filteredInquiries.map(async (inquiry) => {
+        try {
+          const replies = await reviewApiService.getReplies(
+            curriculumId,
+            inquiry.id
+          );
+          inquiryRepliesMap.value.set(inquiry.id, replies || []);
+        } catch (err) {
+          // 답변 조회 실패 시 빈 배열로 설정
+          inquiryRepliesMap.value.set(inquiry.id, []);
+        }
+      });
+
+      // 병렬로 답변 개수 조회 (실패해도 계속 진행)
+      await Promise.allSettled(replyCountPromises);
+
+      // 페이지네이션 정보 업데이트
+      // totalElements로 totalPages 계산 (API 응답의 totalPages 우선 사용)
+      const totalElements = response.totalElements || filteredInquiries.length;
+      inquiryTotalElements.value = totalElements;
+
+      if (
+        response.totalPages !== undefined &&
+        response.totalPages !== null &&
+        response.totalPages > 0
+      ) {
+        inquiryTotalPages.value = response.totalPages;
+      } else {
+        // totalPages가 없으면 totalElements로 계산
+        // 질문이 있으면 최소 1페이지 (10개 미만이어도 페이지네이션 표시)
+        if (totalElements > 0) {
+          // 실제 페이지 수 계산 (올림)
+          // 10개 미만이어도 1페이지로 표시하되, 10개 이상이면 실제 페이지 수 계산
+          inquiryTotalPages.value = Math.max(
+            1,
+            Math.ceil(totalElements / inquiryPageSize)
+          );
+        } else {
+          inquiryTotalPages.value = 0;
+        }
+      }
+
+      // 다음 페이지가 있는지 확인
+      inquiryHasMore.value =
+        inquiryPage.value < inquiryTotalPages.value - 1 &&
+        filteredInquiries.length >= inquiryPageSize;
+    } else {
+      inquiryHasMore.value = false;
+      inquiryTotalPages.value = 0;
+      inquiryTotalElements.value = 0;
+    }
+  } catch (err: any) {
+    console.error("문의 목록 로드 실패:", err);
+    inquiriesError.value = "질문을 불러오는 중 오류가 발생했습니다.";
+    inquiryHasMore.value = false;
+    inquiryTotalPages.value = 0;
+    inquiryTotalElements.value = 0;
+  } finally {
+    inquiriesLoading.value = false;
+  }
+}
+
+// 더 많은 문의 로드 (더 이상 사용하지 않음, 페이지네이션으로 대체)
+async function loadMoreInquiries() {
+  if (!inquiryHasMore.value || inquiriesLoading.value) return;
+  inquiryPage.value++;
+  await loadInquiries(false);
+}
+
+// 페이지네이션: 특정 페이지로 이동
+async function goToInquiryPage(page: number) {
+  if (page < 0 || page >= inquiryTotalPages.value || inquiriesLoading.value)
+    return;
+  inquiryPage.value = page;
+  await loadInquiries(true); // reset=true로 해당 페이지 데이터만 로드
+}
+
+// 표시할 페이지 번호 계산 (최대 5개)
+const visibleInquiryPages = computed(() => {
+  const pages: number[] = [];
+  const total = inquiryTotalPages.value;
+  const current = inquiryPage.value;
+
+  if (total === 0) return pages;
+
+  const maxVisible = 5;
+  let start = Math.max(0, current - Math.floor(maxVisible / 2));
+  let end = Math.min(total, start + maxVisible);
+
+  // 끝에서 시작이 조정되지 않도록
+  if (end - start < maxVisible) {
+    start = Math.max(0, end - maxVisible);
+  }
+
+  for (let i = start; i < end; i++) {
+    pages.push(i);
+  }
+
+  return pages;
+});
+
+// 내 문의 목록 로드
+async function loadMyInquiries() {
+  if (!curriculum.value?.id || !getCurrentUserId()) return;
+
+  try {
+    const curriculumId = curriculum.value.id;
+    const response = await reviewApiService.getMyInquiries(curriculumId);
+
+    if (response && Array.isArray(response)) {
+      // 문의만 필터링 (isReview: false)
+      const filteredMyInquiries = response.filter(
+        (item) => item.isReview === false
+      );
+      myInquiries.value = filteredMyInquiries;
+
+      // 각 문의의 답변 개수를 미리 조회
+      const replyCountPromises = filteredMyInquiries.map(async (inquiry) => {
+        try {
+          const replies = await reviewApiService.getReplies(
+            curriculumId,
+            inquiry.id
+          );
+          inquiryRepliesMap.value.set(inquiry.id, replies || []);
+        } catch (err) {
+          // 답변 조회 실패 시 빈 배열로 설정
+          inquiryRepliesMap.value.set(inquiry.id, []);
+        }
+      });
+
+      // 병렬로 답변 개수 조회 (실패해도 계속 진행)
+      await Promise.allSettled(replyCountPromises);
+    } else {
+      myInquiries.value = [];
+    }
+  } catch (err: any) {
+    console.error("내 문의 목록 로드 실패:", err);
+    // 내 문의 로드 실패는 조용히 처리 (404일 수 있음)
+    myInquiries.value = [];
+  }
+}
+
+// 문의 작성
+async function submitInquiry() {
+  if (!curriculum.value?.id || !inquiryContent.value.trim()) return;
+
+  try {
+    isSubmittingInquiry.value = true;
+
+    const curriculumId = curriculum.value.id;
+    const inquiryRequest = {
+      isReview: false,
+      rating: null,
+      content: inquiryContent.value.trim(),
+      isPublic: inquiryIsPublic.value,
+    };
+
+    await reviewApiService.createInquiry(curriculumId, inquiryRequest);
+
+    // 성공 후 폼 초기화 및 목록 새로고침
+    inquiryContent.value = "";
+    inquiryIsPublic.value = true;
+    showInquiryForm.value = false;
+
+    // 문의 목록 새로고침
+    await Promise.all([loadInquiries(true), loadMyInquiries()]);
+
+    alert("질문이 작성되었습니다.");
+  } catch (err: any) {
+    console.error("문의 작성 실패:", err);
+    alert("질문 작성 중 오류가 발생했습니다.");
+  } finally {
+    isSubmittingInquiry.value = false;
+  }
+}
+
+// 탭 변경 감지하여 문의 데이터 로드
+watch(activeTab, async (newTab: string) => {
+  if (newTab === "qa" && curriculum.value?.id) {
+    await loadInquiries(true);
+    await loadMyInquiries();
+  }
+});
 
 onMounted(async () => {
   await loadCurriculumDetail();
