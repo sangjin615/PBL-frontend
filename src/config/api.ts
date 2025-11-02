@@ -11,7 +11,7 @@ export const URL_PORT = 2358;
 export const MINIO_PORT = 9000;
 
 // API URL 생성 (하드코딩된 상수 사용)
-const getApiBaseUrl = (): string => {
+export const getApiBaseUrl = (): string => {
   return `${PROTOCOL}${URL_PREFIX}:${URL_PORT}`;
 };
 

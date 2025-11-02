@@ -74,6 +74,7 @@ import { useSearchStore } from '../stores/search';
 import { useUiStore } from '../stores/ui';
 import { curriculumApiService } from '../services/curriculumApi';
 import { searchApiService } from '../services/searchApi';
+import { recommendationApiService } from '../services/recommendationApi';
 import { getCurrentUserId } from '../config/api';
 import type { Lecture } from '../types/lecture';
 
@@ -282,6 +283,52 @@ async function searchUnified() {
   }
 }
 
+// 추천 아이템을 Course 타입으로 변환
+function recommendationToCourse(item: any): Course {
+  if (item.type === 'CURRICULUM') {
+    // 커리큘럼 추천 아이템을 Course로 변환
+    return {
+      id: String(item.id),
+      title: item.title,
+      instructor: item.authorName || '알 수 없음',
+      category: item.category || '미분류',
+      rating: item.averageRating || 0,
+      studentCount: item.studentCount || 0,
+      reviewsCount: 0,
+      price: 0,
+      tags: item.tags || [],
+      languages: [],
+      difficulty: item.difficulty,
+      description: item.description,
+      createdAt: new Date().toISOString().split('T')[0],
+      type: 'curriculum' as const,
+      totalLectureCount: 0,
+      thumbnailImageUrl: item.thumbnailImageUrl
+    };
+  } else {
+    // 강의 추천 아이템을 Course로 변환
+    return {
+      id: `lecture-${item.id}`,
+      title: item.title,
+      instructor: item.authorName || '알 수 없음',
+      category: item.category || '미분류',
+      rating: 0,
+      studentCount: 0,
+      reviewsCount: 0,
+      price: 0,
+      tags: [],
+      languages: [],
+      difficulty: item.difficulty,
+      description: item.description,
+      createdAt: new Date().toISOString().split('T')[0],
+      type: 'lecture' as const,
+      lectureId: item.id,
+      problemsCount: item.lectureType === 'PROBLEM' ? 1 : 0,
+      totalLectureCount: 1
+    };
+  }
+}
+
 // 백엔드에서 커리큘럼 데이터 로드 (페이징) - 사용자 맞춤 추천 우선
 async function loadCourses() {
   if (loading.value || !hasMore.value) return;
@@ -296,46 +343,81 @@ async function loadCourses() {
     loading.value = true;
     error.value = null;
 
-    let response;
+    let newCourses: Course[] = [];
+    let responseMeta: any = null;
     const userId = getCurrentUserId();
     let useRecommended = false;
 
-    // 로그인된 사용자이고 첫 페이지인 경우 사용자 맞춤 추천 API 사용 시도
+    // 로그인된 사용자이고 첫 페이지인 경우 통합 추천 API 사용 시도
     if (userId && currentPage.value === 0) {
       try {
-        console.log('[홈 화면] 사용자 맞춤 추천 커리큘럼 로드 시도');
-        response = await curriculumApiService.getRecommendedCurriculums(currentPage.value, pageSize);
-        if (response && response.curriculums && Array.isArray(response.curriculums)) {
-          console.log('[홈 화면] 사용자 맞춤 추천 성공:', response.curriculums.length, '개');
+        console.log('[홈 화면] 통합 추천 API 호출 시도');
+        const recommendationResponse = await recommendationApiService.getUnifiedRecommendations(currentPage.value, pageSize);
+        
+        if (recommendationResponse && recommendationResponse.recommendations && Array.isArray(recommendationResponse.recommendations)) {
+          console.log('[홈 화면] 통합 추천 성공:', recommendationResponse.recommendations.length, '개');
+          console.log('[홈 화면] 추천 응답:', recommendationResponse);
+          
+          // 추천 아이템을 Course로 변환
+          newCourses = recommendationResponse.recommendations.map(recommendationToCourse);
+          responseMeta = recommendationResponse.meta;
           useRecommended = true;
         } else {
           throw new Error('추천 API 응답 형식이 올바르지 않습니다.');
         }
       } catch (recommendError: any) {
-        console.warn('[홈 화면] 사용자 맞춤 추천 실패, 일반 목록 사용:', recommendError?.message || recommendError);
-        useRecommended = false;
+        console.warn('[홈 화면] 통합 추천 실패, 커리큘럼 추천 시도:', recommendError?.message || recommendError);
+        
+        // 통합 추천이 실패하면 커리큘럼 추천 시도
+        try {
+          const curriculumRecommendationResponse = await recommendationApiService.getCurriculumRecommendations(currentPage.value, pageSize);
+          
+          if (curriculumRecommendationResponse && curriculumRecommendationResponse.curriculums && Array.isArray(curriculumRecommendationResponse.curriculums)) {
+            console.log('[홈 화면] 커리큘럼 추천 성공:', curriculumRecommendationResponse.curriculums.length, '개');
+            
+            // CurriculumResponse를 Course로 직접 변환
+            newCourses = curriculumRecommendationResponse.curriculums.map(curriculumToCourse);
+            responseMeta = curriculumRecommendationResponse.meta;
+            useRecommended = true;
+          } else {
+            throw new Error('커리큘럼 추천 API 응답 형식이 올바르지 않습니다.');
+          }
+        } catch (curriculumRecommendError: any) {
+          console.warn('[홈 화면] 커리큘럼 추천도 실패, 일반 목록 사용:', curriculumRecommendError?.message || curriculumRecommendError);
+          if (curriculumRecommendError?.response?.status === 400) {
+            console.error('[홈 화면] 400 오류 상세:', curriculumRecommendError?.response);
+          }
+          useRecommended = false;
+        }
       }
     }
 
     // 추천 API를 사용하지 않거나 실패한 경우 일반 목록 사용
     if (!useRecommended) {
-      response = await curriculumApiService.getPublicCurriculumsPaginated(currentPage.value, pageSize);
-    }
+      const response = await curriculumApiService.getPublicCurriculumsPaginated(currentPage.value, pageSize);
+      
+      if (!response || !response.curriculums || !Array.isArray(response.curriculums)) {
+        console.error('[홈 화면] 잘못된 응답 형식:', response);
+        throw new Error('잘못된 응답 형식입니다.');
+      }
 
-    // 응답이 올바른지 확인
-    if (!response || !response.curriculums || !Array.isArray(response.curriculums)) {
-      console.error('[홈 화면] 잘못된 응답 형식:', response);
-      throw new Error('잘못된 응답 형식입니다.');
+      // CurriculumResponse를 Course로 직접 변환
+      newCourses = response.curriculums.map(curriculumToCourse);
+      responseMeta = response.meta;
     }
-
-    // CurriculumResponse를 Course로 직접 변환
-    const newCourses = response.curriculums.map(curriculumToCourse);
 
     // 기존 데이터에 추가
     courses.value = [...courses.value, ...newCourses];
 
     // 다음 페이지가 있는지 확인
-    hasMore.value = response.meta?.hasNext !== null && response.meta?.hasNext !== undefined;
+    if (responseMeta) {
+      hasMore.value = responseMeta.hasNext !== undefined 
+        ? responseMeta.hasNext 
+        : (responseMeta.next_page !== null && responseMeta.next_page !== undefined);
+    } else {
+      hasMore.value = false;
+    }
+    
     currentPage.value++;
   } catch (err: any) {
     console.error('커리큘럼 로드 실패:', err);
