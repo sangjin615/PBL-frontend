@@ -817,6 +817,11 @@ function hasUnsavedCode(): boolean {
 
 // 페이지 이탈 시 경고 (브라우저 새로고침, 뒤로가기 등)
 function handleBeforeUnload(e: BeforeUnloadEvent) {
+  // 제출 완료 후에는 경고 없이 이동
+  if (isSubmitted.value) {
+    return;
+  }
+
   // 코드가 있거나 강의를 듣고 있다면 항상 확인
   e.preventDefault();
   e.returnValue = '강의를 나가시겠습니까? 진행 상황이 저장되지 않을 수 있습니다.'; // Chrome에서 필요
