@@ -23,7 +23,7 @@ export interface ProgressResponse {
 }
 
 export interface GradingListResponse {
-  grading: GradingResponse[];
+  grade: GradingResponse[];
   meta: {
     current_page: number;
     next_page: number | null;
@@ -121,7 +121,6 @@ export class GradingAPI {
             source_code: gradingRequest.source_code,
             language_id: gradingRequest.language_id
           }),
-          includeAuth: false,
           timeout: this.timeout
         },
         this.baseUrl
@@ -182,7 +181,6 @@ export class GradingAPI {
         endpoint,
         {
           method: 'GET',
-          includeAuth: false,
           timeout: this.timeout
         },
         this.baseUrl
@@ -209,7 +207,6 @@ export class GradingAPI {
         `/grading/${token}?progress=${progress}`,
         {
           method: 'GET',
-          includeAuth: false,
           timeout: this.timeout
         },
         this.baseUrl
