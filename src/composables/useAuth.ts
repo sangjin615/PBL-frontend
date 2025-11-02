@@ -5,7 +5,7 @@
 
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { authConfig } from "@/config/api";
+import { authConfig, invalidateUserIdCache, getCurrentUserId } from "@/config/api";
 import type { LoginResponse } from "@/types/user";
 
 // 사용자 정보 타입
@@ -96,6 +96,13 @@ export function useAuth() {
       console.log("loginResponse 타입:", typeof loginResponse);
       console.log("loginResponse 값:", loginResponse);
 
+      // 로그인 전 이전 사용자 정보 완전히 제거
+      currentUserState.value = null;
+      localStorage.removeItem("user");
+      localStorage.removeItem("loggedOut");
+      invalidateUserIdCache();
+      console.log("🧹 이전 사용자 정보 완전히 제거됨");
+
       let user: User;
 
       // authConfig.enabled가 true면 실제 서버 응답 사용
@@ -133,14 +140,20 @@ export function useAuth() {
         console.log("⚠️ 개발 모드: 하드코딩된 사용자 정보 사용", user);
       }
 
+      // 새 사용자 정보 저장
       currentUserState.value = user;
       localStorage.setItem("user", JSON.stringify(user));
-      console.log("💾 localStorage에 저장:", localStorage.getItem("user"));
+      console.log("💾 새 사용자 정보 localStorage에 저장:", JSON.stringify(user));
 
-      // 로그아웃 상태 플래그 제거
-      localStorage.removeItem("loggedOut");
+      // 사용자 ID 캐시 무효화 (헤더 업데이트 보장)
+      invalidateUserIdCache();
+
+      // 캐시 무효화 후 즉시 다시 조회하여 확인
+      const verifyUserId = getCurrentUserId();
+      console.log("🔍 검증: getCurrentUserId() =", verifyUserId, "기대값:", user.id);
 
       console.log("✅ 로그인 성공:", user);
+      console.log("🔄 사용자 ID 캐시 무효화됨 - 다음 API 요청 시 새 헤더 사용");
       return true;
     } catch (error) {
       console.error("로그인 실패:", error);
@@ -152,11 +165,29 @@ export function useAuth() {
    * 사용자 로그아웃
    */
   function logout(): void {
+    console.log("=== 로그아웃 시작 ===");
+    
+    // 현재 사용자 정보 로그
+    const beforeLogout = localStorage.getItem("user");
+    console.log("로그아웃 전 사용자 정보:", beforeLogout);
+
     // 상태 초기화
     currentUserState.value = null;
+    
+    // 모든 사용자 관련 localStorage 제거
     localStorage.removeItem("user");
-    // 로그아웃 상태 플래그 설정 (개발 환경에서 새로고침 시 로그인 상태 유지 방지)
     localStorage.setItem("loggedOut", "true");
+    
+    // 사용자 ID 캐시 무효화 (헤더 업데이트 보장)
+    invalidateUserIdCache();
+    
+    // 캐시 무효화 후 즉시 확인
+    const verifyUserId = getCurrentUserId();
+    console.log("🔍 검증: getCurrentUserId() =", verifyUserId, "(null이어야 함)");
+    
+    // 추가 검증: localStorage가 비어있는지 확인
+    const afterLogout = localStorage.getItem("user");
+    console.log("로그아웃 후 localStorage 'user':", afterLogout, "(null이어야 함)");
 
     // 로그인 페이지로 리다이렉트
     // TODO: 실제 로그인 페이지 경로로 변경
@@ -165,7 +196,8 @@ export function useAuth() {
       router.push("/");
     });
 
-    console.log("로그아웃 완료");
+    console.log("✅ 로그아웃 완료");
+    console.log("🔄 사용자 ID 캐시 무효화됨 - 다음 API 요청 시 헤더 제거");
   }
 
   /**
@@ -174,6 +206,8 @@ export function useAuth() {
   function setUser(user: User): void {
     currentUserState.value = user;
     localStorage.setItem("user", JSON.stringify(user));
+    // 사용자 정보 변경 시 캐시 무효화
+    invalidateUserIdCache();
   }
 
   /**

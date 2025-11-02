@@ -51,10 +51,29 @@ export const authConfig = {
   defaultUserId: 1, // 개발용 기본 사용자 ID
 };
 
+// 전역 사용자 ID 캐시 (로그인/로그아웃 시 업데이트)
+let cachedUserId: number | null = null;
+let lastStorageCheck: number = 0;
+const STORAGE_CHECK_INTERVAL = 100; // 100ms마다 localStorage 체크
+
 // 동적 사용자 ID 가져오기 함수
 export function getCurrentUserId(): number | null {
-  // 개발 환경에서 로그아웃 상태인지 확인
-  if (authConfig.enabled === false && localStorage.getItem("loggedOut")) {
+  // 항상 localStorage에서 최신 값을 읽음 (캐시는 최적화용)
+  const now = Date.now();
+  const shouldUseCache =
+    cachedUserId !== null &&
+    now - lastStorageCheck < STORAGE_CHECK_INTERVAL &&
+    !localStorage.getItem("loggedOut"); // 로그아웃 상태면 캐시 무시
+
+  if (shouldUseCache) {
+    return cachedUserId;
+  }
+
+  lastStorageCheck = now;
+
+  // 로그아웃 상태 확인 (authConfig.enabled와 무관하게)
+  if (localStorage.getItem("loggedOut") === "true") {
+    cachedUserId = null;
     return null;
   }
 
@@ -63,19 +82,30 @@ export function getCurrentUserId(): number | null {
   if (storedUser) {
     try {
       const user = JSON.parse(storedUser);
-      return user.id || null;
+      const userId = user.id || null;
+      cachedUserId = userId;
+      return userId;
     } catch (e) {
       console.error("Failed to parse stored user:", e);
+      cachedUserId = null;
       return null;
     }
   }
 
-  // 개발 환경에서는 기본 사용자 ID 사용
+  // 개발 환경에서는 기본 사용자 ID 사용 (로그아웃 상태가 아닐 때만)
   if (authConfig.enabled === false) {
+    cachedUserId = authConfig.defaultUserId;
     return authConfig.defaultUserId;
   }
 
+  cachedUserId = null;
   return null;
+}
+
+// 사용자 ID 캐시 무효화 (로그인/로그아웃 시 호출)
+export function invalidateUserIdCache(): void {
+  cachedUserId = null;
+  lastStorageCheck = 0;
 }
 
 // 전체 API 설정

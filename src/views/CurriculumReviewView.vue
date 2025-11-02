@@ -212,21 +212,21 @@ async function submitReview() {
     ratingError.value = null;
 
     const curriculumId = Number(route.params.id);
-    const request: CreateReviewRequest = {
-      curriculumId,
-      rating: reviewForm.rating,
-      content: reviewForm.content.trim() || undefined
-    };
-
+    
     if (existingReview.value) {
       // 기존 리뷰 수정
       await reviewApiService.updateReview(curriculumId, existingReview.value.id, {
-        rating: request.rating,
-        content: request.content
+        rating: reviewForm.rating,
+        content: reviewForm.content.trim() || undefined
       });
     } else {
       // 새 리뷰 작성
-      await reviewApiService.createReview(request);
+      const request: CreateReviewRequest = {
+        isReview: true,
+        rating: reviewForm.rating,
+        content: reviewForm.content.trim() || ''
+      };
+      await reviewApiService.createReview(curriculumId, request);
     }
 
     // 성공 후 커리큘럼 상세 페이지로 이동

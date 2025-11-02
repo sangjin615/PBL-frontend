@@ -7,7 +7,8 @@ import type {
   CreateReviewRequest,
   ReviewResponse,
   ReviewListResponse,
-  UpdateReviewRequest
+  UpdateReviewRequest,
+  AverageRatingResponse
 } from '@/types/review';
 
 class ReviewApiService {
@@ -19,15 +20,16 @@ class ReviewApiService {
 
   /**
    * 커리큘럼 리뷰 목록 조회
+   * GET /api/curriculums/{curriculumId}/reviews?page=0&size=10
    */
   async getCurriculumReviews(
     curriculumId: number,
     page: number = 0,
-    pageSize: number = 10
+    size: number = 10
   ): Promise<ReviewListResponse> {
     const params = new URLSearchParams({
       page: page.toString(),
-      size: pageSize.toString()
+      size: size.toString()
     });
 
     return request<ReviewListResponse>(
@@ -38,11 +40,29 @@ class ReviewApiService {
   }
 
   /**
-   * 리뷰 작성
+   * 커리큘럼 평균 평점 조회
+   * GET /api/curriculums/{curriculumId}/reviews/average-rating
    */
-  async createReview(reviewRequest: CreateReviewRequest): Promise<ReviewResponse> {
+  async getAverageRating(
+    curriculumId: number
+  ): Promise<AverageRatingResponse> {
+    return request<AverageRatingResponse>(
+      `/api/curriculums/${curriculumId}/reviews/average-rating`,
+      {},
+      this.baseURL
+    );
+  }
+
+  /**
+   * 리뷰 작성
+   * POST /api/curriculums/{curriculumId}/reviews
+   */
+  async createReview(
+    curriculumId: number,
+    reviewRequest: CreateReviewRequest
+  ): Promise<ReviewResponse> {
     return request<ReviewResponse>(
-      `/api/curriculums/${reviewRequest.curriculumId}/reviews`,
+      `/api/curriculums/${curriculumId}/reviews`,
       {
         method: 'POST',
         body: JSON.stringify(reviewRequest)
