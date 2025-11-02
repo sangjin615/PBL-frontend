@@ -97,16 +97,58 @@ function onClick() {
   // 커리큘럼인지 강의인지 구분하여 라우팅
   if (props.course.type === 'curriculum') {
     // 커리큘럼은 커리큘럼 개요 페이지로
-    router.push({ name: 'curriculum-overview', params: { id: props.course.id } });
+    // id가 문자열인 경우 숫자 부분만 추출
+    let curriculumId = props.course.id;
+    
+    // 문자열이면 숫자 부분만 추출
+    if (typeof curriculumId === 'string') {
+      // 숫자만 있는 경우
+      const numericMatch = curriculumId.match(/^\d+$/);
+      if (numericMatch) {
+        curriculumId = numericMatch[0];
+      } else {
+        // "curriculum-123" 같은 형식에서 숫자 추출
+        const match = curriculumId.match(/(\d+)$/);
+        if (match) {
+          curriculumId = match[1];
+        } else {
+          console.error('[CourseCard] 커리큘럼 ID 파싱 실패:', curriculumId);
+          return;
+        }
+      }
+    }
+    
+    router.push({ name: 'curriculum-overview', params: { id: String(curriculumId) } });
   } else if (props.course.type === 'lecture' && props.course.lectureId) {
     // 강의는 강의 페이지로 직접 이동
     router.push({ 
       name: 'lecture', 
-      params: { lectureId: props.course.lectureId } 
+      params: { lectureId: String(props.course.lectureId) } 
     });
+  } else if (props.course.type === 'lecture') {
+    // lectureId가 없으면 id에서 추출 시도
+    let lectureId: string | null = null;
+    if (props.course.id) {
+      const idStr = String(props.course.id);
+      const match = idStr.match(/^lecture-(\d+)$/);
+      if (match) {
+        lectureId = match[1];
+      } else if (/^\d+$/.test(idStr)) {
+        lectureId = idStr;
+      }
+    }
+    
+    if (lectureId) {
+      router.push({ 
+        name: 'lecture', 
+        params: { lectureId } 
+      });
+    } else {
+      console.error('[CourseCard] 강의 ID 파싱 실패:', props.course);
+    }
   } else {
     // 기타 (course 타입 등)는 course-overview로
-    router.push({ name: 'course-overview', params: { id: props.course.id } });
+    router.push({ name: 'course-overview', params: { id: String(props.course.id) } });
   }
 }
 </script>

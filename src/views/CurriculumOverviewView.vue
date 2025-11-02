@@ -435,7 +435,28 @@ async function loadCurriculumDetail() {
     loading.value = true;
     error.value = null;
 
-    const curriculumId = Number(route.params.id);
+    // route.params.id를 안전하게 숫자로 변환
+    const curriculumIdParam = route.params.id;
+    let curriculumId: number;
+    
+    if (typeof curriculumIdParam === 'string') {
+      // 문자열에서 숫자만 추출
+      const numericMatch = curriculumIdParam.match(/(\d+)/);
+      if (numericMatch) {
+        curriculumId = parseInt(numericMatch[1], 10);
+      } else {
+        throw new Error(`유효하지 않은 커리큘럼 ID: ${curriculumIdParam}`);
+      }
+    } else if (typeof curriculumIdParam === 'number') {
+      curriculumId = curriculumIdParam;
+    } else {
+      throw new Error(`유효하지 않은 커리큘럼 ID: ${curriculumIdParam}`);
+    }
+    
+    if (isNaN(curriculumId) || curriculumId <= 0) {
+      throw new Error(`유효하지 않은 커리큘럼 ID: ${curriculumIdParam}`);
+    }
+    
     const data: CurriculumDetailResponse = await curriculumApiService.getCurriculumById(curriculumId);
 
     curriculum.value = {

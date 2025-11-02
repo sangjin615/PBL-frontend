@@ -201,12 +201,12 @@
                         <div
                           v-for="lecture in lectures"
                           :key="`lecture-${lecture.id}`"
-                          class="flex-shrink-0 w-64 cursor-pointer"
-                          @click.stop="goToLecture(lecture)"
+                          class="flex-shrink-0 w-64"
                         >
                           <!-- 강의 카드 (세로형) -->
                           <div
-                            class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow"
+                            class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+                            @click.stop="goToLecture(lecture)"
                           >
                             <!-- 썸네일 영역 -->
                             <div
@@ -366,12 +366,12 @@
                   <div
                     v-for="lecture in lectures"
                     :key="`lecture-${lecture.id}`"
-                    class="flex-shrink-0 w-64 cursor-pointer"
-                    @click.stop="goToLecture(lecture)"
+                    class="flex-shrink-0 w-64"
                   >
                     <!-- 강의 카드 (세로형) -->
                     <div
-                      class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow"
+                      class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+                      @click.stop="goToLecture(lecture)"
                     >
                       <!-- 썸네일 영역 -->
                       <div
@@ -732,35 +732,74 @@ function formatDate(date: string | number[]): string {
 }
 
 // 강의를 Course 타입으로 변환
-function lectureToCourse(lecture: Lecture): Course {
+function lectureToCourse(lecture: Lecture | any): Course {
+  // 추천 API는 lectureId 필드를 반환하므로, id 대신 lectureId를 우선 사용
+  let lectureId: number | null = null;
+
+  // 1순위: lectureId 필드 사용 (추천 API 응답)
+  if (lecture.lectureId !== undefined && lecture.lectureId !== null) {
+    lectureId = Number(lecture.lectureId);
+  }
+  // 2순위: id 필드 사용 (일반 API 응답)
+  else if (lecture.id !== undefined && lecture.id !== null) {
+    lectureId = Number(lecture.id);
+  }
+
+  if (!lectureId || isNaN(lectureId)) {
+    console.warn("[홈 화면] 강의 ID 없음:", lecture);
+    lectureId = null;
+  }
+
   return {
-    id: `lecture-${lecture.id}`,
-    title: lecture.title,
-    instructor: lecture.author?.username || "알 수 없음",
+    id: lectureId ? `lecture-${lectureId}` : `lecture-unknown-${Date.now()}`,
+    title: lecture.title || "제목 없음",
+    instructor: lecture.author?.username || lecture.authorName || "알 수 없음",
     category: lecture.category || "미분류",
     rating: 0,
     studentCount: 0,
     reviewsCount: 0,
     price: 0,
-    tags: [],
+    tags: lecture.tags || [],
     languages: [],
-    difficulty: lecture.difficulty,
-    description: lecture.description,
-    createdAt: formatDate(lecture.createdAt),
+    difficulty: lecture.difficulty || "기초",
+    description: lecture.description || "",
+    createdAt: lecture.createdAt
+      ? formatDate(lecture.createdAt)
+      : new Date().toISOString(),
     type: "lecture" as const,
-    lectureId: lecture.id,
+    lectureId: lectureId || undefined,
     problemsCount: lecture.type === "PROBLEM" ? 1 : 0,
-    thumbnail: undefined,
+    thumbnail: lecture.thumbnailImageUrl || undefined,
     totalLectureCount: 1,
   };
 }
 
 // 커리큘럼을 Course 타입으로 변환
 function curriculumToCourse(curriculum: any): Course {
+  // 추천 API는 curriculumId 필드를 반환하므로, id 대신 curriculumId를 우선 사용
+  let curriculumId: string | null = null;
+
+  // 1순위: curriculumId 필드 사용 (추천 API 응답)
+  if (
+    curriculum.curriculumId !== undefined &&
+    curriculum.curriculumId !== null
+  ) {
+    curriculumId = String(curriculum.curriculumId);
+  }
+  // 2순위: id 필드 사용 (일반 API 응답)
+  else if (curriculum.id !== undefined && curriculum.id !== null) {
+    curriculumId = String(curriculum.id);
+  }
+
+  if (!curriculumId) {
+    console.warn("[홈 화면] 커리큘럼 ID 없음:", curriculum);
+  }
+
   return {
-    id: String(curriculum.id),
-    title: curriculum.title,
-    instructor: curriculum.author?.username || "알 수 없음",
+    id: curriculumId || `curriculum-unknown-${Date.now()}`,
+    title: curriculum.title || "제목 없음",
+    instructor:
+      curriculum.author?.username || curriculum.authorName || "알 수 없음",
     category: curriculum.category || "미분류",
     rating: curriculum.averageRating || 0,
     studentCount: curriculum.studentCount || 0,
@@ -769,8 +808,10 @@ function curriculumToCourse(curriculum: any): Course {
     tags: curriculum.tags || [],
     languages: curriculum.languages || [],
     difficulty: curriculum.difficulty,
-    description: curriculum.description,
-    createdAt: formatDate(curriculum.createdAt),
+    description: curriculum.description || curriculum.summary || "",
+    createdAt: curriculum.createdAt
+      ? formatDate(curriculum.createdAt)
+      : new Date().toISOString(),
     type: "curriculum" as const,
     problemsCount: curriculum.totalLectureCount || 0,
     thumbnail: curriculum.thumbnailImageUrl,
@@ -783,18 +824,51 @@ function curriculumToCourse(curriculum: any): Course {
 function goToLecture(lecture: Course) {
   console.log("[홈 화면] 강의 클릭:", lecture);
 
-  if (lecture.type === "lecture" && lecture.lectureId) {
-    console.log("[홈 화면] 강의 페이지로 이동:", lecture.lectureId);
+  // lectureId가 있으면 우선 사용
+  let targetLectureId: number | null = null;
+
+  if (lecture.type === "lecture") {
+    // 1순위: lectureId 직접 사용
+    if (lecture.lectureId !== undefined && lecture.lectureId !== null) {
+      targetLectureId = Number(lecture.lectureId);
+      if (isNaN(targetLectureId)) {
+        targetLectureId = null;
+      }
+    }
+
+    // 2순위: id에서 파싱
+    if (!targetLectureId && lecture.id) {
+      // id가 "lecture-19098" 형식인 경우 파싱
+      const idMatch = String(lecture.id).match(/^lecture-(\d+)$/);
+      if (idMatch && idMatch[1]) {
+        targetLectureId = parseInt(idMatch[1], 10);
+        if (isNaN(targetLectureId)) {
+          targetLectureId = null;
+        }
+      } else {
+        // 숫자만 있는 경우
+        const numericId = parseInt(String(lecture.id), 10);
+        if (!isNaN(numericId)) {
+          targetLectureId = numericId;
+        }
+      }
+    }
+  }
+
+  if (targetLectureId && targetLectureId > 0) {
+    console.log("[홈 화면] 강의 페이지로 이동:", targetLectureId);
     router.push({
       name: "lecture",
-      params: { lectureId: String(lecture.lectureId) },
+      params: { lectureId: String(targetLectureId) },
     });
   } else {
-    console.warn("[홈 화면] 강의 정보 불완전:", {
+    console.error("[홈 화면] 강의 정보 불완전 - 페이지 이동 불가:", {
       type: lecture.type,
       lectureId: lecture.lectureId,
       id: lecture.id,
+      title: lecture.title,
     });
+    alert("강의 정보가 올바르지 않습니다. 다시 시도해주세요.");
   }
 }
 
@@ -839,6 +913,14 @@ async function loadLectures() {
     console.log("[홈 화면] 강의 추천 API 응답:", response);
 
     if (response && response.lectures && Array.isArray(response.lectures)) {
+      // 첫 번째 강의 응답 구조 확인
+      if (response.lectures.length > 0) {
+        console.log(
+          "[홈 화면] 첫 번째 강의 원본 데이터:",
+          response.lectures[0]
+        );
+      }
+
       const newLectures = response.lectures.map(lectureToCourse);
 
       if (lecturePage.value === 0) {
