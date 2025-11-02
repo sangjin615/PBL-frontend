@@ -765,6 +765,7 @@ import { useUiStore } from "../stores/ui";
 import { curriculumApiService } from "../services/curriculumApi";
 import { searchApiService } from "../services/searchApi";
 import { recommendationApiService } from "../services/recommendationApi";
+import { lectureApiService } from "../services/lectureApi";
 import { getCurrentUserId } from "../config/api";
 import type { Lecture } from "../types/lecture";
 
@@ -1181,10 +1182,33 @@ function lectureToCourse(lecture: Lecture | any): Course {
     lectureId = null;
   }
 
+  // 작성자 정보 디버깅
+  if (!lecture.author?.username && !lecture.authorName) {
+    console.warn("[홈 화면] 강의 작성자 정보 없음:", {
+      lectureId,
+      title: lecture.title,
+      author: lecture.author,
+      authorName: lecture.authorName,
+      fullLecture: lecture,
+    });
+  }
+
+  // 작성자 정보 추출 (여러 가능한 필드 확인)
+  let instructorName = "알 수 없음";
+  if (lecture.author?.username) {
+    instructorName = lecture.author.username;
+  } else if (lecture.authorName) {
+    instructorName = lecture.authorName;
+  } else if (lecture.author?.name) {
+    instructorName = lecture.author.name;
+  } else if (typeof lecture.author === "string") {
+    instructorName = lecture.author;
+  }
+
   return {
     id: lectureId ? `lecture-${lectureId}` : `lecture-unknown-${Date.now()}`,
     title: lecture.title || "제목 없음",
-    instructor: lecture.author?.username || lecture.authorName || "알 수 없음",
+    instructor: instructorName,
     category: lecture.category || "미분류",
     rating: 0,
     studentCount: 0,
@@ -1346,13 +1370,67 @@ async function loadLectures() {
     if (response && response.lectures && Array.isArray(response.lectures)) {
       // 첫 번째 강의 응답 구조 확인
       if (response.lectures.length > 0) {
-        console.log(
-          "[홈 화면] 첫 번째 강의 원본 데이터:",
-          response.lectures[0]
-        );
+        const firstLecture = response.lectures[0] as any;
+        console.log("[홈 화면] 첫 번째 강의 원본 데이터:", firstLecture);
+        console.log("[홈 화면] 첫 번째 강의 작성자 정보:", {
+          author: firstLecture.author,
+          authorType: typeof firstLecture.author,
+          authorName: firstLecture.authorName,
+          hasAuthorUsername: !!firstLecture.author?.username,
+          authorUsername: firstLecture.author?.username,
+          allKeys: Object.keys(firstLecture),
+        });
       }
 
+      // 먼저 기본 변환 수행
       const newLectures = response.lectures.map(lectureToCourse);
+
+      // 작성자 정보가 없는 강의들에 대해 상세 정보 조회로 보완
+      const lecturesNeedingAuthor = newLectures.filter(
+        (lecture) => lecture.instructor === "알 수 없음" && lecture.lectureId
+      );
+
+      if (lecturesNeedingAuthor.length > 0) {
+        console.log(
+          `[홈 화면] 작성자 정보 보완 필요: ${lecturesNeedingAuthor.length}개 강의`
+        );
+
+        // 병렬로 상세 정보 조회 및 반응성 유지하면서 업데이트
+        const authorPromises = lecturesNeedingAuthor.map(async (lecture) => {
+          try {
+            const lectureDetail = await lectureApiService.getLecture(
+              lecture.lectureId!
+            );
+            // 작성자 정보 업데이트 (Vue 반응성 유지)
+            if (lectureDetail.author?.username) {
+              // newLectures 배열의 객체를 직접 수정 (Vue 반응성 유지)
+              lecture.instructor = lectureDetail.author.username;
+
+              // lectures.value 배열에서도 동일한 객체 찾아서 업데이트
+              const targetInLectures = lectures.value.find(
+                (l: Course) => l.lectureId === lecture.lectureId
+              );
+              if (targetInLectures) {
+                targetInLectures.instructor = lectureDetail.author.username;
+              }
+
+              console.log(
+                `[홈 화면] 작성자 정보 보완 완료: ${lecture.title} → ${lectureDetail.author.username}`
+              );
+            }
+          } catch (err) {
+            console.warn(
+              `[홈 화면] 강의 ${lecture.lectureId} 상세 정보 조회 실패:`,
+              err
+            );
+          }
+        });
+
+        // 모든 작성자 정보 조회가 완료될 때까지 대기 (백그라운드에서 진행)
+        Promise.all(authorPromises).then(() => {
+          console.log("[홈 화면] 모든 작성자 정보 보완 완료");
+        });
+      }
 
       if (lecturePage.value === 0) {
         lectures.value = newLectures;
