@@ -3,15 +3,15 @@
  * 사용자 맞춤 추천 및 통합 추천 기능 제공
  */
 
-import { request } from './utils';
-import type { CurriculumResponse } from '@/types/curriculum';
-import type { Lecture } from '@/types/lecture';
-import type { PaginationMeta } from './lectureApi';
-import { getApiBaseUrl } from '@/config/api';
+import { request } from "./utils";
+import type { CurriculumResponse } from "@/types/curriculum";
+import type { Lecture } from "@/types/lecture";
+import type { PaginationMeta } from "./lectureApi";
+import { getApiBaseUrl } from "@/config/api";
 
 // 통합 추천 응답 타입
 export interface UnifiedRecommendationItem {
-  type: 'CURRICULUM' | 'LECTURE';
+  type: "CURRICULUM" | "LECTURE";
   id: number;
   title: string;
   description: string;
@@ -26,7 +26,7 @@ export interface UnifiedRecommendationItem {
   authorName?: string;
   thumbnailImageUrl?: string;
   // 강의 전용 필드
-  lectureType?: 'MARKDOWN' | 'PROBLEM';
+  lectureType?: "MARKDOWN" | "PROBLEM";
 }
 
 // 추천 API 페이징 메타데이터 (API 명세서 기준)
@@ -104,4 +104,3 @@ class RecommendationApiService {
 }
 
 export const recommendationApiService = new RecommendationApiService();
-
