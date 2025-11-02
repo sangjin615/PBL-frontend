@@ -74,7 +74,37 @@ onMounted(async () => {
   console.log('🚀 MonacoEditor 초기화 시작');
 
   try {
+    // 전역 인스턴스가 활성화되어 있는지 확인
+    if (window.__monacoEditorActive) {
+      console.warn('⚠️ 이미 활성화된 Monaco Editor가 있습니다. 정리를 기다립니다...');
+      // 이전 인스턴스가 정리될 때까지 최대 2초 대기
+      let waitCount = 0;
+      while (window.__monacoEditorActive && waitCount < 20) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitCount++;
+      }
+      
+      // 여전히 활성화되어 있다면 에러
+      if (window.__monacoEditorActive) {
+        throw new Error('Monaco Editor가 이미 로드되어 있습니다. 페이지를 새로고침해주세요.');
+      }
+    }
+
+    // 이전 인스턴스가 완전히 정리될 때까지 대기
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     const htmlContainer = editorContainer.value!;
+    if (!htmlContainer) {
+      console.error('❌ 에디터 컨테이너를 찾을 수 없습니다');
+      return;
+    }
+
+    // 전역 플래그 설정
+    window.__monacoEditorActive = true;
+    window.__monacoEditorCleanup = async () => {
+      await cleanup();
+    };
+
     const sourceCode = props.config.sourceCode || '';
     const lsConfig = props.config.lspConfig;
 
@@ -149,8 +179,21 @@ onMounted(async () => {
     };
 
     // 5. Monaco VSCode API 초기화
-    apiWrapper = new MonacoVscodeApiWrapper(vscodeApiConfig);
-    await apiWrapper.start();
+    // 중복 로드 방지를 위한 전역 상태 확인
+    try {
+      apiWrapper = new MonacoVscodeApiWrapper(vscodeApiConfig);
+      await apiWrapper.start();
+    } catch (monacoError: any) {
+      // 이미 로드된 Monaco Editor 오류인 경우 처리
+      if (monacoError?.message?.includes('already been loaded') || 
+          monacoError?.message?.includes('already loaded')) {
+        console.warn('⚠️ Monaco VSCode API가 이미 로드되어 있습니다. 페이지를 새로고침합니다...');
+        // 페이지를 새로고침하여 완전히 초기화
+        window.location.reload();
+        return;
+      }
+      throw monacoError;
+    }
 
     // TextMate 문법 로딩 대기
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -192,20 +235,68 @@ onMounted(async () => {
   } catch (error) {
     console.error('❌ MonacoEditor 초기화 오류:', error);
     isReady.value = false;
+    // 에러 발생 시 전역 플래그 해제
+    window.__monacoEditorActive = false;
+    window.__monacoEditorCleanup = undefined;
   }
 });
 
+// 정리 함수
+async function cleanup() {
+  console.log('🧹 MonacoEditor 정리 시작');
+  try {
+    // 순서대로 정리 (중요: apiWrapper를 마지막에 정리)
+    if (lcWrapper) {
+      try {
+        await lcWrapper.dispose();
+        console.log('✅ LanguageClientWrapper 정리 완료');
+      } catch (e) {
+        console.warn('⚠️ LanguageClientWrapper 정리 중 오류:', e);
+      }
+      lcWrapper = null;
+    }
+    
+    if (editorApp) {
+      try {
+        await editorApp.dispose();
+        console.log('✅ EditorApp 정리 완료');
+      } catch (e) {
+        console.warn('⚠️ EditorApp 정리 중 오류:', e);
+      }
+      editorApp = null;
+    }
+    
+    // apiWrapper를 마지막에 정리 (전역 상태이므로)
+    if (apiWrapper) {
+      try {
+        await apiWrapper.dispose();
+        console.log('✅ MonacoVscodeApiWrapper 정리 완료');
+        // 정리 후 약간의 지연을 주어 전역 상태가 완전히 해제되도록 함
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (e) {
+        console.warn('⚠️ MonacoVscodeApiWrapper 정리 중 오류:', e);
+      }
+      apiWrapper = null;
+    }
+    
+    // 전역 플래그 해제
+    window.__monacoEditorActive = false;
+    window.__monacoEditorCleanup = undefined;
+    
+    isReady.value = false;
+    lspConnected.value = false;
+    console.log('✅ MonacoEditor 정리 완료');
+  } catch (e) {
+    console.error('❌ MonacoEditor 정리 오류:', e);
+    // 에러가 발생해도 플래그는 해제
+    window.__monacoEditorActive = false;
+    window.__monacoEditorCleanup = undefined;
+  }
+}
+
 // 리소스 정리
 onBeforeUnmount(async () => {
-  try {
-    await lcWrapper?.dispose();
-    await editorApp?.dispose();
-    lcWrapper = null;
-    editorApp = null;
-    apiWrapper = null;
-  } catch (e) {
-    console.error('⚠️ MonacoEditor 정리 오류:', e);
-  }
+  await cleanup();
 });
 </script>
 

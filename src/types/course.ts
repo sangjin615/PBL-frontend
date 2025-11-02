@@ -14,7 +14,8 @@ export interface Course {
   difficulty?: string;              // CurriculumResponse.difficulty
   description?: string;             // CurriculumResponse.description
   createdAt: string;                // CurriculumResponse.createdAt (날짜 변환)
-  type?: 'course' | 'curriculum';   // 'curriculum' 고정
+  type?: 'course' | 'curriculum' | 'lecture';   // 'curriculum', 'lecture' 구분
+  lectureId?: number;               // 강의인 경우 원본 lecture ID (type이 'lecture'일 때 사용)
   totalLectureCount?: number;       // CurriculumResponse.totalLectureCount
   thumbnailImageUrl?: string;       // CurriculumResponse.thumbnailImageUrl
 }

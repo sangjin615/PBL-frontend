@@ -13,4 +13,7 @@ interface Window {
     makeUser: () => boolean;
     getCurrentUser: () => any;
   };
+  // Monaco Editor 전역 상태 추적
+  __monacoEditorActive?: boolean;
+  __monacoEditorCleanup?: () => Promise<void>;
 }

@@ -13,7 +13,22 @@
       <div v-else class="w-16 h-16 bg-gray-300 rounded" />
     </div>
     <div class="p-4 space-y-2">
-      <div class="text-xs text-muted">{{ course.category }}</div>
+      <div class="flex items-center justify-between">
+        <div class="text-xs text-muted">{{ course.category }}</div>
+        <!-- 강의/커리큘럼 구분 라벨 -->
+        <span 
+          v-if="course.type === 'lecture'"
+          class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium"
+        >
+          강의
+        </span>
+        <span 
+          v-else-if="course.type === 'curriculum'"
+          class="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium"
+        >
+          커리큘럼
+        </span>
+      </div>
       <h3 class="text-base font-semibold leading-snug line-clamp-2">{{ course.title }}</h3>
       <div class="flex flex-wrap gap-1">
         <span v-if="!course.tags || course.tags.length === 0" class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">태그 없음</span>
@@ -81,8 +96,16 @@ const getImageUrl = (path: string | null | undefined) => S3ApiService.getImageUr
 function onClick() {
   // 커리큘럼인지 강의인지 구분하여 라우팅
   if (props.course.type === 'curriculum') {
+    // 커리큘럼은 커리큘럼 개요 페이지로
     router.push({ name: 'curriculum-overview', params: { id: props.course.id } });
+  } else if (props.course.type === 'lecture' && props.course.lectureId) {
+    // 강의는 강의 페이지로 직접 이동
+    router.push({ 
+      name: 'lecture', 
+      params: { lectureId: props.course.lectureId } 
+    });
   } else {
+    // 기타 (course 타입 등)는 course-overview로
     router.push({ name: 'course-overview', params: { id: props.course.id } });
   }
 }

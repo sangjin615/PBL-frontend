@@ -54,8 +54,20 @@
           <div v-if="loading" class="flex justify-center items-center py-12">
             <div class="text-gray-600">강의 내용을 불러오는 중...</div>
           </div>
-          <div v-else-if="error" class="flex justify-center items-center py-12">
-            <div class="text-red-600">{{ error }}</div>
+          <div v-else-if="error" class="flex flex-col justify-center items-center py-12 px-4">
+            <div class="text-red-600 text-center mb-4">{{ error }}</div>
+            <!-- 수강 신청이 필요한 경우 안내 -->
+            <div v-if="curriculumIdFromQuery && !isEnrolled" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md">
+              <p class="text-sm text-yellow-800 mb-2">
+                이 강의는 커리큘럼의 일부입니다. 수강 신청이 필요할 수 있습니다.
+              </p>
+              <button
+                @click="router.push({ name: 'curriculum-overview', params: { id: curriculumIdFromQuery } })"
+                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+              >
+                커리큘럼 개요로 이동
+              </button>
+            </div>
           </div>
           
           <!-- MARKDOWN 타입: 마크다운 뷰어 -->
@@ -269,7 +281,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
 import ReportButton from '@/components/common/ReportButton.vue';
@@ -369,6 +381,45 @@ async function markMarkdownLectureAsRead(lectureId: number, curriculumIdNum: num
   }
 }
 
+// 수강 신청 여부 확인
+const isEnrolled = ref(false);
+const curriculumIdFromQuery = computed(() => {
+  return route.query.curriculumId ? Number(route.query.curriculumId) : null;
+});
+
+async function checkEnrollmentStatus() {
+  const curriculumId = curriculumIdFromQuery.value;
+  if (!curriculumId) {
+    // curriculumId가 없으면 단독 강의로 간주하여 접근 허용
+    isEnrolled.value = true;
+    return;
+  }
+
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      // 로그인되지 않은 경우 접근 차단하지 않음 (API에서 처리)
+      isEnrolled.value = false;
+      return;
+    }
+
+    const enrollments = await enrollmentApiService.getUserEnrollments(userId);
+    const enrollment = enrollments.find(e => 
+      e.curriculumId === curriculumId && e.status === 'ENROLLED'
+    );
+
+    isEnrolled.value = !!enrollment;
+    
+    if (!isEnrolled.value) {
+      console.warn('[수강 상태] 커리큘럼에 수강 신청하지 않았습니다.');
+    }
+  } catch (err) {
+    console.error('[수강 상태 확인] 실패:', err);
+    // 에러가 발생해도 강의는 볼 수 있도록 함 (백엔드에서 최종 판단)
+    isEnrolled.value = false;
+  }
+}
+
 // Lecture API에서 강의 정보 로드
 async function loadLectureData() {
   try {
@@ -380,13 +431,20 @@ async function loadLectureData() {
       throw new Error('강의 ID가 없습니다.');
     }
 
+    // 수강 신청 상태 확인 (curriculumId가 있는 경우)
+    await checkEnrollmentStatus();
+
     // Lecture API 호출 - 직접 lecture ref에 저장
     lecture.value = await lectureApiService.getLecture(lectureId);
 
+    if (!lecture.value) {
+      throw new Error('강의 정보를 찾을 수 없습니다.');
+    }
+
     // 마크다운 강의인 경우 읽기 완료 처리
     if (lecture.value?.type === 'MARKDOWN') {
-      const curriculumIdNum = route.query.curriculumId ? Number(route.query.curriculumId) : null;
-      if (curriculumIdNum) {
+      const curriculumIdNum = curriculumIdFromQuery.value;
+      if (curriculumIdNum && isEnrolled.value) {
         // 비동기로 처리하되 에러가 발생해도 강의 로드에는 영향 없음
         markMarkdownLectureAsRead(lectureId, curriculumIdNum).catch(err => {
           console.error('[마크다운 강의 완료 처리] 실패:', err);
@@ -394,9 +452,17 @@ async function loadLectureData() {
       }
     }
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('강의 데이터 로드 실패:', err);
-    error.value = '강의 정보를 불러오는 중 오류가 발생했습니다.';
+    
+    // 더 구체적인 에러 메시지
+    if (err?.response?.status === 403 || err?.response?.status === 401) {
+      error.value = '이 강의를 볼 수 있는 권한이 없습니다. 해당 커리큘럼에 수강 신청이 필요할 수 있습니다.';
+    } else if (err?.response?.status === 404) {
+      error.value = '강의를 찾을 수 없습니다.';
+    } else {
+      error.value = err?.message || '강의 정보를 불러오는 중 오류가 발생했습니다.';
+    }
   } finally {
     loading.value = false;
   }

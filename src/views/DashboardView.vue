@@ -367,11 +367,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { lectureApiService } from "@/services/lectureApi";
 import { curriculumApiService } from "@/services/curriculumApi";
 import { useAuth } from "@/composables/useAuth";
+import { useUiStore } from "@/stores/ui";
 import { LoadingSpinner, WarningMessage, Button } from "@/components/common";
 import { getThumbnailColor } from "@/utils";
 import { MESSAGES } from "@/constants";
@@ -382,6 +383,7 @@ import type { CurriculumResponse } from "@/types/curriculum";
 import { S3ApiService } from "@/services/s3Api";
 
 const router = useRouter();
+const ui = useUiStore();
 const { currentUser } = useAuth();
 
 // 사용자 정보 (동적)
@@ -573,7 +575,17 @@ const filteredItems = computed(() => {
 
 // 정렬된 아이템들 (전체)
 const allSortedItems = computed(() => {
-  const items = [...filteredItems.value];
+  let items = [...filteredItems.value];
+
+  // 검색어 필터링
+  const searchQuery = ui.searchQuery?.trim().toLowerCase();
+  if (searchQuery) {
+    items = items.filter(item => 
+      item.title.toLowerCase().includes(searchQuery) ||
+      item.category?.toLowerCase().includes(searchQuery) ||
+      item.tags?.some(tag => tag.toLowerCase().includes(searchQuery))
+    );
+  }
 
   switch (sortBy.value) {
     case "recent":
@@ -602,6 +614,11 @@ const allSortedItems = computed(() => {
     default:
       return items; // 기본 순서 유지
   }
+});
+
+// 검색어 변경 감지
+watch(() => ui.searchQuery, () => {
+  // 검색어가 변경되면 자동으로 필터링됨 (computed가 재계산됨)
 });
 
 // 현재 표시할 아이템들 (백엔드 페이지 결과 그대로 표시)

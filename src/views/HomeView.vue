@@ -13,6 +13,16 @@
 
       <!-- 정상 상태 -->
       <template v-else>
+        <!-- 검색 결과 헤더 -->
+        <div v-if="isSearchMode" class="mb-4">
+          <h2 class="text-lg font-semibold">
+            "{{ ui.searchQuery }}" 검색 결과
+          </h2>
+          <p class="text-sm text-gray-600 mt-1">
+            커리큘럼과 강의를 통합 검색한 결과입니다.
+          </p>
+        </div>
+
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-4 overflow-x-auto">
             <button
@@ -57,13 +67,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import CourseCard from '../components/course/CourseCard.vue';
 import type { Course } from '../types/course';
 import { useSearchStore } from '../stores/search';
 import { useUiStore } from '../stores/ui';
 import { curriculumApiService } from '../services/curriculumApi';
+import { searchApiService } from '../services/searchApi';
 import { getCurrentUserId } from '../config/api';
+import type { Lecture } from '../types/lecture';
 
 const searchStore = useSearchStore();
 const ui = useUiStore();
@@ -82,20 +94,27 @@ const currentPage = ref<number>(0);
 const hasMore = ref<boolean>(true);
 const pageSize = 12;
 
+// 검색 모드 여부
+const isSearchMode = computed(() => !!ui.searchQuery?.trim());
+
 // Intersection Observer를 위한 sentinel 요소
 const sentinel = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 
-// 컴포넌트 마운트 시 데이터 로드 및 observer 설정
-onMounted(async () => {
-  await loadCourses();
+// Observer 설정 함수
+function setupObserver() {
+  // 기존 observer 제거
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
 
-  // Intersection Observer 설정
-  if (sentinel.value) {
+  // 검색 모드가 아닐 때만 observer 설정
+  if (sentinel.value && !isSearchMode.value) {
     observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry.isIntersecting && hasMore.value && !loading.value) {
+        if (entry.isIntersecting && hasMore.value && !loading.value && !isSearchMode.value) {
           loadCourses();
         }
       },
@@ -105,6 +124,32 @@ onMounted(async () => {
     );
     observer.observe(sentinel.value);
   }
+}
+
+// 검색어 변경 감지
+watch(() => ui.searchQuery, async (newQuery, oldQuery) => {
+  // 검색어가 변경되면 데이터 초기화 및 재로드
+  if (newQuery !== oldQuery) {
+    courses.value = [];
+    currentPage.value = 0;
+    hasMore.value = true;
+    
+    // Observer 재설정
+    setupObserver();
+    
+    await loadCourses();
+  }
+});
+
+// 검색 모드 변경 감지
+watch(isSearchMode, () => {
+  setupObserver();
+});
+
+// 컴포넌트 마운트 시 데이터 로드 및 observer 설정
+onMounted(async () => {
+  await loadCourses();
+  setupObserver();
 });
 
 // 컴포넌트 언마운트 시 observer 정리
@@ -123,9 +168,129 @@ function formatDate(date: string | number[]): string {
   return date;
 }
 
+// 강의를 Course 타입으로 변환
+function lectureToCourse(lecture: Lecture): Course {
+  return {
+    id: `lecture-${lecture.id}`,
+    title: lecture.title,
+    instructor: lecture.author?.username || '알 수 없음',
+    category: lecture.category || '미분류',
+    rating: 0, // 강의에는 평점이 없을 수 있음
+    studentCount: 0,
+    reviewsCount: 0,
+    price: 0,
+    tags: [],
+    languages: [],
+    difficulty: lecture.difficulty,
+    description: lecture.description,
+    createdAt: formatDate(lecture.createdAt),
+    type: 'lecture' as const,
+    lectureId: lecture.id, // 원본 강의 ID 저장
+    problemsCount: lecture.type === 'PROBLEM' ? 1 : 0,
+    thumbnail: undefined,
+    totalLectureCount: 1
+  };
+}
+
+// 커리큘럼을 Course 타입으로 변환
+function curriculumToCourse(curriculum: any): Course {
+  return {
+    id: String(curriculum.id),
+    title: curriculum.title,
+    instructor: curriculum.author?.username || '알 수 없음',
+    category: curriculum.category || '미분류',
+    rating: curriculum.averageRating || 0,
+    studentCount: curriculum.studentCount || 0,
+    reviewsCount: curriculum.reviewsCount || 0,
+    price: 0,
+    tags: curriculum.tags || [],
+    languages: curriculum.languages || [],
+    difficulty: curriculum.difficulty,
+    description: curriculum.description,
+    createdAt: formatDate(curriculum.createdAt),
+    type: 'curriculum' as const,
+    problemsCount: curriculum.totalLectureCount || 0,
+    thumbnail: curriculum.thumbnailImageUrl,
+    totalLectureCount: curriculum.totalLectureCount,
+    thumbnailImageUrl: curriculum.thumbnailImageUrl
+  };
+}
+
+// 통합 검색 API 호출
+async function searchUnified() {
+  if (loading.value) return;
+
+  try {
+    loading.value = true;
+    error.value = null;
+
+    const searchQuery = ui.searchQuery?.trim() || '';
+    if (!searchQuery) {
+      // 검색어가 없으면 일반 목록 로드
+      await loadCourses();
+      return;
+    }
+
+    console.log('[홈 화면] 통합 검색 시작:', searchQuery);
+
+    const response = await searchApiService.unifiedSearch({
+      title: searchQuery,
+      isPublic: true, // 공개된 콘텐츠만 검색
+      page: currentPage.value,
+      size: pageSize
+    });
+
+    // 커리큘럼과 강의를 모두 Course 타입으로 변환
+    const curriculumCourses = (response.curriculums?.curriculums || []).map(curriculumToCourse);
+    const lectureCourses = (response.lectures?.lectures || []).map(lectureToCourse);
+
+    // 검색 모드에서는 기존 데이터 대신 새로운 검색 결과로 교체 (첫 페이지일 때)
+    if (currentPage.value === 0) {
+      courses.value = [...curriculumCourses, ...lectureCourses];
+    } else {
+      // 다음 페이지는 추가
+      courses.value = [...courses.value, ...curriculumCourses, ...lectureCourses];
+    }
+
+    // 다음 페이지가 있는지 확인 (커리큘럼 또는 강의 중 하나라도 다음 페이지가 있으면 true)
+    // API 명세서에 따르면 meta.hasNext 또는 meta.next_page를 사용
+    const curriculumMeta = response.curriculums?.meta;
+    const lectureMeta = response.lectures?.meta;
+    
+    const curriculumHasNext = curriculumMeta 
+      ? (curriculumMeta.hasNext !== undefined ? curriculumMeta.hasNext : (curriculumMeta.next_page !== null && curriculumMeta.next_page !== undefined))
+      : false;
+    const lectureHasNext = lectureMeta
+      ? (lectureMeta.hasNext !== undefined ? lectureMeta.hasNext : (lectureMeta.next_page !== null && lectureMeta.next_page !== undefined))
+      : false;
+    
+    hasMore.value = curriculumHasNext || lectureHasNext;
+    
+    currentPage.value++;
+
+    console.log('[홈 화면] 통합 검색 완료:', {
+      curriculums: curriculumCourses.length,
+      lectures: lectureCourses.length,
+      total: courses.value.length
+    });
+  } catch (err: any) {
+    console.error('[홈 화면] 통합 검색 실패:', err);
+    error.value = '검색 중 오류가 발생했습니다.';
+    hasMore.value = false;
+  } finally {
+    loading.value = false;
+  }
+}
+
 // 백엔드에서 커리큘럼 데이터 로드 (페이징) - 사용자 맞춤 추천 우선
 async function loadCourses() {
   if (loading.value || !hasMore.value) return;
+
+  // 검색 모드일 때는 검색 API 호출
+  if (isSearchMode.value) {
+    await searchUnified();
+    return;
+  }
 
   try {
     loading.value = true;
@@ -164,32 +329,13 @@ async function loadCourses() {
     }
 
     // CurriculumResponse를 Course로 직접 변환
-    const newCourses = response.curriculums.map(curriculum => ({
-      id: String(curriculum.id),
-      title: curriculum.title,
-      instructor: curriculum.author?.username || '알 수 없음',
-      category: curriculum.category || '미분류',
-      rating: curriculum.averageRating || 0,
-      studentCount: curriculum.studentCount || 0,
-      reviewsCount: curriculum.reviewsCount || 0,
-      price: 0,
-      tags: curriculum.tags || [],
-      languages: curriculum.languages || [],
-      difficulty: curriculum.difficulty,
-      description: curriculum.description,
-      createdAt: formatDate(curriculum.createdAt),
-      type: 'curriculum' as const,
-      problemsCount: curriculum.totalLectureCount || 0,
-      thumbnail: curriculum.thumbnailImageUrl,
-      totalLectureCount: curriculum.totalLectureCount,
-      thumbnailImageUrl: curriculum.thumbnailImageUrl
-    }));
+    const newCourses = response.curriculums.map(curriculumToCourse);
 
     // 기존 데이터에 추가
     courses.value = [...courses.value, ...newCourses];
 
     // 다음 페이지가 있는지 확인
-    hasMore.value = response.meta?.next_page !== null && response.meta?.next_page !== undefined;
+    hasMore.value = response.meta?.hasNext !== null && response.meta?.hasNext !== undefined;
     currentPage.value++;
   } catch (err: any) {
     console.error('커리큘럼 로드 실패:', err);
@@ -213,7 +359,13 @@ const filteredByTab = computed<Course[]>(() => {
   return list;
 });
 
+// 검색 모드일 때는 클라이언트 사이드 필터링 제거 (이미 서버에서 필터링됨)
 const filteredBySearch = computed<Course[]>(() => {
+  if (isSearchMode.value) {
+    // 검색 모드일 때는 서버에서 이미 필터링되었으므로 클라이언트 필터링 불필요
+    return filteredByTab.value;
+  }
+  // 검색 모드가 아닐 때만 클라이언트 사이드 검색 수행
   return searchStore.searchCourses(ui.searchQuery, courses.value).filter((c) => filteredByTab.value.includes(c));
 });
 

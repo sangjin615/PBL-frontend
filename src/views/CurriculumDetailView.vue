@@ -438,13 +438,25 @@ function formatDate(dateValue: string | number[]): string {
 }
 
 // 강의로 이동
-function goToLecture(lectureId: number) {
+async function goToLecture(lectureId: number) {
   const curriculumId = route.params.id;
-  router.push({
-    name: 'lecture',
-    params: { lectureId },
-    query: { curriculumId }
-  });
+  
+  // 전역 Monaco Editor 정리 확인
+  if (window.__monacoEditorActive && window.__monacoEditorCleanup) {
+    console.log('🔧 이전 Monaco Editor 인스턴스 정리 중...');
+    try {
+      await window.__monacoEditorCleanup();
+      // 정리 후 추가 대기 시간
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (e) {
+      console.warn('⚠️ 이전 인스턴스 정리 중 오류:', e);
+    }
+  }
+  
+  // Monaco Editor를 사용하는 페이지로 이동할 때는 완전한 페이지 새로고침 사용
+  // 이렇게 하면 Monaco Editor 모듈이 완전히 초기화됨
+  const url = `/learn/${lectureId}${curriculumId ? `?curriculumId=${curriculumId}` : ''}`;
+  window.location.href = url;
 }
 
 function goToCreatorProfile(authorId: number) {

@@ -81,13 +81,14 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUiStore } from '../../stores/ui';
 import { useAuth } from '../../composables/useAuth';
 import AppSearchBar from '../common/AppSearchBar.vue';
 import CourseTypeModal from '../modal/CourseTypeModal.vue';
 
 const router = useRouter();
+const route = useRoute();
 const ui = useUiStore();
 const { isAuthenticated } = useAuth();
 const showCreateMenu = ref(false);
@@ -103,7 +104,19 @@ function toggleSidebar() {
 }
 
 function onSearchSubmit(q: string) {
-  console.log('search submit:', q);
+  // 검색어를 UI 스토어에 저장 (각 페이지에서 watch하여 처리)
+  ui.setSearchQuery(q);
+  
+  // 현재 라우트에 따라 적절한 페이지로 이동 (홈이 아닌 경우)
+  const routeName = route.name as string;
+  
+  if (!routeName || routeName === 'home') {
+    // 홈에서는 이미 watch로 처리됨
+    return;
+  }
+  
+  // 다른 페이지에서 검색하면 해당 페이지에서 처리되도록 함
+  // 각 페이지의 watch가 검색어 변경을 감지하여 처리
 }
 
 function toggleCreateMenu() {

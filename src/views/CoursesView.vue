@@ -189,15 +189,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { enrollmentApiService } from '@/services/enrollmentApi';
 import { curriculumApiService } from '@/services/curriculumApi';
+import { useUiStore } from '@/stores/ui';
 import type { EnrollmentResponse } from '@/types/enrollment';
 import { EnrollmentStatus } from '@/types/enrollment';
 import { getCurrentUserId } from '@/config/api';
 
 const router = useRouter();
+const ui = useUiStore();
 
 // 탭 상태
 const activeTab = ref('all');
@@ -237,11 +239,23 @@ const averageProgress = computed(() => {
 const filteredCourses = computed(() => {
   let filtered = enrolledCourses.value;
 
+  // 검색어 필터링
+  const searchQuery = ui.searchQuery?.trim().toLowerCase();
+  if (searchQuery) {
+    filtered = filtered.filter(course => 
+      course.title.toLowerCase().includes(searchQuery) ||
+      course.instructor.toLowerCase().includes(searchQuery) ||
+      course.category.toLowerCase().includes(searchQuery)
+    );
+  }
+
   // 탭별 필터링
   if (activeTab.value === 'in_progress') {
-    filtered = inProgressCourses.value;
+    filtered = filtered.filter(course =>
+      course.status === EnrollmentStatus.IN_PROGRESS || course.status === EnrollmentStatus.ENROLLED
+    );
   } else if (activeTab.value === 'completed') {
-    filtered = completedCourses.value;
+    filtered = filtered.filter(course => course.status === EnrollmentStatus.COMPLETED);
   }
 
   // 정렬
@@ -261,6 +275,11 @@ const filteredCourses = computed(() => {
   }
 
   return filtered;
+});
+
+// 검색어 변경 감지
+watch(() => ui.searchQuery, () => {
+  // 검색어가 변경되면 자동으로 필터링됨 (computed가 재계산됨)
 });
 
 // 강의로 이동 (이미 수강신청된 상태이므로 바로 학습 페이지로)

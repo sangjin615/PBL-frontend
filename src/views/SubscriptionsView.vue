@@ -78,11 +78,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUiStore } from '@/stores/ui'
 import { Button, FormInput, FormSelect } from '@/components/common'
 
 const router = useRouter()
+const ui = useUiStore()
 
 interface Creator {
   id: number
@@ -148,7 +150,11 @@ function seedIfEmpty() {
 }
 
 const filteredCreators = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
+  // 헤더 서치바 검색어와 로컬 검색어 통합
+  const headerQuery = ui.searchQuery?.trim().toLowerCase() || '';
+  const localQuery = searchQuery.value.trim().toLowerCase();
+  const q = headerQuery || localQuery;
+  
   let list = creators.value.filter(c => c.name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q))
 
   switch (sortBy.value) {
@@ -188,6 +194,21 @@ function formatSubs(n: number) {
   if (n >= 1000) return `${Math.round(n / 10) / 100}천명`
   return `${n}명`
 }
+
+// 헤더 서치바 검색어 변경 감지
+watch(() => ui.searchQuery, (newQuery) => {
+  // 헤더에서 검색하면 로컬 검색어와 동기화
+  if (newQuery !== searchQuery.value) {
+    searchQuery.value = newQuery || '';
+  }
+});
+
+// 로컬 검색어 변경 시 헤더와 동기화 (사용자가 직접 입력한 경우)
+watch(searchQuery, (newQuery) => {
+  if (newQuery !== ui.searchQuery) {
+    ui.setSearchQuery(newQuery);
+  }
+});
 
 onMounted(() => {
   creators.value = loadSubscriptions()

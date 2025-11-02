@@ -6,7 +6,7 @@
 
     <div :class="containerClass">
       <main :class="mainClass">
-        <router-view/>
+        <router-view :key="route.fullPath"/>
       </main>
       <AppFooter v-if="!isBareLayout" />
     </div>

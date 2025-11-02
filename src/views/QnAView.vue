@@ -187,12 +187,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUiStore } from '@/stores/ui'
 import qnaApiService from '@/services/qnaApi'
 import type { QuestionListResponse, QuestionStatus, QuestionCategory } from '@/types/qna'
 
 const router = useRouter()
+const ui = useUiStore()
 
 // 질문 상세 페이지로 이동
 function goToQuestion(questionId: number) {
@@ -254,8 +256,11 @@ async function fetchQuestions() {
       activeTab.value === 'resolved' ? 'RESOLVED' :
       undefined
 
+    // 헤더 서치바 검색어와 로컬 검색어 중 하나라도 있으면 사용
+    const keyword = ui.searchQuery?.trim() || searchKeyword.value?.trim() || undefined;
+
     const response = await qnaApiService.searchQuestions({
-      keyword: searchKeyword.value || undefined,
+      keyword: keyword,
       status: filterStatus,
       page: currentPage.value,
       size: pageSize,
@@ -283,6 +288,11 @@ function setActiveTab(tabId: string) {
 // 검색 처리 (디바운스 적용)
 let searchTimeout: number | null = null
 function handleSearch() {
+  // 헤더 서치바 검색어와 동기화
+  if (searchKeyword.value) {
+    ui.setSearchQuery(searchKeyword.value);
+  }
+  
   if (searchTimeout) {
     clearTimeout(searchTimeout)
   }
@@ -292,6 +302,16 @@ function handleSearch() {
     fetchQuestions()
   }, 300) // 300ms 디바운스
 }
+
+// 헤더 서치바 검색어 변경 감지
+watch(() => ui.searchQuery, (newQuery) => {
+  // 헤더에서 검색하면 로컬 검색어와 동기화하고 검색 수행
+  if (newQuery !== searchKeyword.value) {
+    searchKeyword.value = newQuery || '';
+    currentPage.value = 0;
+    fetchQuestions();
+  }
+});
 
 // 페이지 변경 함수
 function changePage(page: number) {
