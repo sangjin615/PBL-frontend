@@ -42,10 +42,6 @@
               {{ curriculum.title }}
             </h1>
 
-            <p class="text-gray-600 mb-4 leading-relaxed">
-              {{ curriculum.description }}
-            </p>
-
             <!-- 간단 소개 (요약) -->
             <p
               v-if="curriculum.summary"
@@ -82,8 +78,8 @@
                   {{ (averageRating || 0).toFixed(1) }}점
                 </span>
               </div>
-              <button
-                v-if="curriculum.instructor && curriculum.authorId"
+              <button 
+                v-if="curriculum.instructor && curriculum.authorId" 
                 @click.stop="goToCreatorProfile(curriculum.authorId)"
                 class="text-sm hover:text-blue-600 hover:underline transition-colors"
                 style="color: rgb(var(--figma-color-5))"
@@ -128,25 +124,25 @@
               class="flex border-b"
               style="border-color: rgb(var(--figma-color-4))"
             >
-              <button
-                v-for="tab in tabs"
+              <button 
+                v-for="tab in tabs" 
                 :key="tab.id"
                 @click="activeTab = tab.id"
                 class="px-6 py-4 text-sm font-medium transition-colors relative"
                 :class="
                   activeTab === tab.id
-                    ? 'text-blue-600'
+                  ? 'text-blue-600' 
                     : 'text-gray-600 hover:text-gray-900'
                 "
               >
                 {{ tab.name }}
-                <div
+                <div 
                   v-if="activeTab === tab.id"
                   class="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
                 ></div>
               </button>
             </div>
-
+            
             <!-- 탭 컨텐츠 -->
             <div class="p-6">
               <!-- 강의 소개 탭 -->
@@ -157,6 +153,13 @@
                 >
                   강의 소개
                 </h3>
+
+                <!-- 커리큘럼 설명 -->
+                <div v-if="curriculum?.description" class="mb-6">
+                  <p class="text-gray-600 leading-relaxed">
+                    {{ curriculum.description }}
+                  </p>
+                </div>
 
                 <!-- 강의 소개 썸네일 -->
                 <div
@@ -214,16 +217,16 @@
                 >
                   커리큘럼
                 </h3>
-
+                
                 <div v-if="lectures.length > 0" class="space-y-4">
                   <!-- API에서 받은 강의 목록을 챕터로 그룹화 -->
-                  <div
-                    v-for="(chapter, chapterIndex) in groupedLectures"
+                  <div 
+                    v-for="(chapter, chapterIndex) in groupedLectures" 
                     :key="chapterIndex"
-                    class="border rounded-lg"
+                    class="border rounded-lg" 
                     style="border-color: rgb(var(--figma-color-4))"
                   >
-                    <button
+                    <button 
                       @click="toggleChapter(chapterIndex)"
                       class="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
@@ -242,7 +245,7 @@
                         >
                       </div>
                     </button>
-
+                    
                     <div
                       v-if="chapter.isExpanded"
                       class="px-4 pb-4 border-t"
@@ -812,7 +815,7 @@
               <div
                 v-for="review in reviews"
                 :key="review.id"
-                class="p-4 border rounded-lg"
+                class="p-4 border rounded-lg" 
                 style="border-color: rgb(var(--figma-color-4))"
               >
                 <div class="flex items-center space-x-2 mb-2">
@@ -900,14 +903,14 @@
                 </button>
               </template>
             </div>
-
+            
             <div v-if="curriculum" class="mt-6 space-y-3">
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))"
                   >지식공유자</span
                 >
                 <div class="flex items-center space-x-2">
-                  <button
+                  <button 
                     v-if="curriculum.authorId"
                     @click.stop="goToCreatorProfile(curriculum.authorId)"
                     class="text-sm font-medium hover:text-blue-600 hover:underline transition-colors"
@@ -926,7 +929,7 @@
                     class="px-3 py-1 text-xs rounded-full transition-colors"
                     :class="
                       isSubscribed
-                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     "
                   >
@@ -1141,7 +1144,7 @@ const learningObjectivesList = computed(() => {
 const groupedLectures = computed(() => {
   const groups = [];
   const lecturesPerChapter = 5;
-
+  
   for (let i = 0; i < lectures.value.length; i += lecturesPerChapter) {
     const chapterLectures = lectures.value.slice(i, i + lecturesPerChapter);
     groups.push({
@@ -1152,7 +1155,7 @@ const groupedLectures = computed(() => {
       ),
     });
   }
-
+  
   return groups;
 });
 
@@ -1397,7 +1400,7 @@ function toggleSubscribe() {
     const subscriptions = JSON.parse(
       localStorage.getItem("subscriptions") || "[]"
     );
-
+    
     if (isSubscribed.value) {
       if (
         confirm(`"${curriculum.value.instructor}"의 구독을 해지하시겠습니까?`)
@@ -1419,7 +1422,7 @@ function toggleSubscribe() {
         description: `${curriculum.value.instructor}의 강의를 구독합니다.`,
         subscribedAt: new Date().toISOString(),
       };
-
+      
       subscriptions.push(newSubscription);
       localStorage.setItem("subscriptions", JSON.stringify(subscriptions));
       isSubscribed.value = true;
