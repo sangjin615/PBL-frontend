@@ -106,6 +106,7 @@ export interface UpdateCurriculumRequest {
   isPublic?: boolean;
   difficulty?: string;
   summary?: string;
+  learningObjectives?: string;
   tags?: string[];
   thumbnailImageUrl?: string;
   durationMinutes?: number;
