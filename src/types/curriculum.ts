@@ -65,6 +65,7 @@ export interface CurriculumDetailResponse {
   isPublic: boolean;
   difficulty?: string;
   summary?: string;
+  learningObjectives?: string;
   averageRating?: number;
   studentCount?: number;
   lectures: CurriculumLecture[];
@@ -90,6 +91,7 @@ export interface CreateCurriculumRequest {
   authorId?: number;
   difficulty?: string;
   summary?: string;
+  learningObjectives?: string;
   tags?: string[];
   thumbnailImageUrl?: string;
   durationMinutes?: number;

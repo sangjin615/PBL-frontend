@@ -1041,10 +1041,10 @@
             >
               학습 목표
             </h3>
-            <ul class="space-y-2">
+            <ul v-if="learningObjectivesList.length > 0" class="space-y-2">
               <li
-                v-for="goal in hardcodedData.learningGoals"
-                :key="goal"
+                v-for="(goal, index) in learningObjectivesList"
+                :key="index"
                 class="flex items-start space-x-2"
               >
                 <svg
@@ -1068,6 +1068,9 @@
                 >
               </li>
             </ul>
+            <p v-else class="text-sm text-gray-500 italic">
+              학습 목표가 설정되지 않았습니다.
+            </p>
           </div>
         </div>
       </div>
@@ -1161,14 +1164,17 @@ const isSubmittingReply = ref<Map<number, boolean>>(new Map());
 const inquiryRepliesMap = ref<Map<number, ReplyResponse[]>>(new Map());
 const loadingReplies = ref<Map<number, boolean>>(new Map());
 
-// TODO: 백엔드 API 미구현 항목 (백엔드_API_추가_개발_요청.md 참고)
-// - learningGoals: CurriculumResponse에 learningGoals 필드 추가 필요
-//   → @ElementCollection으로 List<String> learningGoals 추가 후 hardcodedData.learningGoals 제거
-const hardcodedData = {
-  learningGoals: [
-    'API 연결없음(기본값 = "알고리즘의 기본 개념과 복잡도 분석")',
-  ],
-};
+// 학습 목표를 리스트로 파싱 (줄바꿈 또는 특정 구분자로 분리)
+const learningObjectivesList = computed(() => {
+  if (!curriculum.value?.learningObjectives) {
+    return [];
+  }
+  // 줄바꿈(\n) 또는 줄바꿈 조합으로 분리하고, 빈 문자열 제거
+  return curriculum.value.learningObjectives
+    .split(/\r?\n/)
+    .map((goal: string) => goal.trim())
+    .filter((goal: string) => goal.length > 0);
+});
 
 // 수강 상태 확인
 async function checkEnrollmentStatus() {
