@@ -125,8 +125,15 @@
           @click="goToCourse(course.id)"
         >
           <!-- 썸네일 -->
-          <div class="aspect-video bg-gray-200 flex items-center justify-center">
-            <div class="w-16 h-16 bg-gray-300 rounded flex items-center justify-center">
+          <div class="aspect-video bg-gray-200 flex items-center justify-center overflow-hidden">
+            <img
+              v-if="course.thumbnailImageUrl"
+              :src="getImageUrl(course.thumbnailImageUrl)"
+              :alt="course.title"
+              class="w-full h-full object-cover"
+              @error="handleThumbnailError"
+            />
+            <div v-else class="w-16 h-16 bg-gray-300 rounded flex items-center justify-center">
               <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
@@ -194,6 +201,7 @@ import { useRouter } from 'vue-router';
 import { enrollmentApiService } from '@/services/enrollmentApi';
 import { curriculumApiService } from '@/services/curriculumApi';
 import { useUiStore } from '@/stores/ui';
+import { S3ApiService } from '@/services/s3Api';
 import type { EnrollmentResponse } from '@/types/enrollment';
 import { EnrollmentStatus } from '@/types/enrollment';
 import { getCurrentUserId } from '@/config/api';
@@ -323,7 +331,8 @@ const loadEnrollments = async () => {
             progress: enrollment.progressPercentage || 0,
             status: enrollment.status,
             rating: -99, // API 연결없음
-            enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
+            enrolledAt: formatEnrolledDate(enrollment.enrolledAt),
+            thumbnailImageUrl: curriculumDetail.thumbnailImageUrl || null
           };
         } catch (error) {
           console.error(`커리큘럼 ${enrollment.curriculumId} 정보 조회 실패:`, error);
@@ -338,7 +347,8 @@ const loadEnrollments = async () => {
             progress: enrollment.progressPercentage || 0,
             status: enrollment.status,
             rating: -99,
-            enrolledAt: formatEnrolledDate(enrollment.enrolledAt)
+            enrolledAt: formatEnrolledDate(enrollment.enrolledAt),
+            thumbnailImageUrl: null
           };
         }
       })
@@ -361,6 +371,21 @@ const formatEnrolledDate = (date: number[] | string): string => {
   }
   return new Date(date).toISOString().split('T')[0];
 };
+
+// 이미지 URL 생성 헬퍼
+function getImageUrl(path: string | null | undefined): string {
+  return S3ApiService.getImageUrl(path);
+}
+
+// 썸네일 이미지 로드 에러 핸들링
+function handleThumbnailError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  console.warn("썸네일 이미지 로드 실패:", img.src);
+  // 이미지 로드 실패 시 부모 요소에서 플레이스홀더 표시
+  if (img.parentElement) {
+    img.style.display = 'none';
+  }
+}
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
