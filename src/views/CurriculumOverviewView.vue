@@ -155,7 +155,10 @@
                 </h3>
 
                 <!-- 커리큘럼 설명 -->
-                <div v-if="curriculum?.description" class="mb-6">
+                <div
+                  v-if="curriculum?.description && parsedDescription.length > 0"
+                  class="mb-6"
+                >
                   <div class="text-gray-600 leading-relaxed space-y-4">
                     <template
                       v-for="(part, index) in parsedDescription"
@@ -168,7 +171,7 @@
                         <img
                           :src="getImageUrl(part.content)"
                           :alt="'설명 이미지 ' + (index + 1)"
-                          class="w-full rounded-lg object-cover"
+                          class="w-full rounded-lg object-cover max-h-96"
                           @error="handleDescriptionImageError"
                         />
                       </div>
@@ -1149,7 +1152,10 @@ const learningObjectivesList = computed(() => {
 
 // description 파싱 - [!url] 패턴 추출
 const parsedDescription = computed(() => {
-  if (!curriculum.value?.description) {
+  if (
+    !curriculum.value?.description ||
+    curriculum.value.description.trim() === ""
+  ) {
     return [];
   }
 
@@ -1159,11 +1165,15 @@ const parsedDescription = computed(() => {
   // [!url] 패턴 찾기 (정규식: \[!([^\]]+)\])
   const imagePattern = /\[!([^\]]+)\]/g;
   let lastIndex = 0;
-  let match;
 
-  while ((match = imagePattern.exec(description)) !== null) {
+  // matchAll을 사용하여 모든 매칭 찾기 (전역 플래그 때문에 exec 대신)
+  const matches: RegExpMatchArray[] = Array.from(
+    description.matchAll(imagePattern)
+  );
+
+  matches.forEach((match: RegExpMatchArray) => {
     // 이미지 패턴 이전의 텍스트 추가
-    if (match.index > lastIndex) {
+    if (match.index !== undefined && match.index > lastIndex) {
       const textContent = description.substring(lastIndex, match.index).trim();
       if (textContent) {
         parts.push({ type: "text", content: textContent });
@@ -1171,13 +1181,15 @@ const parsedDescription = computed(() => {
     }
 
     // 이미지 URL 추가
-    const imageUrl = match[1].trim();
+    const imageUrl = match[1]?.trim();
     if (imageUrl) {
       parts.push({ type: "image", content: imageUrl });
     }
 
-    lastIndex = match.index + match[0].length;
-  }
+    if (match.index !== undefined) {
+      lastIndex = match.index + match[0].length;
+    }
+  });
 
   // 마지막 이미지 패턴 이후의 텍스트 추가
   if (lastIndex < description.length) {
@@ -1188,8 +1200,8 @@ const parsedDescription = computed(() => {
   }
 
   // 만약 이미지 패턴이 하나도 없으면 전체를 텍스트로 반환
-  if (parts.length === 0) {
-    parts.push({ type: "text", content: description });
+  if (parts.length === 0 && description.trim()) {
+    parts.push({ type: "text", content: description.trim() });
   }
 
   return parts;
