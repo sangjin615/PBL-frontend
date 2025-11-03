@@ -174,8 +174,12 @@
                   >
                     이런 걸 배울 수 있어요
                   </h4>
-                  <ul class="space-y-2">
-                    <li class="flex items-start space-x-2">
+                  <ul v-if="learningObjectivesList.length > 0" class="space-y-2">
+                    <li
+                      v-for="(objective, index) in learningObjectivesList"
+                      :key="index"
+                      class="flex items-start space-x-2"
+                    >
                       <svg
                         class="w-5 h-5 mt-0.5 flex-shrink-0"
                         style="color: rgb(var(--figma-color-6))"
@@ -190,47 +194,15 @@
                           d="M5 13l4 4L19 7"
                         ></path>
                       </svg>
-                      <span class="text-gray-700"
-                        >빅데이터를 이용해서 특정 데이터를 추출하는 방법</span
-                      >
-                    </li>
-                    <li class="flex items-start space-x-2">
-                      <svg
-                        class="w-5 h-5 mt-0.5 flex-shrink-0"
-                        style="color: rgb(var(--figma-color-6))"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 13l4 4L19 7"
-                        ></path>
-                      </svg>
-                      <span class="text-gray-700"
-                        >파이썬 기본 문법과 활용법</span
-                      >
-                    </li>
-                    <li class="flex items-start space-x-2">
-                      <svg
-                        class="w-5 h-5 mt-0.5 flex-shrink-0"
-                        style="color: rgb(var(--figma-color-6))"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 13l4 4L19 7"
-                        ></path>
-                      </svg>
-                      <span class="text-gray-700">그래프 활용법</span>
+                      <span class="text-gray-700">{{ objective }}</span>
                     </li>
                   </ul>
+                  <p
+                    v-else
+                    class="text-gray-400 italic"
+                  >
+                    아직 학습 목표가 작성되지 않았습니다
+                  </p>
                 </div>
               </div>
 
@@ -1154,6 +1126,17 @@ async function loadReviews() {
   }
 }
 
+// 학습 목표 리스트 파싱
+const learningObjectivesList = computed(() => {
+  if (!curriculum.value?.learningObjectives) {
+    return [];
+  }
+  return curriculum.value.learningObjectives
+    .split('\n')
+    .map((obj: string) => obj.trim())
+    .filter((obj: string) => obj.length > 0);
+});
+
 // 강의를 챕터별로 그룹화 (5개씩)
 const groupedLectures = computed(() => {
   const groups = [];
@@ -1228,6 +1211,7 @@ async function loadCurriculumDetail() {
       // API에서 가져온 필드들
       difficulty: data.difficulty,
       summary: data.summary,
+      learningObjectives: data.learningObjectives,
       averageRating: data.averageRating,
       studentCount: data.studentCount,
       tags: data.tags || [],
