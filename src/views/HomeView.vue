@@ -129,7 +129,7 @@
             >
               <!-- 커리큘럼 아이템들을 순회하면서 강의 섹션을 중간에 삽입 -->
               <template
-                v-for="(curriculum, index) in filteredCurriculums"
+                v-for="(curriculum, index) in sortedCurriculums"
                 :key="`curriculum-${curriculum.id}`"
               >
                 <!-- 커리큘럼 카드 -->
@@ -260,7 +260,7 @@
                     >
                       <div class="flex gap-4" style="min-width: max-content">
                         <div
-                          v-for="lecture in filteredLectures"
+                          v-for="lecture in sortedLectures"
                           :key="`lecture-${lecture.id}`"
                           class="flex-shrink-0 w-64"
                         >
@@ -1733,6 +1733,46 @@ const filteredLectures = computed<Course[]>(() => {
   return lectures.value;
 });
 
+// 정렬 함수 (공통)
+function sortCourseList(list: Course[]): Course[] {
+  const sorted = list.slice();
+  switch (sortBy.value) {
+    case "rating":
+      sorted.sort((a: Course, b: Course) => (b.rating || 0) - (a.rating || 0));
+      break;
+    case "reviews":
+      sorted.sort(
+        (a: Course, b: Course) => (b.reviewsCount || 0) - (a.reviewsCount || 0)
+      );
+      break;
+    case "latest":
+      sorted.sort(
+        (a: Course, b: Course) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        }
+      );
+      break;
+    default: // popular
+      sorted.sort(
+        (a: Course, b: Course) =>
+          (b.reviewsCount || 0) * (b.rating || 0) - (a.reviewsCount || 0) * (a.rating || 0)
+      );
+  }
+  return sorted;
+}
+
+// 추천 모드용: 정렬된 커리큘럼
+const sortedCurriculums = computed<Course[]>(() => {
+  return sortCourseList(filteredCurriculums.value);
+});
+
+// 추천 모드용: 정렬된 강의
+const sortedLectures = computed<Course[]>(() => {
+  return sortCourseList(filteredLectures.value);
+});
+
 const filteredBySearch = computed<Course[]>(() => {
   if (isSearchMode.value) {
     return filteredByTab.value;
@@ -1742,30 +1782,9 @@ const filteredBySearch = computed<Course[]>(() => {
     .filter((c: Course) => filteredByTab.value.includes(c));
 });
 
+// 검색 모드용: 정렬된 강의/커리큘럼
 const sortedCourses = computed<Course[]>(() => {
-  const list = filteredBySearch.value.slice();
-  switch (sortBy.value) {
-    case "rating":
-      list.sort((a: Course, b: Course) => b.rating - a.rating);
-      break;
-    case "reviews":
-      list.sort(
-        (a: Course, b: Course) => (b.reviewsCount || 0) - (a.reviewsCount || 0)
-      );
-      break;
-    case "latest":
-      list.sort(
-        (a: Course, b: Course) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      break;
-    default:
-      list.sort(
-        (a: Course, b: Course) =>
-          (b.reviewsCount || 0) * b.rating - (a.reviewsCount || 0) * a.rating
-      );
-  }
-  return list;
+  return sortCourseList(filteredBySearch.value);
 });
 
 const visibleCourses = computed<Course[]>(() => sortedCourses.value);

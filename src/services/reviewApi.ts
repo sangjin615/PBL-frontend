@@ -113,7 +113,8 @@ class ReviewApiService {
         this.baseURL
       );
     } catch (error: any) {
-      if (error.message?.includes("404")) {
+      // 404는 리뷰가 없는 경우로 정상 처리
+      if (error.status === 404 || error.message?.includes("404") || error.message?.includes("Not Found")) {
         return null; // 리뷰가 없는 경우
       }
       throw error;
