@@ -78,8 +78,8 @@
                   {{ (averageRating || 0).toFixed(1) }}점
                 </span>
               </div>
-              <button 
-                v-if="curriculum.instructor && curriculum.authorId" 
+              <button
+                v-if="curriculum.instructor && curriculum.authorId"
                 @click.stop="goToCreatorProfile(curriculum.authorId)"
                 class="text-sm hover:text-blue-600 hover:underline transition-colors"
                 style="color: rgb(var(--figma-color-5))"
@@ -124,25 +124,25 @@
               class="flex border-b"
               style="border-color: rgb(var(--figma-color-4))"
             >
-              <button 
-                v-for="tab in tabs" 
+              <button
+                v-for="tab in tabs"
                 :key="tab.id"
                 @click="activeTab = tab.id"
                 class="px-6 py-4 text-sm font-medium transition-colors relative"
                 :class="
                   activeTab === tab.id
-                  ? 'text-blue-600' 
+                    ? 'text-blue-600'
                     : 'text-gray-600 hover:text-gray-900'
                 "
               >
                 {{ tab.name }}
-                <div 
+                <div
                   v-if="activeTab === tab.id"
                   class="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
                 ></div>
               </button>
             </div>
-            
+
             <!-- 탭 컨텐츠 -->
             <div class="p-6">
               <!-- 강의 소개 탭 -->
@@ -156,17 +156,24 @@
 
                 <!-- 커리큘럼 설명 -->
                 <div v-if="curriculum?.description" class="mb-6">
-                  <p class="text-gray-600 leading-relaxed">
-                    {{ curriculum.description }}
-                  </p>
-                </div>
-
-                <!-- 강의 소개 썸네일 -->
-                <div
-                  class="h-48 rounded-lg mb-6 flex items-center justify-center text-4xl font-bold text-gray-400"
-                  style="background-color: rgb(var(--figma-color-4))"
-                >
-                  ✕
+                  <div class="text-gray-600 leading-relaxed space-y-4">
+                    <template
+                      v-for="(part, index) in parsedDescription"
+                      :key="index"
+                    >
+                      <!-- 텍스트 부분 -->
+                      <p v-if="part.type === 'text'">{{ part.content }}</p>
+                      <!-- 이미지 부분 -->
+                      <div v-else-if="part.type === 'image'" class="my-4">
+                        <img
+                          :src="getImageUrl(part.content)"
+                          :alt="'설명 이미지 ' + (index + 1)"
+                          class="w-full rounded-lg object-cover"
+                          @error="handleDescriptionImageError"
+                        />
+                      </div>
+                    </template>
+                  </div>
                 </div>
 
                 <!-- 이런 걸 배울 수 있어요 -->
@@ -177,7 +184,10 @@
                   >
                     이런 걸 배울 수 있어요
                   </h4>
-                  <ul v-if="learningObjectivesList.length > 0" class="space-y-2">
+                  <ul
+                    v-if="learningObjectivesList.length > 0"
+                    class="space-y-2"
+                  >
                     <li
                       v-for="(objective, index) in learningObjectivesList"
                       :key="index"
@@ -200,10 +210,7 @@
                       <span class="text-gray-700">{{ objective }}</span>
                     </li>
                   </ul>
-                  <p
-                    v-else
-                    class="text-gray-400 italic"
-                  >
+                  <p v-else class="text-gray-400 italic">
                     아직 학습 목표가 작성되지 않았습니다
                   </p>
                 </div>
@@ -217,16 +224,16 @@
                 >
                   커리큘럼
                 </h3>
-                
+
                 <div v-if="lectures.length > 0" class="space-y-4">
                   <!-- API에서 받은 강의 목록을 챕터로 그룹화 -->
-                  <div 
-                    v-for="(chapter, chapterIndex) in groupedLectures" 
+                  <div
+                    v-for="(chapter, chapterIndex) in groupedLectures"
                     :key="chapterIndex"
-                    class="border rounded-lg" 
+                    class="border rounded-lg"
                     style="border-color: rgb(var(--figma-color-4))"
                   >
-                    <button 
+                    <button
                       @click="toggleChapter(chapterIndex)"
                       class="w-full p-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
@@ -245,7 +252,7 @@
                         >
                       </div>
                     </button>
-                    
+
                     <div
                       v-if="chapter.isExpanded"
                       class="px-4 pb-4 border-t"
@@ -815,7 +822,7 @@
               <div
                 v-for="review in reviews"
                 :key="review.id"
-                class="p-4 border rounded-lg" 
+                class="p-4 border rounded-lg"
                 style="border-color: rgb(var(--figma-color-4))"
               >
                 <div class="flex items-center space-x-2 mb-2">
@@ -903,14 +910,14 @@
                 </button>
               </template>
             </div>
-            
+
             <div v-if="curriculum" class="mt-6 space-y-3">
               <div class="flex justify-between">
                 <span class="text-sm" style="color: rgb(var(--figma-color-5))"
                   >지식공유자</span
                 >
                 <div class="flex items-center space-x-2">
-                  <button 
+                  <button
                     v-if="curriculum.authorId"
                     @click.stop="goToCreatorProfile(curriculum.authorId)"
                     class="text-sm font-medium hover:text-blue-600 hover:underline transition-colors"
@@ -929,7 +936,7 @@
                     class="px-3 py-1 text-xs rounded-full transition-colors"
                     :class="
                       isSubscribed
-                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     "
                   >
@@ -1135,16 +1142,64 @@ const learningObjectivesList = computed(() => {
     return [];
   }
   return curriculum.value.learningObjectives
-    .split('\n')
+    .split("\n")
     .map((obj: string) => obj.trim())
     .filter((obj: string) => obj.length > 0);
+});
+
+// description 파싱 - [!url] 패턴 추출
+const parsedDescription = computed(() => {
+  if (!curriculum.value?.description) {
+    return [];
+  }
+
+  const description = curriculum.value.description;
+  const parts: Array<{ type: "text" | "image"; content: string }> = [];
+
+  // [!url] 패턴 찾기 (정규식: \[!([^\]]+)\])
+  const imagePattern = /\[!([^\]]+)\]/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = imagePattern.exec(description)) !== null) {
+    // 이미지 패턴 이전의 텍스트 추가
+    if (match.index > lastIndex) {
+      const textContent = description.substring(lastIndex, match.index).trim();
+      if (textContent) {
+        parts.push({ type: "text", content: textContent });
+      }
+    }
+
+    // 이미지 URL 추가
+    const imageUrl = match[1].trim();
+    if (imageUrl) {
+      parts.push({ type: "image", content: imageUrl });
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 마지막 이미지 패턴 이후의 텍스트 추가
+  if (lastIndex < description.length) {
+    const textContent = description.substring(lastIndex).trim();
+    if (textContent) {
+      parts.push({ type: "text", content: textContent });
+    }
+  }
+
+  // 만약 이미지 패턴이 하나도 없으면 전체를 텍스트로 반환
+  if (parts.length === 0) {
+    parts.push({ type: "text", content: description });
+  }
+
+  return parts;
 });
 
 // 강의를 챕터별로 그룹화 (5개씩)
 const groupedLectures = computed(() => {
   const groups = [];
   const lecturesPerChapter = 5;
-  
+
   for (let i = 0; i < lectures.value.length; i += lecturesPerChapter) {
     const chapterLectures = lectures.value.slice(i, i + lecturesPerChapter);
     groups.push({
@@ -1155,7 +1210,7 @@ const groupedLectures = computed(() => {
       ),
     });
   }
-  
+
   return groups;
 });
 
@@ -1400,7 +1455,7 @@ function toggleSubscribe() {
     const subscriptions = JSON.parse(
       localStorage.getItem("subscriptions") || "[]"
     );
-    
+
     if (isSubscribed.value) {
       if (
         confirm(`"${curriculum.value.instructor}"의 구독을 해지하시겠습니까?`)
@@ -1422,7 +1477,7 @@ function toggleSubscribe() {
         description: `${curriculum.value.instructor}의 강의를 구독합니다.`,
         subscribedAt: new Date().toISOString(),
       };
-      
+
       subscriptions.push(newSubscription);
       localStorage.setItem("subscriptions", JSON.stringify(subscriptions));
       isSubscribed.value = true;
@@ -1445,6 +1500,14 @@ function handleThumbnailError(event: Event) {
   if (curriculum.value) {
     curriculum.value.thumbnailImageUrl = null;
   }
+}
+
+// description 내 이미지 로드 에러 핸들링
+function handleDescriptionImageError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  console.warn("설명 이미지 로드 실패:", img.src);
+  // 이미지 로드 실패 시 이미지 숨김
+  img.style.display = "none";
 }
 
 // 리뷰 날짜 포맷팅
