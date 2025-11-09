@@ -29,18 +29,37 @@
 
         <!-- 검색 및 생성 버튼 -->
         <div class="flex items-center space-x-4">
-          <div class="relative">
+          <form @submit.prevent="executeSearch" class="relative">
             <input
               v-model="searchKeyword"
               type="text"
-              placeholder="Search"
-              @input="handleSearch"
-              class="w-64 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="검색..."
+              @keyup.enter="executeSearch"
+              class="w-64 px-4 py-2 pl-10 pr-20 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
             <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
-          </div>
+            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+              <button
+                v-if="searchKeyword"
+                @click="clearSearch"
+                class="text-gray-400 hover:text-gray-600"
+                type="button"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+              <button
+                @click="executeSearch"
+                type="submit"
+                class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+              >
+                검색
+              </button>
+            </div>
+          </form>
           <button
             @click="goToWrite"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -285,33 +304,40 @@ function setActiveTab(tabId: string) {
   fetchQuestions()
 }
 
-// 검색 처리 (디바운스 적용)
-let searchTimeout: number | null = null
-function handleSearch() {
-  // 헤더 서치바 검색어와 동기화
-  if (searchKeyword.value) {
-    ui.setSearchQuery(searchKeyword.value);
+// 검색 실행 함수
+function executeSearch() {
+  const searchQuery = searchKeyword.value.trim();
+  
+  // 검색어가 비어있으면 검색 초기화
+  if (!searchQuery) {
+    clearSearch();
+    return;
   }
   
-  if (searchTimeout) {
-    clearTimeout(searchTimeout)
-  }
-
-  searchTimeout = window.setTimeout(() => {
-    currentPage.value = 0 // 페이지 초기화
-    fetchQuestions()
-  }, 300) // 300ms 디바운스
+  // 검색 실행
+  ui.setSearchQuery(searchQuery);
+  // 검색 시 첫 페이지로 리셋하고 데이터 다시 로드
+  currentPage.value = 0;
+  fetchQuestions();
 }
 
-// 헤더 서치바 검색어 변경 감지
+// 검색어 초기화
+function clearSearch() {
+  searchKeyword.value = '';
+  ui.setSearchQuery('');
+  // 검색 초기화 시 첫 페이지로 리셋하고 데이터 다시 로드
+  currentPage.value = 0;
+  fetchQuestions();
+}
+
+// 헤더 서치바 검색어와 동기화 (외부에서 검색어가 변경된 경우)
 watch(() => ui.searchQuery, (newQuery) => {
-  // 헤더에서 검색하면 로컬 검색어와 동기화하고 검색 수행
   if (newQuery !== searchKeyword.value) {
     searchKeyword.value = newQuery || '';
+    // 검색어 변경 시 첫 페이지로 리셋
     currentPage.value = 0;
-    fetchQuestions();
   }
-});
+}, { immediate: true });
 
 // 페이지 변경 함수
 function changePage(page: number) {
@@ -357,6 +383,9 @@ function formatDate(dateString: string): string {
 
 // 컴포넌트 마운트 시 질문 목록 조회
 onMounted(() => {
+  // 페이지 이동 시 검색어 초기화
+  searchKeyword.value = '';
+  ui.setSearchQuery('');
   fetchQuestions()
 })
 </script>

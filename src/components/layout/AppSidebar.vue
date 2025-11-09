@@ -94,7 +94,7 @@ const items = computed(() => {
   const baseItems = [
     { key: 'home', label: '홈', to: '/', icon: IconHome },
     { key: 'courses', label: '수강 목록', to: '/courses', icon: IconBookmark },
-    { key: 'dashboard', label: '내 대시보드', to: '/dashboard', icon: IconApps },
+    { key: 'dashboard', label: '내 작업물', to: '/dashboard', icon: IconApps },
     { key: 'qna', label: '질문&답변', to: '/qna', icon: IconChat },
     { key: 'subs', label: '구독', to: '/subscriptions', icon: IconMenu },
   ];

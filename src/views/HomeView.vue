@@ -1120,6 +1120,9 @@ function handleResize() {
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(async () => {
+  // 페이지 이동 시 검색어 초기화
+  ui.setSearchQuery("");
+  
   // 화면 크기 감지 리스너 추가
   if (typeof window !== "undefined") {
     window.addEventListener("resize", handleResize);
