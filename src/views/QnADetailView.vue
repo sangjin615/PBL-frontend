@@ -60,12 +60,55 @@
           >
             {{ question.status === 'RESOLVED' ? '해결' : '미해결' }}
           </span>
-          <ReportButton
-            report-type="problem"
-            :target-id="question.id"
-            :target-title="question.title"
-            @reported="handleReported"
-          />
+          
+          <!-- 메뉴 아이콘 -->
+          <div class="relative">
+            <button
+              @click.stop="showMenu = !showMenu"
+              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+              </svg>
+            </button>
+            
+            <!-- 드롭다운 메뉴 -->
+            <div
+              v-if="showMenu"
+              @click.stop
+              class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10"
+            >
+              <div class="py-1">
+                <!-- 삭제 옵션 (질문 작성자만) -->
+                <button
+                  v-if="isQuestionAuthor"
+                  @click="handleDeleteQuestion"
+                  :disabled="deleting"
+                  class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    <span>{{ deleting ? '삭제 중...' : '게시글 삭제' }}</span>
+                  </div>
+                </button>
+                
+                <!-- 신고 옵션 -->
+                <button
+                  @click="handleReportQuestion"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <span>신고</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -219,13 +262,24 @@
         </button>
       </div>
     </div>
+
+    <!-- 신고 모달 -->
+    <ReportModal
+      v-if="question"
+      :is-open="showReportModal"
+      report-type="post"
+      :target-id="question.id"
+      :target-title="question.title"
+      @close="showReportModal = false"
+      @success="handleReported"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import ReportButton from '@/components/common/ReportButton.vue'
+import ReportModal from '@/components/modal/ReportModal.vue'
 import qnaApiService from '@/services/qnaApi'
 import type { QuestionDetailResponse, QuestionCategory } from '@/types/qna'
 import { useAuth } from '@/composables/useAuth'
@@ -247,6 +301,11 @@ const submitting = ref(false)
 const liking = ref(false)
 const accepting = ref(false)
 const resolving = ref(false)
+
+// 메뉴 및 삭제/신고 상태
+const showMenu = ref(false)
+const deleting = ref(false)
+const showReportModal = ref(false)
 
 // 질문 ID 가져오기
 const questionId = computed(() => Number(route.params.id))
@@ -452,9 +511,49 @@ async function toggleQuestionResolve() {
   }
 }
 
+// 게시글 삭제
+async function handleDeleteQuestion() {
+  if (!question.value) return;
+  
+  const confirmed = window.confirm('정말 이 게시글을 삭제하시겠습니까? 삭제된 게시글은 복구할 수 없습니다.');
+  if (!confirmed) {
+    showMenu.value = false;
+    return;
+  }
+
+  deleting.value = true;
+  try {
+    await qnaApiService.deleteQuestion(questionId.value);
+    window.alert('게시글이 삭제되었습니다.');
+    // 목록으로 이동
+    router.push({ name: 'qna' });
+  } catch (err: any) {
+    console.error('게시글 삭제 실패:', err);
+    window.alert(err.message || '게시글 삭제에 실패했습니다.');
+  } finally {
+    deleting.value = false;
+    showMenu.value = false;
+  }
+}
+
+// 신고 모달 열기
+function handleReportQuestion() {
+  showMenu.value = false;
+  showReportModal.value = true;
+}
+
 // 신고 완료 핸들러
 function handleReported() {
-  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.')
+  showReportModal.value = false;
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+}
+
+// 메뉴 외부 클릭 감지
+function handleClickOutside(event: Event) {
+  const target = event.target as HTMLElement;
+  if (showMenu.value && !target.closest('.relative')) {
+    showMenu.value = false;
+  }
 }
 
 // 목록으로 돌아가기
@@ -507,6 +606,11 @@ function formatDate(dateValue: string | number[]): string {
 
 // 컴포넌트 마운트 시 질문 조회
 onMounted(() => {
-  fetchQuestion()
-})
+  document.addEventListener('click', handleClickOutside);
+  fetchQuestion();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
