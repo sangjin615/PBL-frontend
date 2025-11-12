@@ -85,20 +85,20 @@
             <p class="text-gray-700 leading-relaxed">{{ problem.outputDescription }}</p>
           </div>
 
-          <!-- 테스트 케이스 -->
+          <!-- 예시 -->
           <div class="mb-6">
-            <h3 class="text-lg font-semibold mb-3">테스트 케이스</h3>
+            <h3 class="text-lg font-semibold mb-3">예시</h3>
             <div class="space-y-4">
               <div v-for="(testCase, index) in problem.testCases" :key="index" class="bg-gray-50 rounded-lg p-4">
                 <div class="flex items-start justify-between mb-2">
-                  <h4 class="font-medium text-gray-700">테스트케이스 {{ index + 1 }}</h4>
+                  <h4 class="font-medium text-gray-700">예시 {{ index + 1 }}</h4>
                   <button
-                    :aria-label="`테스트케이스 ${index + 1} 실행`
+                    :aria-label="`예시 ${index + 1} 실행`
                     "
                     class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     @click="runTestCase(index)"
                     :disabled="isRunning"
-                    title="이 테스트케이스로 실행"
+                    title="이 예시로 실행"
                   >
                     <svg v-if="!isRunning" class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M6.5 5.5v9l8-4.5-8-4.5z"></path>

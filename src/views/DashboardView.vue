@@ -359,12 +359,9 @@
               </span>
             </div>
 
-            <!-- 액션 버튼: 자세히보기 / 수정하기 -->
+            <!-- 액션 버튼: 자세히보기 -->
             <div class="mt-4 flex items-center gap-2">
               <Button size="sm" @click.stop="viewItem(item)">자세히보기</Button>
-              <Button size="sm" variant="secondary" @click.stop="editItem(item)"
-                >수정하기</Button
-              >
             </div>
           </div>
         </div>

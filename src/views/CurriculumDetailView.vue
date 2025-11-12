@@ -88,6 +88,18 @@
               문의하기
             </button>
             <button
+              v-if="isCurriculumAuthor"
+              @click="editCurriculum"
+              class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+              style="
+                border-color: rgb(var(--figma-color-4));
+                color: rgb(var(--figma-color-2));
+              "
+              type="button"
+            >
+              커리큘럼 수정하기
+            </button>
+            <button
               @click="goToReview"
               class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               style="
@@ -219,28 +231,53 @@
                   class="text-lg font-semibold mb-4"
                   style="color: rgb(var(--figma-color-2))"
                 >
-                  이어서 학습하기
+                  학습하기
                 </h3>
 
                 <div v-if="lectures.length > 0" class="space-y-4">
                   <div
                     v-for="(lecture, index) in lectures"
                     :key="lecture.id"
-                    class="flex items-center justify-between p-4 rounded-lg border transition-colors cursor-pointer bg-white border-gray-200 hover:bg-gray-50"
+                    class="flex items-center justify-between p-4 rounded-lg border transition-colors cursor-pointer"
+                    :class="
+                      isLectureCompleted(lecture.lectureId)
+                        ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    "
                     style="border-color: rgb(var(--figma-color-4))"
                     @click="goToLecture(lecture.lectureId)"
                   >
                     <div class="flex items-center space-x-4">
                       <div
                         class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium text-white"
-                        style="background-color: rgb(var(--figma-color-6))"
+                        :style="{
+                          backgroundColor: isLectureCompleted(lecture.lectureId)
+                            ? '#10b981'
+                            : 'rgb(var(--figma-color-6))',
+                        }"
                       >
-                        {{ index + 1 }}
+                        <svg
+                          v-if="isLectureCompleted(lecture.lectureId)"
+                          class="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <span v-else>{{ index + 1 }}</span>
                       </div>
                       <div>
                         <h4
                           class="font-medium"
-                          style="color: rgb(var(--figma-color-2))"
+                          :style="{
+                            color: isLectureCompleted(lecture.lectureId)
+                              ? '#059669'
+                              : 'rgb(var(--figma-color-2))',
+                          }"
                         >
                           {{ lecture.lectureTitle }}
                         </h4>
@@ -250,17 +287,41 @@
                         >
                           형태: {{ lecture.lectureType }} •
                           {{ formatDate(lecture.createdAt) }}
+                          <span
+                            v-if="isLectureCompleted(lecture.lectureId)"
+                            class="ml-2 text-green-600 font-medium"
+                          >
+                            ✓ 완료
+                          </span>
                         </p>
                       </div>
                     </div>
 
-                    <button
-                      class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
-                      style="background-color: rgb(var(--figma-color-6))"
-                      @click.stop="goToLecture(lecture.lectureId)"
-                    >
-                      학습하기
-                    </button>
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+                        :style="{
+                          backgroundColor: isLectureCompleted(lecture.lectureId)
+                            ? '#10b981'
+                            : 'rgb(var(--figma-color-6))',
+                        }"
+                        @click.stop="goToLecture(lecture.lectureId)"
+                      >
+                        상세보기
+                      </button>
+                      <button
+                        v-if="isLectureAuthor(lecture.lectureId)"
+                        @click.stop="editLecture(lecture.lectureId, lecture.lectureType)"
+                        class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                        style="
+                          border-color: rgb(var(--figma-color-4));
+                          color: rgb(var(--figma-color-2));
+                        "
+                        type="button"
+                      >
+                        강의물 수정하기
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div v-else class="text-center py-8">
@@ -1098,6 +1159,9 @@ import type {
 import type { ReviewResponse, ReplyResponse } from "@/types/review";
 import { getCurrentUserId } from "@/config/api";
 import { S3ApiService } from "@/services/s3Api";
+import { lectureApiService } from "@/services/lectureApi";
+import type { Lecture } from "@/types/lecture";
+import { LectureType } from "@/types/lecture";
 
 const route = useRoute();
 const router = useRouter();
@@ -1114,6 +1178,9 @@ const isEnrolled = ref(false);
 const enrollmentId = ref<number | null>(null);
 const isCanceling = ref(false);
 const progressPercentage = ref(0); // 진행률 (0-100)
+const completedLectureIds = ref<Set<number>>(new Set()); // 완료한 강의 ID 목록
+const lectureAuthorMap = ref<Map<number, number>>(new Map()); // 강의 ID -> 작성자 ID 매핑
+const isLectureAuthorMap = ref<Map<number, boolean>>(new Map()); // 강의 ID -> 작성자 여부 매핑
 
 // 탭 상태
 const activeTab = ref("lectures");
@@ -1219,10 +1286,27 @@ async function checkEnrollmentStatus() {
         "진행률:",
         progressPercentage.value + "%"
       );
+
+      // 완료한 강의 목록 가져오기
+      try {
+        const enrollmentDetail = await enrollmentApiService.getEnrollmentDetail(enrollment.id);
+        const completedIds = new Set<number>();
+        enrollmentDetail.lectures.forEach((lecture) => {
+          if (lecture.status === "COMPLETED") {
+            completedIds.add(lecture.lectureId);
+          }
+        });
+        completedLectureIds.value = completedIds;
+        console.log("[수강 상태 확인] 완료한 강의:", Array.from(completedIds));
+      } catch (err) {
+        console.warn("[수강 상태 확인] 완료한 강의 목록 조회 실패:", err);
+        completedLectureIds.value = new Set();
+      }
     } else {
       isEnrolled.value = false;
       enrollmentId.value = null;
       progressPercentage.value = 0;
+      completedLectureIds.value = new Set();
       console.log("[수강 상태 확인] ❌ 미수강");
     }
   } catch (err) {
@@ -1230,7 +1314,13 @@ async function checkEnrollmentStatus() {
     isEnrolled.value = false;
     enrollmentId.value = null;
     progressPercentage.value = 0;
+    completedLectureIds.value = new Set();
   }
+}
+
+// 강의 완료 여부 확인
+function isLectureCompleted(lectureId: number): boolean {
+  return completedLectureIds.value.has(lectureId);
 }
 
 // 커리큘럼 상세 정보 로드
@@ -1256,6 +1346,9 @@ async function loadCurriculumDetail() {
     lectures.value = (data.lectures || []).sort(
       (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
     );
+    
+    // 강의물 작성자 정보 미리 로드 (비동기로 처리)
+    loadLectureAuthors();
 
     // 수강자 수 조회
     try {
@@ -1272,6 +1365,28 @@ async function loadCurriculumDetail() {
   } finally {
     loading.value = false;
   }
+}
+
+// 강의물 작성자 정보 로드 (비동기)
+async function loadLectureAuthors() {
+  const userId = getCurrentUserId();
+  if (!userId) return;
+  
+  // 각 강의물의 작성자 정보를 병렬로 가져오기
+  const promises = lectures.value.map(async (lecture) => {
+    try {
+      const lectureData = await lectureApiService.getLecture(lecture.lectureId);
+      if (lectureData.author?.id) {
+        lectureAuthorMap.value.set(lecture.lectureId, lectureData.author.id);
+        isLectureAuthorMap.value.set(lecture.lectureId, lectureData.author.id === userId);
+      }
+    } catch (error) {
+      console.error(`강의물 ${lecture.lectureId} 정보 조회 실패:`, error);
+      isLectureAuthorMap.value.set(lecture.lectureId, false);
+    }
+  });
+  
+  await Promise.all(promises);
 }
 
 // 날짜 포맷팅
@@ -1330,6 +1445,44 @@ function goToReview() {
     name: "curriculum-review",
     params: { id: curriculumId },
   });
+}
+
+// 커리큘럼 작성자인지 확인
+const isCurriculumAuthor = computed(() => {
+  const userId = getCurrentUserId();
+  if (!userId || !curriculum.value?.authorId) {
+    return false;
+  }
+  return curriculum.value.authorId === userId;
+});
+
+// 강의물 작성자인지 확인 (computed로 사용)
+function isLectureAuthor(lectureId: number): boolean {
+  return isLectureAuthorMap.value.get(lectureId) || false;
+}
+
+// 커리큘럼 수정하기
+function editCurriculum() {
+  if (!curriculum.value) return;
+  router.push({
+    name: "instructor-create-curriculum",
+    query: { edit: curriculum.value.id, mode: "edit" },
+  });
+}
+
+// 강의물 수정하기
+function editLecture(lectureId: number, lectureType: string) {
+  if (lectureType === "PROBLEM") {
+    router.push({
+      name: "instructor-create-problem",
+      query: { edit: lectureId, mode: "edit" },
+    });
+  } else {
+    router.push({
+      name: "instructor-create-markdown",
+      query: { edit: lectureId, mode: "edit" },
+    });
+  }
 }
 
 // 커리큘럼 공유하기

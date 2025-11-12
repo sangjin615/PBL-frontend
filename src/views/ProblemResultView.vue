@@ -113,7 +113,7 @@
             </div>
             <div class="flex justify-between text-sm text-gray-500 mt-2">
               <span>{{ progressPercentage }}% 완료</span>
-              <span>{{ doneTestCase }}/{{ totalTestCase }} 테스트케이스</span>
+              <span>{{ doneTestCase }}/{{ totalTestCase }} 예시</span>
             </div>
           </div>
         </div>
@@ -143,9 +143,9 @@
           </div>
         </div>
 
-        <!-- 테스트 결과 상세 -->
+        <!-- 예시 결과 상세 -->
         <div v-if="!isGrading && testResults.length > 0" class="bg-white rounded-lg border p-6 mb-8">
-          <h3 class="text-lg font-semibold mb-4">테스트 결과</h3>
+          <h3 class="text-lg font-semibold mb-4">예시 결과</h3>
           <div class="space-y-3">
             <div 
               v-for="(result, index) in testResults" 
@@ -271,6 +271,7 @@ import 'md-editor-v3-ko/lib/style.css'
 import AiLectureRecommendation from '@/components/course/AiLectureRecommendation.vue'
 import { enrollmentApiService } from '@/services/enrollmentApi'
 import { getCurrentUserId } from '@/config/api'
+import { lectureApiService } from '@/services/lectureApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -608,7 +609,7 @@ const setupSSEHandlers = (): void => {
         closeSSEConnection();
         isGrading.value = false;
       } else {
-        updateProgressDisplay(data);
+        updateProgressDisplay(data).catch(err => console.error('진행상황 업데이트 오류:', err));
       }
     } catch (error) {
       console.error('SSE 데이터 파싱 오류:', error);
@@ -652,11 +653,27 @@ const closeSSEConnection = (): void => {
 };
 
 // 진행상황 표시 업데이트
-const updateProgressDisplay = (data: any): void => {
+const updateProgressDisplay = async (data: any): Promise<void> => {
   const progress = data.progress || {};
+  // total_test_case가 없거나 0이면 문제 정보에서 가져오기
+  if (!progress.total_test_case || progress.total_test_case === 0) {
+    try {
+      const problemId = parseInt(route.params.problemId as string);
+      if (problemId && totalTestCase.value === 0) {
+        const lecture = await lectureApiService.getLectureById(problemId);
+        if (lecture?.testCaseCount) {
+          totalTestCase.value = lecture.testCaseCount;
+          console.log('진행 중: 문제 정보에서 테스트케이스 개수 가져옴:', lecture.testCaseCount);
+        }
+      }
+    } catch (error) {
+      console.error('진행 중: 문제 정보 조회 실패:', error);
+    }
+  } else {
+    totalTestCase.value = progress.total_test_case;
+  }
   // 데이터 업데이트
-  totalTestCase.value = progress.total_test_case || 0;
-  doneTestCase.value = progress.current_test_case || 0;
+  doneTestCase.value = progress.done_test_case || 0; // current_test_case 대신 done_test_case 사용
   progressPercentage.value = progress.progress_percentage || 0;
 
   console.log('Progress 값 업데이트:', {
@@ -668,9 +685,9 @@ const updateProgressDisplay = (data: any): void => {
   // 상태 메시지 설정
   const statusMessages: Record<string, string> = {
     'INITIALIZING': '채점을 준비하고 있습니다...',
-    'STARTING': `채점을 시작합니다... (총 ${totalTestCase.value}개 테스트케이스)`,
-    'RUNNING': `테스트케이스 ${progress.current_test_case || 0}/${totalTestCase.value} 처리 중...`,
-    'COMPLETED': `채점 완료! 총 ${totalTestCase.value}개 테스트케이스 중 ${doneTestCase.value}개 통과`,
+    'STARTING': `채점을 시작합니다... (총 ${totalTestCase.value}개 예시)`,
+    'RUNNING': `예시 ${progress.current_test_case || 0}/${totalTestCase.value} 처리 중...`,
+    'COMPLETED': `채점 완료! 총 ${totalTestCase.value}개 예시 중 ${doneTestCase.value}개 통과`,
     'ERROR': '채점 중 오류가 발생했습니다.'
   };
   
@@ -732,13 +749,30 @@ const displayFinalResult = async (result: any): Promise<void> => {
   
   console.log('최종 결과 표시:', result);
   
+  // total_test_case가 없거나 0이면 문제 정보에서 가져오기
+  if (!result.progress?.total_test_case || result.progress.total_test_case === 0) {
+    try {
+      const problemId = parseInt(route.params.problemId as string);
+      if (problemId) {
+        const lecture = await lectureApiService.getLectureById(problemId);
+        if (lecture?.testCaseCount) {
+          totalTestCase.value = lecture.testCaseCount;
+          console.log('문제 정보에서 테스트케이스 개수 가져옴:', lecture.testCaseCount);
+        }
+      }
+    } catch (error) {
+      console.error('문제 정보 조회 실패:', error);
+    }
+  } else {
+    totalTestCase.value = result.progress.total_test_case;
+  }
+  
   // 백엔드 DTO 구조에 맞게 결과 처리 (err_inputOutput 필드 사용)
   if (result.status?.id === 3) {
     // Accepted - 성공
-    currentStatus.value = '채점 완료! 모든 테스트케이스 통과';
+    currentStatus.value = '채점 완료! 모든 예시 통과';
     testResults.value = []; // 성공 시에는 상세 결과 표시하지 않음
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 1;
+    doneTestCase.value = result.progress?.done_test_case || totalTestCase.value || 0; // done_test_case 사용, 없으면 totalTestCase 사용
     
     // 정답을 맞췄을 때 진행률 업데이트
     const lectureId = parseInt(route.params.problemId as string);
@@ -773,8 +807,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       }];
     }
     
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else if (result.status?.id === 7) {
     // Compilation Error - 컴파일 오류
     currentStatus.value = '컴파일 오류가 발생했습니다.';
@@ -794,8 +828,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       }];
     }
     
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else if (result.status?.id === 5) {
     // Time Limit Exceeded - 시간 초과
     currentStatus.value = '시간 초과가 발생했습니다.';
@@ -804,8 +838,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       output: '코드 실행 시간이 제한을 초과했습니다.',
       isSuccess: false
     }];
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else if (result.status?.id === 6) {
     // Memory Limit Exceeded - 메모리 초과
     currentStatus.value = '메모리 초과가 발생했습니다.';
@@ -814,8 +848,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       output: '코드가 사용하는 메모리가 제한을 초과했습니다.',
       isSuccess: false
     }];
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else if (result.status?.id >= 8 && result.status?.id <= 13) {
     // Runtime Error (SIGSEGV, SIGXFSZ, SIGFPE, SIGABRT, NZEC, OTHello
     // R)
@@ -835,8 +869,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       output: inputOutput?.stderr || result.message || '실행 중 오류가 발생했습니다.',
       isSuccess: false
     }];
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else if (result.status?.id >= 14) {
     // Internal Error, Exec Format Error
     const systemErrorMessages: Record<number, string> = {
@@ -850,8 +884,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       output: result.message || '시스템 내부 오류가 발생했습니다.',
       isSuccess: false
     }];
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   } else {
     // 기타 상태 (QUEUE, PROCESS 등)
     currentStatus.value = `채점 상태: ${result.status?.description || '알 수 없음'}`;
@@ -860,8 +894,8 @@ const displayFinalResult = async (result: any): Promise<void> => {
       output: result.message || '알 수 없는 상태입니다.',
       isSuccess: false
     }];
-    totalTestCase.value = result.progress?.total_test_case || 1;
-    doneTestCase.value = result.progress?.current_test_case || 0;
+    // total_test_case는 이미 위에서 설정됨
+    doneTestCase.value = result.progress?.done_test_case || 0; // done_test_case 사용
   }
 };
 
