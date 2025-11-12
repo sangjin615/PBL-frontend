@@ -10,8 +10,7 @@
             </svg>
           </button>
           <div>
-            <h1 class="text-lg font-semibold">개발 - 프로그래밍 / 모바일 앱 개발</h1>
-            <p class="text-sm text-gray-600">[코드팩토리] [초급] Flutter 3.0 앱 개발 - 10개의 프로젝트로 오늘 초보 탈출!</p>
+            <h1 class="text-lg font-semibold">{{ lectureTitle || '강의 정보 로딩 중...' }}</h1>
           </div>
         </div>
         <div class="flex items-center space-x-4">
@@ -321,6 +320,10 @@ const isLoadingSubmissions = ref(false)
 
 // 다음 강의 정보
 const nextLesson = ref<{id: number, title: string, format: string} | null>(null)
+
+// 강의 정보
+const lectureTitle = ref<string>('')
+const lectureDescription = ref<string>('')
 
 // 성공률 계산
 const successRate = computed(() => {
@@ -660,7 +663,7 @@ const updateProgressDisplay = async (data: any): Promise<void> => {
     try {
       const problemId = parseInt(route.params.problemId as string);
       if (problemId && totalTestCase.value === 0) {
-        const lecture = await lectureApiService.getLectureById(problemId);
+        const lecture = await lectureApiService.getLecture(problemId);
         if (lecture?.testCaseCount) {
           totalTestCase.value = lecture.testCaseCount;
           console.log('진행 중: 문제 정보에서 테스트케이스 개수 가져옴:', lecture.testCaseCount);
@@ -754,7 +757,7 @@ const displayFinalResult = async (result: any): Promise<void> => {
     try {
       const problemId = parseInt(route.params.problemId as string);
       if (problemId) {
-        const lecture = await lectureApiService.getLectureById(problemId);
+        const lecture = await lectureApiService.getLecture(problemId);
         if (lecture?.testCaseCount) {
           totalTestCase.value = lecture.testCaseCount;
           console.log('문제 정보에서 테스트케이스 개수 가져옴:', lecture.testCaseCount);
@@ -899,6 +902,27 @@ const displayFinalResult = async (result: any): Promise<void> => {
   }
 };
 
+// 강의 정보 로드
+const loadLectureInfo = async (): Promise<void> => {
+  try {
+    const problemId = parseInt(route.params.problemId as string);
+    if (!problemId) {
+      console.error('강의 ID를 찾을 수 없습니다.');
+      return;
+    }
+
+    const lecture = await lectureApiService.getLecture(problemId);
+    lectureTitle.value = lecture.title || '';
+    lectureDescription.value = lecture.description || '';
+    
+    console.log('강의 정보 로드 완료:', lecture.title);
+  } catch (error) {
+    console.error('강의 정보 로드 실패:', error);
+    lectureTitle.value = '강의 정보를 불러올 수 없습니다.';
+    lectureDescription.value = '';
+  }
+};
+
 // 컴포넌트 마운트 - 데이터 준비 후 에디터 렌더링
 onMounted(async () => {
   const tokenParam = route.query.token as string;
@@ -911,6 +935,9 @@ onMounted(async () => {
   if (curriculumIdParam) {
     curriculumId.value = curriculumIdParam;
   }
+
+  // 강의 정보 로드
+  await loadLectureInfo();
 
   // 네비게이션 정보 가져오기 (커리큘럼 ID가 있을 때만)
   if (curriculumIdParam) {
