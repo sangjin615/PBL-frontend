@@ -6,7 +6,7 @@
 const PROTOCOL = "http://";
 //export const URL_PREFIX = '158.180.73.5';
 //export const URL_PREFIX = '114.201.56.70';
-export const URL_PREFIX = "localhost";
+export const URL_PREFIX = "114.201.56.70";
 export const URL_PORT = 2358;
 export const MINIO_PORT = 9000;
 

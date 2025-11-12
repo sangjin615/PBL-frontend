@@ -115,4 +115,6 @@ export interface DashboardItem {
   testCaseCount?: number;
   courseCount?: number; // 커리큘럼용 강의 개수
   status?: string; // 발행 상태
+  rating?: number; // 평균 평점
+  studentCount?: number; // 수강자 수
 }

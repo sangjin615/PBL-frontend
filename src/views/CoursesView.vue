@@ -210,6 +210,18 @@
               {{ course.instructor }}
             </p>
 
+            <!-- 추천수 표시 -->
+            <div class="flex items-center gap-1 mb-3 text-xs" style="color: rgb(var(--figma-color-5))">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-yellow-500">
+                <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.401 8.168L12 18.896l-7.335 3.869 1.401-8.168L.132 9.21l8.2-1.192z"/>
+              </svg>
+              <span v-if="course.rating >= 0">{{ course.rating.toFixed(1) }}</span>
+              <span v-else class="text-gray-400">-</span>
+              <span v-if="course.studentCount !== undefined && course.studentCount >= 0" class="text-gray-500">
+                ({{ course.studentCount }})
+              </span>
+            </div>
+
             <!-- 진행률 바 -->
             <div class="mb-3">
               <div class="flex items-center justify-between text-xs mb-1">
@@ -634,7 +646,8 @@ const loadEnrollments = async () => {
             type: "curriculum",
             progress: enrollment.progressPercentage || 0,
             status: enrollment.status,
-            rating: -99, // API 연결없음
+            rating: curriculumDetail.averageRating ?? 0,
+            studentCount: curriculumDetail.studentCount ?? 0,
             enrolledAt: formatEnrolledDate(enrollment.enrolledAt),
             thumbnailImageUrl: curriculumDetail.thumbnailImageUrl || null,
           };
@@ -653,7 +666,8 @@ const loadEnrollments = async () => {
             type: "curriculum",
             progress: enrollment.progressPercentage || 0,
             status: enrollment.status,
-            rating: -99,
+            rating: 0,
+            studentCount: 0,
             enrolledAt: formatEnrolledDate(enrollment.enrolledAt),
             thumbnailImageUrl: null,
           };

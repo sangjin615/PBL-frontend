@@ -348,6 +348,17 @@
               {{ item.privacy }}
             </div>
 
+            <!-- 추천수 표시 -->
+            <div v-if="item.rating !== undefined && item.rating >= 0" class="flex items-center gap-1 text-sm mt-2 text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-yellow-500">
+                <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.401 8.168L12 18.896l-7.335 3.869 1.401-8.168L.132 9.21l8.2-1.192z"/>
+              </svg>
+              <span>{{ item.rating.toFixed(1) }}</span>
+              <span v-if="item.studentCount !== undefined && item.studentCount >= 0" class="text-gray-500">
+                ({{ item.studentCount }})
+              </span>
+            </div>
+
             <!-- 액션 버튼: 자세히보기 / 수정하기 -->
             <div class="mt-4 flex items-center gap-2">
               <Button size="sm" @click.stop="viewItem(item)">자세히보기</Button>
@@ -653,6 +664,8 @@ const filteredItems = computed(() => {
     difficulty: lecture.difficulty,
     testCaseCount: lecture.testCaseCount,
     status: lecture.isPublic ? "발행됨" : "초안",
+    rating: lecture.averageRating ?? 0,
+    studentCount: lecture.studentCount ?? 0,
   }));
 
   // API에서 가져온 커리큘럼들을 DashboardItem 형태로 변환
@@ -673,6 +686,8 @@ const filteredItems = computed(() => {
         : ["커리큘럼"],
     courseCount: curriculum.totalLectureCount,
     status: curriculum.isPublic ? "발행됨" : "초안",
+    rating: curriculum.averageRating ?? 0,
+    studentCount: curriculum.studentCount ?? 0,
   }));
   const localCourses = publishedCourses.value; // localStorage의 강의들
 

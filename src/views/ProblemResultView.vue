@@ -522,11 +522,11 @@ const loadSubmissionHistory = async (): Promise<void> => {
     
     const response = await gradingAPI.getGradingList(0, 20, currentProblemId);
     console.log('채점 제출 히스토리 응답:', response);
-    console.log('응답의 grading 필드:', response.grading);
-    console.log('응답의 grading 타입:', typeof response.grading);
-    console.log('응답의 grading 길이:', response.grading?.length);
+    console.log('응답의 grade 필드:', response.grade);
+    console.log('응답의 grade 타입:', typeof response.grade);
+    console.log('응답의 grade 길이:', response.grade?.length);
     
-    mySubmissions.value = response.grading || [];
+    mySubmissions.value = response.grade || [];
     console.log('mySubmissions.value 설정 후:', mySubmissions.value);
     console.log('mySubmissions.value.length:', mySubmissions.value.length);
     
