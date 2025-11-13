@@ -271,6 +271,7 @@ import AiLectureRecommendation from '@/components/course/AiLectureRecommendation
 import { enrollmentApiService } from '@/services/enrollmentApi'
 import { getCurrentUserId } from '@/config/api'
 import { lectureApiService } from '@/services/lectureApi'
+import {URL_PREFIX,URL_PORT} from '../config/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -582,7 +583,7 @@ const startProgressMonitoring = async (token: string): Promise<void> => {
     
     // SSE 연결 시작
     isConnected.value = true;
-    eventSource.value = new EventSource(`http://localhost:2358/grading/${token}/progress`);
+    eventSource.value = new EventSource(`http://${URL_PREFIX}:${URL_PORT}/grading/${token}/progress`);
     setupSSEHandlers();
     
   } catch (error) {
