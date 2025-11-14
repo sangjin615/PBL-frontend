@@ -111,7 +111,7 @@
               ></div>
             </div>
             <div class="flex justify-between text-sm text-gray-500 mt-2">
-              <span>{{ progressPercentage }}% 완료</span>
+              <span>{{ progressPercentage.toFixed(2) }}% 완료</span>
               <span>{{ doneTestCase }}/{{ totalTestCase }} 예시</span>
             </div>
           </div>
