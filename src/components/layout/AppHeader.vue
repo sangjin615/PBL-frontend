@@ -12,7 +12,20 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="relative">
+      <!-- 로그인되지 않은 경우 로그인 버튼 표시 -->
+      <button
+        v-if="!isAuthenticated"
+        @click="goToLogin"
+        class="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+        </svg>
+        <span>로그인</span>
+      </button>
+
+      <!-- 로그인된 경우 만들기 버튼 표시 -->
+      <div v-if="isAuthenticated" class="relative">
         <button
           class="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-white hover:opacity-90 transition-colors"
           @click="toggleCreateMenu"
@@ -22,12 +35,12 @@
         </button>
         
         <!-- 드롭다운 메뉴 -->
-        <div 
+        <div
           v-if="showCreateMenu"
           class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
         >
-          <button 
-            @click="createCourse"
+          <button
+            @click="showLectureTypeModal"
             class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
           >
             <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +48,7 @@
             </svg>
             강의 만들기
           </button>
-          <button 
+          <button
             @click="createCurriculum"
             class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
           >
@@ -44,21 +57,42 @@
             </svg>
             커리큘럼 만들기
           </button>
+          <button
+            @click="openAiAssistant"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+          >
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 8.25h9m-9 3.75h6M3 12a9 9 0 1116.03 5.196L21 21 15.196 19.03A9 9 0 013 12z"/>
+            </svg>
+            AI 활용하기
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- 강의 유형 선택 모달 -->
+    <CourseTypeModal
+      :isOpen="showTypeModal"
+      @close="closeTypeModal"
+      @select="handleLectureTypeSelect"
+    />
   </header>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useUiStore } from '../../stores/ui';
+import { useAuth } from '../../composables/useAuth';
 import AppSearchBar from '../common/AppSearchBar.vue';
+import CourseTypeModal from '../modal/CourseTypeModal.vue';
 
 const router = useRouter();
+const route = useRoute();
 const ui = useUiStore();
+const { isAuthenticated } = useAuth();
 const showCreateMenu = ref(false);
+const showTypeModal = ref(false);
 
 const search = computed({
   get: () => ui.searchQuery,
@@ -70,22 +104,60 @@ function toggleSidebar() {
 }
 
 function onSearchSubmit(q: string) {
-  console.log('search submit:', q);
+  // 검색어를 UI 스토어에 저장 (각 페이지에서 watch하여 처리)
+  ui.setSearchQuery(q);
+  
+  // 현재 라우트에 따라 적절한 페이지로 이동 (홈이 아닌 경우)
+  const routeName = route.name as string;
+  
+  if (!routeName || routeName === 'home') {
+    // 홈에서는 이미 watch로 처리됨
+    return;
+  }
+  
+  // 다른 페이지에서 검색하면 해당 페이지에서 처리되도록 함
+  // 각 페이지의 watch가 검색어 변경을 감지하여 처리
 }
 
 function toggleCreateMenu() {
   showCreateMenu.value = !showCreateMenu.value;
 }
 
-function createCourse() {
+function showLectureTypeModal() {
   showCreateMenu.value = false;
-  router.push({ name: 'instructor-create-course' });
+  showTypeModal.value = true;
+}
+
+function closeTypeModal() {
+  showTypeModal.value = false;
+}
+
+function handleLectureTypeSelect(type: 'markdown' | 'problem' | 'video') {
+  switch (type) {
+    case 'markdown':
+      router.push({ name: 'instructor-create-markdown' });
+      break;
+    case 'problem':
+      router.push({ name: 'instructor-create-problem' });
+      break;
+    case 'video':
+      router.push({ name: 'instructor-create-video' });
+      break;
+  }
 }
 
 function createCurriculum() {
   showCreateMenu.value = false;
-  // 커리큘럼 만들기 페이지는 아직 구현되지 않음
-  alert('커리큘럼 만들기 기능은 구현 예정입니다.');
+  router.push({ name: 'instructor-create-curriculum' });
+}
+
+function openAiAssistant() {
+  showCreateMenu.value = false;
+  router.push({ name: 'ai-assistant' });
+}
+
+function goToLogin() {
+  router.push({ name: 'login' });
 }
 
 // 드롭다운 메뉴 외부 클릭 시 닫기

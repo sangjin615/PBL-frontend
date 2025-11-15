@@ -1,0 +1,265 @@
+/**
+ * Grading API 서비스
+ * 백엔드 grading API와 통신하는 채점 관련 클라이언트
+ */
+
+import { apiConfig } from '../config/api';
+import { request } from './utils';
+
+export interface GradingRequest {
+  source_code: string;
+  language_id: number;
+  problem_id?: number;
+  constraints_id?: number;
+}
+
+
+export interface ProgressResponse {
+  total_test_case?: number;
+  done_test_case?: number;
+  current_test_case?: number;
+  progress_percentage?: number;
+  estimated_remaining_time?: number;
+}
+
+export interface GradingListResponse {
+  grade: GradingResponse[];
+  meta: {
+    current_page: number;
+    next_page: number | null;
+    prev_page: number | null;
+    total_pages: number;
+    total_count: number;
+    per_page: number;
+  };
+}
+
+export interface GradingResponse {
+  id?: number;
+  token?: string;
+  source_code?: string;
+  language_id?: number;
+  constraints?: {
+    number_of_runs?: number;
+    cpu_time_limit?: number;
+    cpu_extra_time?: number;
+    wall_time_limit?: number;
+    memory_limit?: number;
+    stack_limit?: number;
+    max_processes_and_or_threads?: number;
+    enable_per_process_and_thread_time_limit?: boolean;
+    enable_per_process_and_thread_memory_limit?: boolean;
+    max_file_size?: number;
+    redirect_stderr_to_stdout?: boolean;
+    enable_network?: boolean;
+  };
+  input_output?: {
+    stdin?: string;
+    expectedOutput?: string;
+    stdout?: string;
+    stderr?: string;
+    compileOutput?: string;
+    message?: string;
+  };
+  err_inputOutput?: {
+    stdin?: string;
+    expectedOutput?: string;
+    stdout?: string;
+    stderr?: string;
+    compileOutput?: string;
+    message?: string;
+  };
+  message?: string;
+  status?: {
+    id: number;
+    description: string;
+  };
+  created_at?: string;
+  finished_at?: string;
+  updated_at?: string;
+  time?: number;
+  wall_time?: number;
+  memory?: number;
+  exit_code?: number;
+  exit_signal?: number;
+  problem_id?: number;
+  progress?: ProgressResponse;
+}
+
+export class GradingAPI {
+  private baseUrl: string;
+  private timeout: number;
+
+  constructor() {
+    this.baseUrl = apiConfig.judge0.baseUrl; // Judge0 API 사용
+    this.timeout = apiConfig.judge0.timeout;
+    console.log('GradingAPI 초기화:', {
+      baseUrl: this.baseUrl,
+      timeout: this.timeout
+    });
+  }
+
+  /**
+   * 코드를 채점을 위해 제출합니다.
+   * @param gradingRequest 채점 요청 데이터
+   * @returns Promise<GradingResponse> 채점 결과 (토큰 포함)
+   */
+  async submitForGrading(gradingRequest: GradingRequest): Promise<GradingResponse> {
+    try {
+      console.log('=== GradingAPI.submitForGrading 시작 ===');
+      console.log('요청 URL:', `${this.baseUrl}/grading/${gradingRequest.problem_id}`);
+      console.log('요청 데이터:', {
+        source_code: gradingRequest.source_code,
+        language_id: gradingRequest.language_id
+      });
+
+      const result = await request<GradingResponse>(
+        `/grading/${gradingRequest.problem_id}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            source_code: gradingRequest.source_code,
+            language_id: gradingRequest.language_id
+          }),
+          timeout: this.timeout
+        },
+        this.baseUrl
+      );
+
+      console.log('응답 데이터:', result);
+
+      if (!result.token) {
+        throw new Error('채점 토큰을 받지 못했습니다.');
+      }
+
+      console.log('채점 제출 성공, 토큰:', result.token);
+      return result;
+    } catch (error: any) {
+      console.error('채점 제출 오류:', error);
+      throw new Error(`채점 제출 실패: ${error.message}`);
+    }
+  }
+
+  /**
+   * 채점 목록을 조회합니다.
+   * @param page 페이지 번호 (기본값: 1)
+   * @param perPage 페이지당 항목 수 (기본값: 20)
+   * @param problemId 문제 ID (선택사항)
+   * @param base64Encoded Base64 인코딩 여부 (기본값: false)
+   * @param fields 반환할 필드 목록 (선택사항)
+   * @returns Promise<GradingListResponse> 채점 목록과 페이지네이션 정보
+   */
+  async getGradingList(
+    page: number = 1,
+    perPage: number = 20,
+    problemId?: number,
+    base64Encoded: boolean = false,
+    fields?: string
+  ): Promise<GradingListResponse> {
+    try {
+      console.log('=== GradingAPI.getGradingList 시작 ===');
+
+      // 쿼리 파라미터 구성
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: perPage.toString(),
+        base64_encoded: base64Encoded.toString()
+      });
+
+      if (problemId) {
+        params.append('problem_id', problemId.toString());
+      }
+
+      if (fields) {
+        params.append('fields', fields);
+      }
+
+      const endpoint = `/grading?${params.toString()}`;
+      console.log('요청 URL:', `${this.baseUrl}${endpoint}`);
+
+      const result = await request<GradingListResponse>(
+        endpoint,
+        {
+          method: 'GET',
+          timeout: this.timeout
+        },
+        this.baseUrl
+      );
+
+      console.log('채점 목록 응답:', result);
+
+      return result;
+    } catch (error: any) {
+      console.error('채점 목록 조회 오류:', error);
+      throw new Error(`채점 목록 조회 실패: ${error.message}`);
+    }
+  }
+
+  /**
+   * 채점 결과를 조회합니다.
+   * @param token 채점 토큰
+   * @param progress 프로그레스 정보 포함 여부 (기본값: true)
+   * @returns Promise<GradingResponse> 채점 결과
+   */
+  async getGradingResult(token: string, progress: boolean = true): Promise<GradingResponse> {
+    try {
+      return await request<GradingResponse>(
+        `/grading/${token}?progress=${progress}`,
+        {
+          method: 'GET',
+          timeout: this.timeout
+        },
+        this.baseUrl
+      );
+    } catch (error: any) {
+      console.error('채점 결과 조회 오류:', error);
+      throw new Error(`채점 결과 조회 실패: ${error.message}`);
+    }
+  }
+
+
+  /**
+   * 채점이 완료될 때까지 폴링합니다.
+   * @param token 채점 토큰
+   * @param interval 폴링 간격 (밀리초, 기본값: 1000ms)
+   * @param maxAttempts 최대 시도 횟수 (기본값: 30)
+   * @returns Promise<GradingResponse> 완료된 채점 결과
+   */
+  async pollGradingResult(
+    token: string, 
+    interval: number = 1000, 
+    maxAttempts: number = 30
+  ): Promise<GradingResponse> {
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const result = await this.getGradingResult(token, false);
+        
+        // 채점이 완료되었는지 확인 (status가 3이면 완료)
+        if (result.status && result.status.id === 3) {
+          return result;
+        }
+        
+        // 아직 진행 중이면 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, interval));
+        attempts++;
+        
+      } catch (error) {
+        console.error(`채점 폴링 시도 ${attempts + 1} 실패:`, error);
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error('채점 폴링 시간 초과');
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, interval));
+      }
+    }
+    
+    throw new Error('채점 폴링 시간 초과');
+  }
+}
+
+// 싱글톤 인스턴스 생성
+export const gradingAPI = new GradingAPI();

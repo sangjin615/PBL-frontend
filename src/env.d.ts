@@ -5,3 +5,15 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>;
   export default component;
 }
+
+// 개발 환경 디버깅 헬퍼
+interface Window {
+  adminDebug?: {
+    makeAdmin: () => boolean;
+    makeUser: () => boolean;
+    getCurrentUser: () => any;
+  };
+  // Monaco Editor 전역 상태 추적
+  __monacoEditorActive?: boolean;
+  __monacoEditorCleanup?: () => Promise<void>;
+}

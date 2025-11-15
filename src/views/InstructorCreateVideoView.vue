@@ -25,8 +25,8 @@
         >
           돌아가기
         </button>
-        <button 
-          @click="$router.push({ name: 'instructor-create-course' })"
+        <button
+          @click="$router.push({ name: 'dashboard' })"
           class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
         >
           다른 강의 유형 선택

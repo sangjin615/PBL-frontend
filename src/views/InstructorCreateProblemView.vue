@@ -85,46 +85,40 @@
 
             <!-- 문제 설명 -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">문제 설명 *</label>
-              <textarea 
+              <label class="block text-sm font-medium text-gray-700 mb-2">문제 설명</label>
+              <textarea
                 v-model="problemData.description"
                 rows="4"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="문제에 대한 간단한 설명을 입력하세요"
+                placeholder="API 연결없음 (선택사항)"
               ></textarea>
             </div>
 
             <!-- 카테고리 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">카테고리 *</label>
-              <select 
+              <select
                 v-model="problemData.category"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="">카테고리를 선택하세요</option>
-                <option value="알고리즘">알고리즘</option>
-                <option value="자료구조">자료구조</option>
-                <option value="수학">수학</option>
-                <option value="구현">구현</option>
-                <option value="그래프">그래프</option>
-                <option value="동적계획법">동적계획법</option>
-                <option value="기타">기타</option>
+                <option v-for="category in LECTURE_CATEGORIES" :key="category" :value="category">
+                  {{ category }}
+                </option>
               </select>
             </div>
 
             <!-- 난이도 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">난이도 *</label>
-              <select 
+              <select
                 v-model="problemData.difficulty"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="">난이도를 선택하세요</option>
-                <option value="브론즈">브론즈</option>
-                <option value="실버">실버</option>
-                <option value="골드">골드</option>
-                <option value="플래티넘">플래티넘</option>
-                <option value="다이아몬드">다이아몬드</option>
+                <option v-for="level in PROBLEM_DIFFICULTY_LEVELS" :key="level" :value="level">
+                  {{ level }}
+                </option>
               </select>
             </div>
 
@@ -143,13 +137,134 @@
             <!-- 메모리 제한 -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">메모리 제한 (MB) *</label>
-              <input 
+              <input
                 v-model.number="problemData.memoryLimit"
-                type="number" 
+                type="number"
                 min="1"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="256"
               />
+            </div>
+
+            <!-- 썸네일 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">썸네일 이미지</label>
+
+              <!-- 썸네일 미리보기 -->
+              <div v-if="thumbnailPreview" class="mb-3 relative inline-block">
+                <img :src="thumbnailPreview" alt="썸네일 미리보기" class="w-48 h-32 object-cover rounded-lg border border-gray-300" />
+                <button
+                  @click="removeThumbnail"
+                  type="button"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 업로드 영역 -->
+              <div
+                v-show="!thumbnailPreview"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleThumbnailDrop"
+                @click="thumbnailInput?.click()"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  isDragging ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400',
+                  isUploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+              >
+                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">
+                  {{ isUploadingThumbnail ? '업로드 중...' : '이미지를 드래그하거나 클릭하여 업로드' }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (최대 5MB)</p>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleThumbnailSelect"
+                  :disabled="isUploadingThumbnail"
+                />
+              </div>
+            </div>
+
+            <!-- 예상 소요시간 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">예상 소요시간 (분)</label>
+              <input
+                v-model.number="problemData.durationMinutes"
+                type="number"
+                min="1"
+                step="1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="예: 15"
+              />
+              <p class="mt-1 text-sm text-gray-500">문제를 푸는데 걸리는 예상 시간 (분 단위)</p>
+            </div>
+
+            <!-- 공개 설정 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
+              <div class="flex items-center">
+                <button
+                  @click="problemData.isPublic = !problemData.isPublic"
+                  type="button"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
+                    problemData.isPublic ? 'bg-green-600' : 'bg-gray-200'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                      problemData.isPublic ? 'translate-x-6' : 'translate-x-1'
+                    ]"
+                  />
+                </button>
+                <span class="ml-3 text-sm text-gray-600">
+                  {{ problemData.isPublic ? '공개 (모든 사용자가 볼 수 있음)' : '비공개 (링크를 아는 사용자만 볼 수 있음)' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 태그 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <span
+                  v-for="(tag, index) in problemData.tags"
+                  :key="index"
+                  class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
+                >
+                  {{ tag }}
+                  <button
+                    @click="removeTag(index)"
+                    class="ml-2 text-green-600 hover:text-green-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <div class="flex space-x-2">
+                <input
+                  v-model="newTag"
+                  type="text"
+                  placeholder="태그 입력"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  @keyup.enter="addTag"
+                />
+                <button
+                  @click="addTag"
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  추가
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -168,7 +283,6 @@
                   :theme="editorTheme"
                   :toolbars="toolbars"
                   :height="300"
-                  :locale="koKR"
                   placeholder="문제를 자세히 설명해주세요..."
                 />
               </div>
@@ -183,7 +297,6 @@
                   :theme="editorTheme"
                   :toolbars="toolbars"
                   :height="200"
-                  :locale="koKR"
                   placeholder="입력 형식을 설명해주세요..."
                 />
               </div>
@@ -198,7 +311,6 @@
                   :theme="editorTheme"
                   :toolbars="toolbars"
                   :height="200"
-                  :locale="koKR"
                   placeholder="출력 형식을 설명해주세요..."
                 />
               </div>
@@ -256,93 +368,42 @@
             </button>
           </div>
         </div>
-
-        <!-- 설정 탭 -->
-        <div v-if="activeTab === 'settings'" class="max-w-4xl">
-          <h2 class="text-xl font-semibold mb-6">문제 설정</h2>
-          
-          <div class="space-y-6">
-            <!-- 공개 설정 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">공개 설정</label>
-              <div class="space-y-2">
-                <label class="flex items-center">
-                  <input 
-                    v-model="problemData.isPublic" 
-                    type="radio" 
-                    :value="true" 
-                    class="mr-2"
-                  />
-                  공개 (모든 사용자가 볼 수 있음)
-                </label>
-                <label class="flex items-center">
-                  <input 
-                    v-model="problemData.isPublic" 
-                    type="radio" 
-                    :value="false" 
-                    class="mr-2"
-                  />
-                  비공개 (링크를 아는 사용자만 볼 수 있음)
-                </label>
-              </div>
-            </div>
-
-            <!-- 지원 언어 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">지원 언어 *</label>
-              <select 
-                v-model="problemData.language"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option :value="null">언어를 선택하세요</option>
-                <option 
-                  v-for="language in availableLanguages" 
-                  :key="language.id"
-                  :value="language.id"
-                >
-                  {{ language.name }}
-                </option>
-              </select>
-            </div>
-
-            <!-- 에디터 테마 -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">에디터 테마</label>
-              <select 
-                v-model="editorTheme"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              >
-                <option value="light">라이트</option>
-                <option value="dark">다크</option>
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { MdEditor } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
-import '../styles/md-editor-korean.css'
-import koKR from '../locales/ko-KR'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
+import { MdEditor, type Themes, type ToolbarNames } from 'md-editor-v3-ko'
+import 'md-editor-v3-ko/lib/style.css'
+import { lectureApiService } from '@/services/lectureApi'
+import { languageApiService } from '@/services/languageApi'
+import { s3ApiService, S3ApiService } from '@/services/s3Api'
+import { LectureType } from '@/types/lecture'
+import type { Language } from '@/types/language'
+import { LECTURE_CATEGORIES, PROBLEM_DIFFICULTY_LEVELS } from '@/constants'
 
 const router = useRouter()
 const route = useRoute()
 
+// 미저장 변경사항 추적
+const hasUnsavedChanges = ref(false)
+const initialDataSnapshot = ref<string>('')
+
 // 편집 모드 확인
-const isEditMode = computed(() => route.query.mode === 'edit')
+const isEditMode = computed(() => !!route.query.edit)
+const editLectureId = computed(() => route.query.edit ? Number(route.query.edit) : null)
+
+// 원본 공개 상태 저장 (수정 시 변경사항 감지용)
+const originalIsPublic = ref<boolean>(true)
 
 // 탭 관리
 const tabs = [
   { id: 'basic', label: '기본 정보' },
   { id: 'content', label: '문제 내용' },
-  { id: 'testcases', label: '테스트 케이스' },
-  { id: 'settings', label: '설정' }
+  { id: 'testcases', label: '테스트 케이스' }
 ]
 
 const activeTab = ref('basic')
@@ -389,69 +450,89 @@ const problemData = reactive({
     }
   ],
   isPublic: true,
-  language: null as number | null
+  tags: [] as string[],
+  language: null as number | null,
+  thumbnailUrl: null as string | null,
+  durationMinutes: 15
 })
 
-// 에디터 설정
-const editorTheme = ref('light')
+// 썸네일 관련
+const thumbnailPreview = ref<string | null>(null)
+const isUploadingThumbnail = ref(false)
+const isDragging = ref(false)
+const thumbnailInput = ref<HTMLInputElement | null>(null)
 
-// 백엔드에서 제공된 언어 데이터
-const availableLanguages = [
-  { id: 45, name: "Assembly (NASM 2.14.02)" },
-  { id: 46, name: "Bash (5.0.0)" },
-  { id: 47, name: "Basic (FBC 1.07.1)" },
-  { id: 75, name: "C (Clang 7.0.1)" },
-  { id: 48, name: "C (GCC 7.4.0)" },
-  { id: 49, name: "C (GCC 8.3.0)" },
-  { id: 50, name: "C (GCC 9.2.0)" },
-  { id: 51, name: "C# (Mono 6.6.0.161)" },
-  { id: 76, name: "C++ (Clang 7.0.1)" },
-  { id: 52, name: "C++ (GCC 7.4.0)" },
-  { id: 53, name: "C++ (GCC 8.3.0)" },
-  { id: 54, name: "C++ (GCC 9.2.0)" },
-  { id: 77, name: "COBOL (GnuCOBOL 2.2)" },
-  { id: 86, name: "Clojure (1.10.1)" },
-  { id: 55, name: "Common Lisp (SBCL 2.0.0)" },
-  { id: 56, name: "D (DMD 2.089.1)" },
-  { id: 57, name: "Elixir (1.9.4)" },
-  { id: 58, name: "Erlang (OTP 22.2)" },
-  { id: 44, name: "Executable" },
-  { id: 87, name: "F# (.NET Core SDK 3.1.202)" },
-  { id: 59, name: "Fortran (GFortran 9.2.0)" },
-  { id: 60, name: "Go (1.13.5)" },
-  { id: 88, name: "Groovy (3.0.3)" },
-  { id: 61, name: "Haskell (GHC 8.8.1)" },
-  { id: 62, name: "Java (OpenJDK 13.0.1)" },
-  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
-  { id: 78, name: "Kotlin (1.3.70)" },
-  { id: 64, name: "Lua (5.3.5)" },
-  { id: 89, name: "Multi-file program" },
-  { id: 65, name: "OCaml (4.09.0)" },
-  { id: 79, name: "Objective-C (Clang 7.0.1)" },
-  { id: 66, name: "Octave (5.1.0)" },
-  { id: 68, name: "PHP (7.4.1)" },
-  { id: 67, name: "Pascal (FPC 3.0.4)" },
-  { id: 85, name: "Perl (5.28.1)" },
-  { id: 43, name: "Plain Text" },
-  { id: 69, name: "Prolog (GNU Prolog 1.4.5)" },
-  { id: 70, name: "Python (2.7.17)" },
-  { id: 71, name: "Python (3.8.1)" },
-  { id: 80, name: "R (4.0.0)" },
-  { id: 72, name: "Ruby (2.7.0)" },
-  { id: 73, name: "Rust (1.40.0)" },
-  { id: 82, name: "SQL (SQLite 3.27.2)" },
-  { id: 81, name: "Scala (2.13.2)" },
-  { id: 83, name: "Swift (5.2.3)" },
-  { id: 74, name: "TypeScript (3.7.4)" },
-  { id: 84, name: "Visual Basic.Net (vbnc 0.0.0.5943)" }
-]
+// 에디터 설정
+const editorTheme = ref<Themes>('light')
+const newTag = ref('')
 
 // 툴바 설정
-const toolbars = [
+const toolbars: ToolbarNames[] = [
   'bold', 'underline', 'italic', 'strikeThrough',
   'quote', 'unorderedList', 'orderedList', 'task',
   'codeRow', 'code', 'link', 'table'
 ]
+
+// 태그 관리
+function addTag() {
+  if (newTag.value.trim() && !problemData.tags.includes(newTag.value.trim())) {
+    problemData.tags.push(newTag.value.trim())
+    newTag.value = ''
+  }
+}
+
+function removeTag(index: number) {
+  problemData.tags.splice(index, 1)
+}
+
+// 썸네일 업로드
+async function uploadThumbnail(file: File) {
+  // 파일 유효성 검사
+  const validation = S3ApiService.validateImageFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+
+  isUploadingThumbnail.value = true
+  try {
+    // S3에 업로드
+    const response = await s3ApiService.uploadImage(file, 'thumbnails')
+    problemData.thumbnailUrl = response.imageUrl  // 경로만 저장 (예: "thumbnails/filename.png")
+    thumbnailPreview.value = S3ApiService.getImageUrl(response.imageUrl)  // 미리보기용 전체 URL
+    console.log('썸네일 업로드 완료:', response.imageUrl)
+  } catch (error) {
+    console.error('썸네일 업로드 실패:', error)
+    alert('썸네일 업로드 중 오류가 발생했습니다.')
+  } finally {
+    isUploadingThumbnail.value = false
+    isDragging.value = false
+  }
+}
+
+// 파일 선택
+function handleThumbnailSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 드래그 앤 드롭
+function handleThumbnailDrop(event: DragEvent) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    uploadThumbnail(file)
+  }
+}
+
+// 썸네일 제거
+function removeThumbnail() {
+  thumbnailPreview.value = null
+  problemData.thumbnailUrl = null
+}
 
 // 테스트 케이스 관리
 function addTestCase() {
@@ -462,9 +543,131 @@ function removeTestCase(index: number) {
   problemData.testCases.splice(index, 1)
 }
 
+// 문제 데이터 로드
+async function loadLectureData() {
+  if (!editLectureId.value) return
+
+  try {
+    const lecture = await lectureApiService.getLecture(editLectureId.value)
+    console.log('문제 데이터 로드:', lecture)
+
+    // 기본 정보
+    problemData.title = lecture.title || ''
+    problemData.description = '' // API 연결 없음
+    problemData.category = lecture.category || ''
+    problemData.difficulty = lecture.difficulty || ''
+    problemData.timeLimit = lecture.constraints?.cpu_time_limit || 1
+    problemData.memoryLimit = lecture.constraints?.memory_limit ? Math.round(lecture.constraints.memory_limit / 1000) : 256
+    problemData.isPublic = lecture.isPublic ?? true
+    problemData.tags = lecture.tags || []
+    problemData.language = lecture.languageId || null
+    problemData.thumbnailUrl = lecture.thumbnailImageUrl || null
+    problemData.durationMinutes = lecture.durationMinutes || 15
+
+    // 원본 공개 상태 저장 (변경사항 감지용)
+    originalIsPublic.value = lecture.isPublic ?? true
+
+    // 문제 내용 - 백엔드 필드에서 로드 (백엔드는 snake_case 사용)
+    problemData.description = lecture.description || ''  // 간략 설명
+    problemData.problemDescription = lecture.content || ''  // 문제 전체 설명
+    problemData.inputDescription = lecture.input_content || ''  // 입력 형식
+    problemData.outputDescription = lecture.output_content || ''  // 출력 형식
+
+    // 테스트 케이스
+    if (lecture.testCases && lecture.testCases.length > 0) {
+      problemData.testCases = lecture.testCases.map((tc: any) => ({
+        input: tc.input || '',
+        output: tc.expectedOutput || tc.output || ''
+      }))
+    }
+
+    // 썸네일 미리보기
+    if (lecture.thumbnailImageUrl) {
+      thumbnailPreview.value = S3ApiService.getImageUrl(lecture.thumbnailImageUrl)
+    }
+
+    console.log('문제 데이터 로드 완료')
+  } catch (error) {
+    console.error('문제 데이터 로드 실패:', error)
+    alert('문제 데이터를 불러오는데 실패했습니다.')
+  }
+}
+
+// 초기화
+onMounted(async () => {
+  // 편집 모드인 경우 문제 데이터 로드
+  if (isEditMode.value) {
+    await loadLectureData()
+  }
+
+  // 초기 데이터 스냅샷 저장 (약간의 지연 후 - 초기 렌더링 완료 대기)
+  setTimeout(() => {
+    initialDataSnapshot.value = getCurrentDataSnapshot()
+  }, 500)
+
+  // 브라우저 새로고침/닫기 경고
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 데이터 변경 감지
+watch(
+  [problemData, editorTheme],
+  () => {
+    const currentSnapshot = getCurrentDataSnapshot()
+    hasUnsavedChanges.value = currentSnapshot !== initialDataSnapshot.value
+  },
+  { deep: true }
+)
+
+// 현재 데이터 스냅샷 생성
+function getCurrentDataSnapshot(): string {
+  return JSON.stringify({
+    problemData: problemData,
+    editorTheme: editorTheme.value
+  })
+}
+
+// 브라우저 새로고침/닫기 경고
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value) {
+    event.preventDefault()
+    event.returnValue = ''
+    return ''
+  }
+}
+
+// Vue Router 네비게이션 가드
+onBeforeRouteLeave((to, from, next) => {
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      next()
+    } else {
+      next(false)
+    }
+  } else {
+    next()
+  }
+})
+
 // 액션 함수들
 function goBack() {
-  router.back()
+  if (hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      '저장하지 않은 내용이 있습니다.\n페이지를 나가시겠습니까?'
+    )
+    if (answer) {
+      router.back()
+    }
+  } else {
+    router.back()
+  }
 }
 
 function previewProblem() {
@@ -501,481 +704,124 @@ function saveDraft() {
   // 임시저장 기능 구현
   console.log('임시저장:', problemData)
   alert('임시저장되었습니다.')
+
+  // 임시저장 후 변경사항 플래그 초기화
+  hasUnsavedChanges.value = false
+  initialDataSnapshot.value = getCurrentDataSnapshot()
 }
 
-function publishProblem() {
-  // 문제 발행/수정 기능 구현
-  console.log(isEditMode.value ? '문제 수정:' : '문제 발행:', problemData)
-  
-  if (isEditMode.value) {
-    // 수정 모드
-    alert('문제가 수정되었습니다!')
-  } else {
-    // 발행 모드
-    const newCourse = {
-      id: Date.now(), // 임시 ID (실제로는 백엔드에서 생성)
-      title: problemData.title,
-      category: problemData.category,
-      status: 'published',
-      students: 0,
-      rating: 0,
-      format: '문제',
-      difficulty: problemData.difficulty,
-      createdAt: new Date().toISOString()
-    }
-    
-    // localStorage에 저장 (실제로는 백엔드 API 호출)
-    const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]')
-    existingCourses.push(newCourse)
-    localStorage.setItem('instructorCourses', JSON.stringify(existingCourses))
-    
-    alert('문제가 발행되었습니다.')
+async function publishProblem() {
+  console.log('발행 시도 - problemData:', problemData)
+
+  if (!problemData.title || !problemData.title.trim()) {
+    alert('문제 제목을 입력해주세요.')
+    activeTab.value = 'basic'
+    return
   }
-  
-  // 일반 대시보드로 이동
-  router.push({ name: 'dashboard' })
+
+  if (!problemData.problemDescription || !problemData.problemDescription.trim()) {
+    alert('문제 설명을 입력해주세요.')
+    activeTab.value = 'content'
+    return
+  }
+
+  if (!problemData.testCases || problemData.testCases.length === 0) {
+    alert('최소 1개의 테스트 케이스가 필요합니다.')
+    activeTab.value = 'testcases'
+    return
+  }
+
+  try {
+    const lectureData = {
+      title: problemData.title,
+      description: problemData.description || problemData.title, // 간략 설명 (없으면 제목 사용)
+      content: problemData.problemDescription, // 문제 전체 설명
+      input_content: problemData.inputDescription, // 입력 형식 (백엔드는 snake_case)
+      output_content: problemData.outputDescription, // 출력 형식 (백엔드는 snake_case)
+      type: LectureType.PROBLEM,
+      category: problemData.category || '알고리즘',
+      difficulty: problemData.difficulty || '쉬움',
+      constraints: {
+        cpu_time_limit: problemData.timeLimit || 1,  // 초 단위
+        memory_limit: (problemData.memoryLimit || 128) * 1000 // MB를 KB로 변환
+      },
+      testCases: problemData.testCases.map(tc => ({
+        input: tc.input,
+        expectedOutput: tc.output
+      })),
+      isPublic: problemData.isPublic,
+      languageId: problemData.language,
+      tags: problemData.tags || [],
+      thumbnailImageUrl: problemData.thumbnailUrl || '',
+      durationMinutes: problemData.durationMinutes || 15
+    }
+
+    if (isEditMode.value && editLectureId.value) {
+      await lectureApiService.updateLecture(editLectureId.value, lectureData)
+
+      // 현재 isPublic 상태에 따라 공개/비공개 API 호출 (임시 조치 - 백엔드 수정 필요)
+      try {
+        if (lectureData.isPublic) {
+          await lectureApiService.publishLecture(editLectureId.value)
+          console.log('문제 공개 전환 완료')
+        } else {
+          await lectureApiService.unpublishLecture(editLectureId.value)
+          console.log('문제 비공개 전환 완료')
+        }
+      } catch (error) {
+        console.error('공개/비공개 전환 실패:', error)
+      }
+
+      alert('문제가 수정되었습니다!')
+    } else {
+      const createdLecture = await lectureApiService.createLecture(lectureData)
+      console.log('문제 생성 완료:', createdLecture)
+
+      // isPublic이 true인 경우 공개 전환 API 호출 (임시 조치 - 백엔드 수정 필요)
+      if (lectureData.isPublic) {
+        try {
+          await lectureApiService.publishLecture(createdLecture.id)
+          console.log('문제 공개 전환 완료')
+        } catch (error) {
+          console.error('공개 전환 실패:', error)
+        }
+      }
+
+      alert('문제가 발행되었습니다.')
+    }
+
+    // 발행 성공 시 변경사항 플래그 초기화
+    hasUnsavedChanges.value = false
+
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('문제 발행 실패:', error)
+    alert('문제 발행 중 오류가 발생했습니다.')
+  }
 }
 
 // 문제 삭제하기 (편집 모드에서만)
-function deleteProblem() {
-  console.log('문제 삭제하기 클릭됨');
-  
-  if (confirm('정말로 이 문제를 삭제하시겠습니까?\n삭제된 문제는 복구할 수 없습니다.')) {
-    // localStorage에서 문제 삭제
-    const problemId = route.query.edit;
-    console.log('삭제할 문제 ID:', problemId);
-    
-    if (problemId) {
-      // 기존 강의 목록 가져오기
-      const existingCourses = JSON.parse(localStorage.getItem('instructorCourses') || '[]');
-      
-      // 해당 문제 제거
-      const updatedCourses = existingCourses.filter((course: any) => course.id.toString() !== problemId.toString());
-      
-      // localStorage 업데이트
-      localStorage.setItem('instructorCourses', JSON.stringify(updatedCourses));
-      
-      console.log('문제 삭제 완료:', problemId);
-      alert('문제가 삭제되었습니다.');
-    } else {
-      console.log('문제 ID를 찾을 수 없습니다.');
-      alert('문제 삭제에 실패했습니다.');
-    }
-    
-    // 대시보드로 이동
-    router.push('/dashboard');
+async function deleteProblem() {
+  if (!confirm('정말로 이 문제를 삭제하시겠습니까?\n삭제된 문제는 복구할 수 없습니다.')) {
+    return
+  }
+
+  if (!editLectureId.value) {
+    alert('삭제할 문제를 찾을 수 없습니다.')
+    return
+  }
+
+  try {
+    await lectureApiService.deleteLecture(editLectureId.value)
+    alert('문제가 삭제되었습니다.')
+
+    // 삭제 성공 시 변경사항 플래그 초기화 (경고 없이 페이지 이동)
+    hasUnsavedChanges.value = false
+
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('문제 삭제 실패:', error)
+    alert('문제 삭제 중 오류가 발생했습니다.')
   }
 }
-
-
-// 중국어와 글자 깨짐 문제 해결 (최종 강화 버전)
-function translateChineseToKorean() {
-  const mdEditor = document.querySelector('.md-editor')
-  if (!mdEditor) return
-
-  const translations = {
-    // 기본 UI
-    '字数': '글자 수',
-    '同步滚动': '동기화 스크롤',
-    'mermaid图': '다이어그램',
-    'katex公式': '수학식',
-    '行内公式': '인라인 수식',
-    '块公式': '블록 수식',
-    '块级公式': '블록 수식',
-    '块级代码': '코드 블록',
-    
-    // 다이어그램 타입
-    '流程图': '플로우차트',
-    '时序图': '시퀀스 다이어그램',
-    '甘特图': '간트 차트',
-    '类图': '클래스 다이어그램',
-    '状态图': '상태 다이어그램',
-    '饼图': '파이 차트',
-    '关系图': '관계 다이어그램',
-    '旅程图': '여정 맵',
-    
-    // 툴바 버튼
-    '粗体': '굵게',
-    '斜体': '기울임꼴',
-    '下划线': '밑줄',
-    '删除线': '취소선',
-    '下标': '아래 첨자',
-    '上标': '위 첨자',
-    '引用': '인용',
-    '无序列表': '순서 없는 목록',
-    '有序列表': '순서 있는 목록',
-    '任务列表': '할 일 목록',
-    '行内代码': '인라인 코드',
-    '代码块': '코드 블록',
-    '链接': '링크',
-    '图片': '이미지',
-    '表格': '표',
-    '撤销': '실행 취소',
-    '重做': '다시 실행',
-    '前进': '다시 실행',
-    '后퇴': '실행 취소',
-    '保存': '저장',
-    '全屏': '전체 화면',
-    '浏览器全屏': '전체 화면',
-    '浏览器': '브라우저',
-    '预览': '미리보기',
-    'HTML预览': 'HTML 미리보기',
-    'html代码미리보기': 'HTML 미리보기',
-    '代码': '코드',
-    '添加链接': '링크 추가',
-    '上传图片': '이미지 업로드',
-    '裁剪上传': '크롭 업로드',
-    '添加링크': '링크 추가',
-    '上传이미지': '이미지 업로드',
-    '后退': '실행 취소',
-    '屏幕 전체 화면': '전체 화면',
-    '屏幕': '화면'
-  }
-
-  // 1. 모든 텍스트 노드 변경
-  const walker = document.createTreeWalker(
-    mdEditor,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  )
-
-  let node
-  while (node = walker.nextNode()) {
-    if (node.textContent) {
-      let text = node.textContent
-      let changed = false
-
-      for (const [chinese, korean] of Object.entries(translations)) {
-        if (text.includes(chinese)) {
-          text = text.replace(new RegExp(chinese, 'g'), korean)
-          changed = true
-        }
-      }
-
-      if (changed) {
-        node.textContent = text
-      }
-    }
-  }
-
-  // 2. 모든 요소의 title 속성 변경
-  const allElements = mdEditor.querySelectorAll('*')
-  allElements.forEach(element => {
-    const title = element.getAttribute('title')
-    if (title) {
-      let newTitle = title
-      for (const [chinese, korean] of Object.entries(translations)) {
-        newTitle = newTitle.replace(new RegExp(chinese, 'g'), korean)
-      }
-      if (newTitle !== title) {
-        element.setAttribute('title', newTitle)
-      }
-    }
-  })
-
-  // 3. 특정 클래스의 요소들 직접 변경
-  const specificSelectors = [
-    '.md-editor-toolbar button',
-    '.md-editor-dropdown-item',
-    '[data-type]',
-    '.md-editor-footer',
-    '.md-editor-status',
-    '.md-editor-toolbar-name',
-    '.md-editor-toolbar-item'
-  ]
-
-  specificSelectors.forEach(selector => {
-    const elements = mdEditor.querySelectorAll(selector)
-    elements.forEach(element => {
-      if (element.textContent) {
-        let newText = element.textContent
-        for (const [chinese, korean] of Object.entries(translations)) {
-          newText = newText.replace(new RegExp(chinese, 'g'), korean)
-        }
-        if (newText !== element.textContent) {
-          element.textContent = newText
-        }
-      }
-    })
-  })
-
-  // 4. 드롭다운 메뉴 항목들 강제 변경 (더 적극적)
-  const dropdownItems = mdEditor.querySelectorAll('.md-editor-dropdown-item, [data-type], .md-editor-toolbar-item, .md-editor-dropdown .md-editor-dropdown-item')
-  dropdownItems.forEach(item => {
-    if (item.textContent) {
-      let newText = item.textContent
-      for (const [chinese, korean] of Object.entries(translations)) {
-        newText = newText.replace(new RegExp(chinese, 'g'), korean)
-      }
-      if (newText !== item.textContent) {
-        item.textContent = newText
-      }
-    }
-  })
-
-  // 드롭다운 메뉴 전체 강제 수정
-  const allDropdowns = mdEditor.querySelectorAll('.md-editor-dropdown')
-  allDropdowns.forEach(dropdown => {
-    const items = dropdown.querySelectorAll('.md-editor-dropdown-item, [data-type]')
-    items.forEach(item => {
-      if (item.textContent) {
-        let newText = item.textContent
-        // 중국어를 한국어로 강제 변경
-        newText = newText.replace(/添加链接/g, '링크 추가')
-        newText = newText.replace(/上传图片/g, '이미지 업로드')
-        newText = newText.replace(/裁剪上传/g, '크롭 업로드')
-        newText = newText.replace(/行内公式/g, '인라인 수식')
-        newText = newText.replace(/块级公式/g, '블록 수식')
-        newText = newText.replace(/流程图/g, '플로우차트')
-        newText = newText.replace(/时序图/g, '시퀀스 다이어그램')
-        newText = newText.replace(/甘特图/g, '간트 차트')
-        newText = newText.replace(/类图/g, '클래스 다이어그램')
-        newText = newText.replace(/状态图/g, '상태 다이어그램')
-        newText = newText.replace(/饼图/g, '파이 차트')
-        newText = newText.replace(/关系图/g, '관계 다이어그램')
-        newText = newText.replace(/旅程图/g, '여정 맵')
-        
-        if (newText !== item.textContent) {
-          item.textContent = newText
-        }
-      }
-    })
-  })
-
-  // 5. 특정 문제 해결 (1, 14, 18, 22번 항목 집중)
-  
-  // 1번 항목 - 굵게 버튼 (B)
-  const boldButton = mdEditor.querySelector('.md-editor-toolbar button:nth-child(1)')
-  if (boldButton) {
-    boldButton.setAttribute('title', '굵게')
-    if (boldButton.textContent) {
-      boldButton.textContent = boldButton.textContent.replace(/[가굵粗体]/g, '굵게')
-    }
-  }
-
-  // 14번 항목 - 이미지 버튼
-  const imageButton = mdEditor.querySelector('.md-editor-toolbar button:nth-child(14)')
-  if (imageButton) {
-    imageButton.setAttribute('title', '이미지')
-    if (imageButton.textContent) {
-      imageButton.textContent = imageButton.textContent.replace(/[图片]/g, '이미지')
-    }
-    
-    // 이미지 드롭다운 메뉴 항목들도 수정
-    const imageDropdown = mdEditor.querySelector('.md-editor-dropdown[data-type="image"]')
-    if (imageDropdown) {
-      const dropdownItems = imageDropdown.querySelectorAll('.md-editor-dropdown-item')
-      dropdownItems.forEach(item => {
-        if (item.textContent?.includes('添加链接')) {
-          item.textContent = item.textContent.replace('添加链接', '링크 추가')
-        }
-        if (item.textContent?.includes('上传图片')) {
-          item.textContent = item.textContent.replace('上传图片', '이미지 업로드')
-        }
-        if (item.textContent?.includes('裁剪上传')) {
-          item.textContent = item.textContent.replace('裁剪上传', '크롭 업로드')
-        }
-      })
-    }
-  }
-
-  // 18번 항목 - katex 수학식 버튼
-  const katexButton = mdEditor.querySelector('.md-editor-toolbar button:nth-child(18)')
-  if (katexButton) {
-    katexButton.setAttribute('title', '수학식')
-    if (katexButton.textContent) {
-      katexButton.textContent = katexButton.textContent.replace(/[katex公式]/g, '수학식')
-    }
-    
-    // katex 드롭다운 메뉴 항목들도 수정
-    const katexDropdown = mdEditor.querySelector('.md-editor-dropdown[data-type="katex"]')
-    if (katexDropdown) {
-      const dropdownItems = katexDropdown.querySelectorAll('.md-editor-dropdown-item')
-      dropdownItems.forEach(item => {
-        if (item.textContent?.includes('行内公式')) {
-          item.textContent = item.textContent.replace('行内公式', '인라인 수식')
-        }
-        if (item.textContent?.includes('块级公式')) {
-          item.textContent = item.textContent.replace('块级公式', '블록 수식')
-        }
-      })
-    }
-  }
-
-  // 22번 항목 - 저장 버튼
-  const saveButton = mdEditor.querySelector('.md-editor-toolbar button:nth-child(22)')
-  if (saveButton) {
-    saveButton.setAttribute('title', '저장')
-    if (saveButton.textContent) {
-      saveButton.textContent = saveButton.textContent.replace(/[保存]/g, '저장')
-    }
-  }
-
-  // 추가: 모든 툴바 버튼의 title 속성 강제 수정
-  const allToolbarButtons = mdEditor.querySelectorAll('.md-editor-toolbar button')
-  allToolbarButtons.forEach((button, index) => {
-    const title = button.getAttribute('title')
-    if (title) {
-      let newTitle = title
-      // 중국어를 한국어로 변경
-      newTitle = newTitle.replace(/[粗体]/g, '굵게')
-      newTitle = newTitle.replace(/[图片]/g, '이미지')
-      newTitle = newTitle.replace(/[katex公式]/g, '수학식')
-      newTitle = newTitle.replace(/[保存]/g, '저장')
-      newTitle = newTitle.replace(/[行内公式]/g, '인라인 수식')
-      newTitle = newTitle.replace(/[块级公式]/g, '블록 수식')
-      newTitle = newTitle.replace(/[后退]/g, '실행 취소')
-      newTitle = newTitle.replace(/[屏幕]/g, '화면')
-      
-      if (newTitle !== title) {
-        button.setAttribute('title', newTitle)
-      }
-    }
-  })
-
-  // "后退" 버튼 특별 처리
-  const undoButtons = mdEditor.querySelectorAll('.md-editor-toolbar button[title*="后退"]')
-  undoButtons.forEach(button => {
-    button.setAttribute('title', '실행 취소')
-  })
-
-  // "屏幕 전체 화면" 버튼 특별 처리
-  const fullscreenButtons = mdEditor.querySelectorAll('.md-editor-toolbar button[title*="屏幕"]')
-  fullscreenButtons.forEach(button => {
-    const title = button.getAttribute('title')
-    if (title) {
-      let newTitle = title.replace(/屏幕/g, '화면')
-      if (newTitle.includes('화면 전체 화면')) {
-        newTitle = '전체 화면'
-      }
-      button.setAttribute('title', newTitle)
-    }
-  })
-
-  // 6. 모든 툴팁 강제 수정
-  const allTooltips = mdEditor.querySelectorAll('[title]')
-  allTooltips.forEach(element => {
-    const title = element.getAttribute('title')
-    if (title) {
-      let newTitle = title
-      for (const [chinese, korean] of Object.entries(translations)) {
-        newTitle = newTitle.replace(new RegExp(chinese, 'g'), korean)
-      }
-      if (newTitle !== title) {
-        element.setAttribute('title', newTitle)
-      }
-    }
-  })
-}
-
-onMounted(() => {
-  setTimeout(translateChineseToKorean, 500)
-  setTimeout(translateChineseToKorean, 1000)
-  setTimeout(translateChineseToKorean, 2000)
-  setInterval(translateChineseToKorean, 1000)
-  
-  // 드롭다운 메뉴 전용 번역 함수 (강화된 버전)
-  function translateDropdownMenus() {
-    const dropdowns = document.querySelectorAll('.md-editor-dropdown')
-    dropdowns.forEach(dropdown => {
-      const items = dropdown.querySelectorAll('.md-editor-dropdown-item')
-      items.forEach(item => {
-        if (item.textContent) {
-          let newText = item.textContent
-          
-          // 중국어+한국어 혼합 텍스트 처리
-          newText = newText.replace(/添加링크/g, '링크 추가')
-          newText = newText.replace(/上传이미지/g, '이미지 업로드')
-          newText = newText.replace(/크롭 업로드/g, '크롭 업로드')
-          
-          // 순수 중국어 텍스트 처리
-          newText = newText.replace(/添加链接/g, '링크 추가')
-          newText = newText.replace(/上传图片/g, '이미지 업로드')
-          newText = newText.replace(/裁剪上传/g, '크롭 업로드')
-          newText = newText.replace(/行内公式/g, '인라인 수식')
-          newText = newText.replace(/块级公式/g, '블록 수식')
-          newText = newText.replace(/流程图/g, '플로우차트')
-          newText = newText.replace(/时序图/g, '시퀀스 다이어그램')
-          newText = newText.replace(/甘特图/g, '간트 차트')
-          newText = newText.replace(/类图/g, '클래스 다이어그램')
-          newText = newText.replace(/状态图/g, '상태 다이어그램')
-          newText = newText.replace(/饼图/g, '파이 차트')
-          newText = newText.replace(/关系图/g, '관계 다이어그램')
-          newText = newText.replace(/旅程图/g, '여정 맵')
-          
-          // 개별 중국어 문자 처리
-          newText = newText.replace(/添加/g, '추가')
-          newText = newText.replace(/上传/g, '업로드')
-          newText = newText.replace(/裁剪/g, '크롭')
-          newText = newText.replace(/链接/g, '링크')
-          newText = newText.replace(/图片/g, '이미지')
-          
-          if (newText !== item.textContent) {
-            item.textContent = newText
-          }
-        }
-      })
-    })
-    
-    // 추가: 모든 드롭다운 메뉴 항목 강제 수정
-    const allDropdownItems = document.querySelectorAll('.md-editor-dropdown .md-editor-dropdown-item')
-    allDropdownItems.forEach(item => {
-      if (item.textContent) {
-        let text = item.textContent
-        // 중국어+한국어 혼합 텍스트 강제 교체
-        if (text.includes('添加') && text.includes('링크')) {
-          item.textContent = '링크 추가'
-        } else if (text.includes('上传') && text.includes('이미지')) {
-          item.textContent = '이미지 업로드'
-        } else if (text.includes('크롭') && text.includes('업로드')) {
-          item.textContent = '크롭 업로드'
-        }
-      }
-    })
-  }
-
-  // MutationObserver로 실시간 DOM 변경 감지
-  const observer = new MutationObserver((mutations) => {
-    let shouldTranslate = false
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList' || mutation.type === 'characterData') {
-        shouldTranslate = true
-      }
-    })
-    if (shouldTranslate) {
-      setTimeout(translateChineseToKorean, 100)
-      setTimeout(translateDropdownMenus, 150)
-    }
-  })
-  
-  // md-editor 영역 감시
-  const mdEditor = document.querySelector('.md-editor')
-  if (mdEditor) {
-    observer.observe(mdEditor, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['title']
-    })
-    
-    // 드롭다운 메뉴 클릭 이벤트 리스너 추가
-    mdEditor.addEventListener('click', (event) => {
-      const target = event.target
-      if (target.classList.contains('md-editor-toolbar-item') || 
-          target.closest('.md-editor-toolbar-item')) {
-        // 드롭다운 메뉴가 열릴 때까지 잠시 기다린 후 번역 실행
-        setTimeout(translateDropdownMenus, 200)
-        setTimeout(translateDropdownMenus, 500)
-        setTimeout(translateDropdownMenus, 1000)
-      }
-    })
-  }
-  
-  // 페이지 언마운트 시 observer 정리
-  onUnmounted(() => {
-    observer.disconnect()
-  })
-})
 </script>

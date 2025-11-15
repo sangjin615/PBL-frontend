@@ -9,44 +9,45 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
           </button>
-          <div>
-            <h1 class="text-xl font-bold" style="color: rgb(var(--figma-color-2))">
-              {{ lessonData.title }}
-            </h1>
-            <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
+          <div class="flex items-center space-x-4">
+            <div>
+              <h1 class="text-xl font-bold" style="color: rgb(var(--figma-color-2))">
+                {{ lessonData.title }}
+              </h1>
+              <p class="text-sm text-gray-600">{{ lessonData.instructor }} • {{ lessonData.duration }}</p>
+            </div>
+            <!-- 신고 버튼 -->
+            <ReportButton
+              report-type="lecture"
+              :target-id="lessonData.id || 1"
+              :target-title="lessonData.title"
+              @reported="handleReported"
+            />
           </div>
         </div>
         
         <div class="flex items-center space-x-4">
-          <div class="text-sm text-gray-600">
-            진행률: {{ progress }}%
-          </div>
-          <div class="w-32 bg-gray-200 rounded-full h-2">
-            <div 
-              class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-              :style="{ width: progress + '%' }"
-            ></div>
-          </div>
-          
           <!-- 다음 강의 버튼 -->
-          <button 
+          <Button 
             v-if="nextLesson"
             @click="goToNextLesson"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            variant="success"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-            <span>다음 강의</span>
-          </button>
+            <template #icon>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </template>
+            다음 강의
+          </Button>
         </div>
       </div>
     </div>
 
     <!-- 메인 컨텐츠 -->
-    <div class="flex h-screen">
+    <div class="flex h-screen select-none">
       <!-- 왼쪽: 교과서 영역 -->
-      <div class="w-1/2 border-r overflow-y-auto" style="border-color: rgb(var(--figma-color-4))">
+      <div class="border-r overflow-y-auto" :style="{ width: leftPaneWidth + '%', borderColor: `rgb(var(--figma-color-4))` }">
         <div class="p-6">
           <!-- 챕터 네비게이션 -->
           <div class="mb-6">
@@ -110,14 +111,18 @@
         </div>
       </div>
 
+      <!-- 세로 분리선 -->
+      <div class="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize" @mousedown="startDragLeftRight"></div>
+
       <!-- 오른쪽: 코드 에디터 영역 -->
-      <div class="w-1/2 flex flex-col">
+      <div class="flex flex-col" :style="{ width: (100 - leftPaneWidth) + '%' }">
         <!-- 코드 에디터 헤더 -->
         <div class="bg-figma-1 border-b px-4 py-3 flex items-center justify-between" style="border-color: rgb(var(--figma-color-4))">
           <div class="flex items-center space-x-4">
             <h3 class="font-semibold" style="color: rgb(var(--figma-color-2))">코드 에디터</h3>
-            <select 
-              v-model="selectedLanguage" 
+            <select
+              v-model="selectedLanguage"
+              @change="changeLanguage(selectedLanguage)"
               class="px-3 py-1 border rounded text-sm"
               style="border-color: rgb(var(--figma-color-4))"
             >
@@ -127,45 +132,56 @@
             </select>
           </div>
           
-          <button 
-            @click="runCode"
-            :disabled="isRunning"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-          >
-            <svg v-if="isRunning" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>{{ isRunning ? '실행 중...' : '실행' }}</span>
-          </button>
-        </div>
-
-        <!-- 코드 에디터 -->
-        <div class="flex-1 p-4">
-          <MonacoEditor
-            v-model="code"
-            :language="getMonacoLanguage(selectedLanguage)"
-            theme="vs-dark"
-            :options="editorOptions"
-            class="w-full h-full border rounded-lg"
-            style="border-color: rgb(var(--figma-color-4))"
-          />
-        </div>
-
-        <!-- 실행 결과 터미널 -->
-        <div class="border-t bg-gray-50" style="border-color: rgb(var(--figma-color-4))">
-          <div class="px-4 py-2 border-b" style="border-color: rgb(var(--figma-color-4))">
-            <h4 class="font-semibold text-sm" style="color: rgb(var(--figma-color-2))">실행 결과</h4>
+          <div class="flex items-center space-x-2">
+            <button 
+              @click="runCode"
+              :disabled="isRunning"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+            >
+              <svg v-if="isRunning" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>{{ isRunning ? '실행 중...' : '실행' }}</span>
+            </button>
+            <button
+              @click="openEditorPopout"
+              class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              title="새 창으로 에디터 열기"
+            >
+              팝아웃
+            </button>
           </div>
-          <div class="h-64 p-4 bg-black text-green-400 font-mono text-sm overflow-auto">
+        </div>
+
+        <!-- 코드 에디터 / 실행 결과 - 수직 분할 컨테이너 -->
+        <div class="flex-1 p-4 flex flex-col">
+          <div class="border rounded-lg overflow-hidden" style="border-color: rgb(var(--figma-color-4));" :style="{ height: editorAreaHeight + '%' }">
+            <MonacoEditor
+              ref="monacoEditorRef"
+              :key="editorConfig.languageId"
+              :config="editorConfig"
+              class="w-full h-full"
+            />
+          </div>
+          <!-- 가로 분리선 -->
+          <div class="h-1 bg-gray-300 hover:bg-gray-400 cursor-row-resize" @mousedown="startDragEditorTerminal"></div>
+          <div class="border bg-gray-50 flex-1 flex flex-col" style="border-color: rgb(var(--figma-color-4));" :style="{ height: (100 - editorAreaHeight) + '%' }">
+            <div class="px-4 py-2 border-b" style="border-color: rgb(var(--figma-color-4))">
+              <h4 class="font-semibold text-sm" style="color: rgb(var(--figma-color-2))">실행 결과</h4>
+            </div>
+            <div class="flex-1 p-4 bg-black text-green-400 font-mono text-sm overflow-auto">
             <div v-if="isRunning" class="flex items-center space-x-2">
               <div class="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
               <span>실행 중...</span>
             </div>
-            <div v-else-if="executionResult" class="whitespace-pre-wrap">{{ executionResult }}</div>
+            <div v-else-if="executionResult" class="whitespace-pre-wrap">
+              {{ executionResult.message || executionResult.stdout || '실행 결과가 없습니다.' }}
+            </div>
             <div v-else class="text-gray-500">실행 결과가 여기에 표시됩니다.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -177,39 +193,37 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MonacoEditor from '../components/editor/MonacoEditor.vue';
+import { Button, LoadingSpinner, ErrorMessage, ReportButton } from '@/components/common';
+import { languageApiService } from '../services/languageApi';
+import { submissionAPI, type SubmissionResult } from '../services/submissionAPI';
+import type { MonacoEditorConfig } from '../services/extendedClient';
 
 const route = useRoute();
 const router = useRouter();
 
 // 반응형 데이터
-const progress = ref(25);
 const isRunning = ref(false);
-const executionResult = ref('');
-const code = ref('');
+const executionResult = ref<SubmissionResult | null>(null);
+const monacoEditorRef = ref<any>(null);
 const selectedLanguage = ref(71); // Python 3의 ID를 기본값으로
-const supportedLanguages = ref([]); // API에서 가져올 언어 목록
-const currentChapter = ref({});
-// terminalRef는 더 이상 필요하지 않음
+const supportedLanguages = ref<Array<{id: number, name: string, version?: string, file_extension?: string}>>([]); // API에서 가져올 언어 목록
+const currentChapter = ref<{id: number, title: string, sections: Array<{id: number, title: string, content: string, codeExample?: {language: string, code: string}, explanation?: string}>}>({} as any);
+
+// 강의 데이터 (하드코딩) - 실제 사용되는 데이터
+const lessonData = ref({
+  id: 1,
+  title: '알고리즘이란?',
+  instructor: '김유희',
+  duration: '30분'
+});
+
+// Monaco Editor 통합 설정
+const editorConfig = ref<MonacoEditorConfig>(
+  languageApiService.createEditorConfig(71, '')
+)
 
 // 다음 강의 정보
-const nextLesson = ref(null);
-
-// Monaco Editor 옵션
-const editorOptions = ref({
-  theme: 'vs-dark',
-  fontSize: 14,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  automaticLayout: true,
-  wordWrap: 'on',
-  lineNumbers: 'on',
-  folding: true,
-  selectOnLineNumbers: true,
-  roundedSelection: false,
-  readOnly: false,
-  cursorStyle: 'line',
-  automaticLayout: true,
-});
+const nextLesson = ref<{id: number, title: string, format: string} | null>(null);
 
 // 강의 데이터
 const lessonData = ref({
@@ -293,14 +307,13 @@ function goBack() {
 // 다음 강의로 이동
 function goToNextLesson() {
   if (nextLesson.value) {
-    if (nextLesson.value.format === '문제') {
-      // 문제 형식인 경우 문제 페이지로 이동
-      router.push({ name: 'problem', params: { problemId: nextLesson.value.id } });
-    } else {
-      // 마크다운 형식인 경우 학습 페이지로 이동
-      router.push({ name: 'learning', params: { lessonId: nextLesson.value.id } });
-    }
+    router.push({ name: 'lecture', params: { lectureId: nextLesson.value.id } });
   }
+}
+
+// 신고 완료 처리
+function handleReported() {
+  console.log('강의 신고가 접수되었습니다.');
 }
 
 function copyCode(codeText: string) {
@@ -309,63 +322,47 @@ function copyCode(codeText: string) {
   alert('코드가 클립보드에 복사되었습니다!');
 }
 
+function openEditorPopout() {
+  const lectureId = route.params.lectureId as string;
+  const features = [
+    'popup=yes',
+    'width=1200',
+    'height=800',
+    'resizable=yes',
+    'scrollbars=yes'
+  ].join(',');
+  const url = router.resolve({ name: 'editor-popout', params: { lectureId } }).href;
+  window.open(url, '_blank', features);
+}
+
 async function runCode() {
-  if (!code.value.trim()) {
-    executionResult.value = '실행할 코드가 없습니다.';
+  // Monaco Editor에서 현재 코드 가져오기
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  
+  if (!currentCode.trim()) {
+    executionResult.value = {
+      message: '실행할 코드가 없습니다.'
+    };
     return;
   }
 
   isRunning.value = true;
-  executionResult.value = '';
+  executionResult.value = null;
 
   try {
-    // 백엔드 judge0 API로 코드 실행 요청
-    const response = await fetch('http://localhost:2358/submissions?wait=true', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source_code: code.value,
-        language_id: selectedLanguage.value,
-        stdin: '', // 필요시 입력 추가
-      })
+    const result = await submissionAPI.executeCode({
+      source_code: currentCode,
+      language_id: selectedLanguage.value,
+      stdin: ''
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
+    executionResult.value = result;
     
-    // 결과 처리
-    if (result.status && result.status.id === 3) {
-      // Accepted (정답)
-      executionResult.value = result.stdout || '코드가 성공적으로 실행되었습니다.';
-    } else if (result.status && result.status.id === 6) {
-      // Compilation Error (컴파일 오류)
-      executionResult.value = `컴파일 오류:\n${result.compile_output || '컴파일 중 오류가 발생했습니다.'}`;
-    } else if (result.status && result.status.id === 7) {
-      // Runtime Error (런타임 오류)
-      executionResult.value = `런타임 오류:\n${result.stderr || '실행 중 오류가 발생했습니다.'}`;
-    } else if (result.status && result.status.id === 5) {
-      // Time Limit Exceeded
-      executionResult.value = '시간 초과: 코드 실행 시간이 제한을 초과했습니다.';
-    } else if (result.status && result.status.id === 10) {
-      // Memory Limit Exceeded
-      executionResult.value = '메모리 초과: 코드가 허용된 메모리 제한을 초과했습니다.';
-    } else if (result.status && result.status.id === 2) {
-      // Processing (아직 처리 중)
-      executionResult.value = '코드가 실행 중입니다... 잠시 후 다시 시도해주세요.';
-    } else {
-      // 기타 상태
-      const statusMessage = result.status ? result.status.description : '알 수 없는 상태';
-      executionResult.value = `실행 결과 (${statusMessage}):\n${result.stdout || result.stderr || result.message || '결과가 없습니다.'}`;
-    }
-    
-  } catch (error) {
-    console.error('API 호출 오류:', error);
-    executionResult.value = `실행 오류: ${error.message}`;
+  } catch (error: any) {
+    console.error('코드 실행 오류:', error);
+    executionResult.value = {
+      message: `실행 오류: ${error.message}`
+    };
   } finally {
     isRunning.value = false;
   }
@@ -374,154 +371,79 @@ async function runCode() {
 // API에서 지원하는 언어 목록을 가져오는 함수
 async function fetchSupportedLanguages() {
   try {
-    const response = await fetch('http://localhost:2358/languages');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const languages = await response.json();
+    const languages = await languageApiService.getLanguages();
     supportedLanguages.value = languages;
     console.log('언어 목록 로드 완료:', languages.length, '개 언어');
   } catch (error) {
     console.error('언어 목록 로드 실패:', error);
     // 기본 언어 목록으로 fallback
     supportedLanguages.value = [
-      { id: 71, name: 'Python (3.8.1)' },
-      { id: 63, name: 'JavaScript (Node.js 12.14.0)' },
-      { id: 62, name: 'Java (OpenJDK 13.0.1)' },
-      { id: 54, name: 'C++ (GCC 9.2.0)' }
+      { id: 71, name: 'Python (3.8.1)', version: '3.8.1', file_extension: '.py' },
+      { id: 63, name: 'JavaScript (Node.js 12.14.0)', version: '12.14.0', file_extension: '.js' },
+      { id: 62, name: 'Java (OpenJDK 13.0.1)', version: '13.0.1', file_extension: '.java' },
+      { id: 54, name: 'C++ (GCC 9.2.0)', version: '9.2.0', file_extension: '.cpp' }
     ];
   }
 }
 
-// Judge0 언어 ID를 Monaco Editor 언어 이름으로 변환하는 함수
-function getMonacoLanguage(languageId) {
-  const languageMap = {
-    // Python
-    70: 'python',
-    71: 'python',
-    
-    // JavaScript/TypeScript
-    63: 'javascript',
-    74: 'typescript',
-    
-    // Java
-    62: 'java',
-    
-    // C/C++
-    48: 'c',
-    49: 'c',
-    50: 'c',
-    75: 'c',
-    52: 'cpp',
-    53: 'cpp',
-    54: 'cpp',
-    76: 'cpp',
-    
-    // C#
-    51: 'csharp',
-    
-    // Go
-    60: 'go',
-    
-    // Rust
-    73: 'rust',
-    
-    // Ruby
-    72: 'ruby',
-    
-    // PHP
-    68: 'php',
-    
-    // Lua
-    64: 'lua',
-    
-    // Perl
-    85: 'perl',
-    
-    // Bash
-    46: 'shell',
-    
-    // Haskell
-    61: 'haskell',
-    
-    // Lisp
-    55: 'lisp',
-    
-    // OCaml
-    65: 'ocaml',
-    
-    // Prolog
-    69: 'prolog',
-    
-    // Octave (MATLAB)
-    66: 'matlab',
-    
-    // R
-    80: 'r',
-    
-    // Fortran
-    59: 'fortran',
-    
-    // Pascal
-    67: 'pascal',
-    
-    // D
-    56: 'd',
-    
-    // Erlang
-    58: 'erlang',
-    
-    // Elixir
-    57: 'elixir',
-    
-    // Groovy
-    88: 'groovy',
-    
-    // Clojure
-    86: 'clojure',
-    
-    // Scala
-    81: 'scala',
-    
-    // Kotlin
-    78: 'kotlin',
-    
-    // Objective-C
-    79: 'objective-c',
-    
-    // Swift
-    83: 'swift',
-    
-    // Visual Basic
-    84: 'vb',
-    
-    // Basic
-    47: 'basic',
-    
-    // COBOL
-    77: 'cobol',
-    
-    // Assembly
-    45: 'asm',
-    
-    // SQL
-    82: 'sql',
-    
-    // F#
-    87: 'fsharp',
-    
-    // Plain Text
-    43: 'plaintext',
-    
-    // Executable
-    44: 'plaintext',
-    
-    // Multi-file program
-    89: 'plaintext'
-  };
-  
-  return languageMap[languageId] || 'plaintext';
+// 언어 변경 핸들러 - 에디터 설정 재생성
+const changeLanguage = (newLanguageId: number) => {
+  selectedLanguage.value = newLanguageId;
+  const currentCode = monacoEditorRef.value?.getCurrentCode() || '';
+  editorConfig.value = languageApiService.createEditorConfig(newLanguageId, currentCode);
+  console.log('언어 변경:', newLanguageId, '에디터 재생성됨');
+};
+
+// 신고 완료 핸들러
+function handleReported() {
+  window.alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
 }
+
+// -----------------------------
+// 레이아웃: 분할바 드래그 (좌/우)
+// -----------------------------
+const leftPaneWidth = ref(50); // %
+let isDraggingLR = false;
+const startDragLeftRight = (e: MouseEvent) => {
+  isDraggingLR = true;
+  window.addEventListener('mousemove', onDragLR);
+  window.addEventListener('mouseup', stopDragLR);
+};
+const onDragLR = (e: MouseEvent) => {
+  if (!isDraggingLR) return;
+  const totalWidth = window.innerWidth;
+  const newLeft = Math.max(20, Math.min(80, (e.clientX / totalWidth) * 100));
+  leftPaneWidth.value = Math.round(newLeft);
+};
+const stopDragLR = () => {
+  isDraggingLR = false;
+  window.removeEventListener('mousemove', onDragLR);
+  window.removeEventListener('mouseup', stopDragLR);
+};
+
+// -----------------------------
+// 레이아웃: 에디터/터미널 수직 분할
+// -----------------------------
+const editorAreaHeight = ref(65); // %
+let isDraggingET = false;
+const startDragEditorTerminal = () => {
+  isDraggingET = true;
+  window.addEventListener('mousemove', onDragET);
+  window.addEventListener('mouseup', stopDragET);
+};
+const onDragET = (e: MouseEvent) => {
+  if (!isDraggingET) return;
+  const usableHeight = window.innerHeight - 200; // 상단 헤더/여백 보정
+  const rectTop = 150; // 대략적 헤더 높이 보정
+  const y = e.clientY - rectTop;
+  const next = Math.max(30, Math.min(85, (y / Math.max(usableHeight, 1)) * 100));
+  editorAreaHeight.value = Math.round(next);
+};
+const stopDragET = () => {
+  isDraggingET = false;
+  window.removeEventListener('mousemove', onDragET);
+  window.removeEventListener('mouseup', stopDragET);
+};
 
 // 초기화
 onMounted(async () => {
@@ -531,20 +453,14 @@ onMounted(async () => {
   await fetchSupportedLanguages();
   
   // 다음 강의 정보 설정 (실제로는 API에서 가져와야 함)
-  const currentLessonId = parseInt(route.params.lessonId as string);
+  const currentLectureId = parseInt(route.params.lectureId as string);
   nextLesson.value = {
-    id: currentLessonId + 1,
+    id: currentLectureId + 1,
     title: 'Introduction To Algorithms - 2강: 선택 정렬',
     format: '마크다운'
   };
   
-  // 기본 코드 예제 설정
-  code.value = `# Python 3 - Hello World
-print("Hello, World!")
-
-# 간단한 계산
-result = 10 + 20
-print(f"결과: {result}")`;
+  // 기본 코드는 Monaco Editor에서 언어별로 자동 설정됨
 });
 </script>
 
